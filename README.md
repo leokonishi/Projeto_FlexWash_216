@@ -1,16 +1,16 @@
-# Projeto_FlexWash_216
-Projeto de Desenvolvimento de Software de Gerenciamento de Lava Rápido
+# React + Vite
 
-Integrantes:
-- Leonardo Konishi Brito (Scrum Master) 
-- Rilary Fantine Lima Gomes 
-- Gustavo Melo Pereira 
-- Geovana Souza Corrêa 
-- Alexandre Guilherme dos Santos Nascimento 
-- Henrique Nunes Silva 
+This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
-Escopo: 
-A proposta do sistema é criar uma plataforma simples e eficiente para o gerenciamento completo da empresa Lava Rápido Flex. 
-O software permitirá o cadastro de clientes, registro de veículos, controle dos tipos de lavagem e gerenciamento das comissões dos funcionários.  
-A aplicação será utilizada no dia a dia da empresa, auxiliando no atendimento e na administração dos serviços prestados. 
-Com isso, a empresa terá maior organização, agilidade e controle financeiro. 
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the Oxlint configuration
+
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
