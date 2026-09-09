@@ -1,7 +1,7 @@
-/* Fundo idêntico ao do login */
+/* Fundo padronizado */
 .container-cadastro-cliente {
   min-height: 100vh;
-  background-color: #0b1120;
+  background-color: #0f172a;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -9,29 +9,30 @@
   font-family: 'Inter', sans-serif;
 }
 
-/* Cartão branco com cantos arredondados, sombra e detalhe azul no topo */
+/* Cartão com o mesmo tom escuro do login */
 .cartao-cadastro-cliente {
   max-width: 440px;
   width: 100%;
-  background-color: #ffffff;
+  background-color: #1e293b;
   padding: 2.5rem 2rem;
   border-radius: 20px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-  border-top: 4px solid #2563eb;
+  border: 1px solid #334155;
 }
 
-/* Títulos e subtítulos no padrão */
+/* Títulos adaptados ao tema escuro */
 .titulo-cadastro-cliente {
   text-align: center;
-  color: #0f172a;
+  color: #ffffff;
   font-size: 28px;
   font-weight: 800;
   margin-bottom: 0.25rem;
+  letter-spacing: 0.05em;
 }
 
 .subtitulo-cadastro-cliente {
   text-align: center;
-  color: #64748b;
+  color: #94a3b8;
   font-size: 13px;
   margin-bottom: 1.75rem;
 }
@@ -44,7 +45,7 @@
 .grupo-campo label {
   display: block;
   font-size: 11px;
-  color: #64748b;
+  color: #cbd5e1;
   margin-bottom: 6px;
   font-weight: 700;
   letter-spacing: 0.8px;
@@ -54,24 +55,28 @@
 .grupo-campo input {
   width: 100%;
   padding: 12px 14px;
-  border: 1px solid #e2e8f0;
+  background-color: #0f172a;
+  border: 1px solid #334155;
   border-radius: 10px;
   font-size: 14px;
   outline: none;
-  background-color: #ffffff;
-  color: #0f172a;
+  color: #ffffff;
   transition: all 0.2s ease;
+}
+
+.grupo-campo input::placeholder {
+  color: #64748b;
 }
 
 .grupo-campo input:focus {
   border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
-/* Botão de ação com a mesma cor escura de destaque */
+/* Botão principal de cadastro */
 .botao-cadastrar-cliente {
   width: 100%;
-  background-color: #0b1120;
+  background-color: #2563eb;
   color: white;
   padding: 14px;
   border: none;
@@ -84,19 +89,19 @@
 }
 
 .botao-cadastrar-cliente:hover {
-  background-color: #1e293b;
+  background-color: #3b82f6;
 }
 
 /* Rodapé */
 .rodape-cliente {
   text-align: center;
   font-size: 14px;
-  color: #64748b;
+  color: #94a3b8;
   margin-top: 1.5rem;
 }
 
 .rodape-cliente a {
-  color: #2563eb;
+  color: #60a5fa;
   text-decoration: none;
   font-weight: 600;
 }
