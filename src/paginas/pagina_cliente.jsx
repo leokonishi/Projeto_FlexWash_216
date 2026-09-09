@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import '../paginas_css/esqueleto_cliente.css';
+import '../paginas_css/pagina_cliente.css';
 
 export default function DashboardCliente() {
   // Estado simulando os dados do cliente que virão do banco

@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './paginas/Login';
 import CadastroCliente from './paginas/cadastro_cliente';
-import EsqueletoAdmin from './paginas/esqueleto_admin';
+import EsqueletoAdmin from './paginas/pagina_admin';
 import RotaProtegida from './rotas_protegidas';
 
 export default function App() {
