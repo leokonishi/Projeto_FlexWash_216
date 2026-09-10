@@ -3,13 +3,18 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "scripts": {
-    "dev": "vite",
+"scripts": {
+    "dev:frontend": "vite",
+    "dev:backend": "nodemon src/index.js",
+    "start:backend": "node src/index.js",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
@@ -19,9 +24,23 @@
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.1.0",
     "autoprefixer": "^10.5.4",
+    "nodemon": "^3.1.14",
     "oxlint": "^1.79.0",
     "postcss": "^8.5.26",
     "tailwindcss": "^4.3.3",
     "vite": "^8.2.2"
-  }
+  },
+  "description": "This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.",
+  "main": "postcss.config.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/leokonishi/Projeto_FlexWash_216.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/leokonishi/Projeto_FlexWash_216/issues"
+  },
+  "homepage": "https://github.com/leokonishi/Projeto_FlexWash_216#readme"
 }
