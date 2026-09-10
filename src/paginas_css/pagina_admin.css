@@ -1,0 +1,483 @@
+.admin-layout-claro {
+  min-height: 100vh;
+  background-color: #f1f5f9;
+  color: #1e293b;
+  font-family: 'Inter', sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header Superior Escuro com texto branco (igual à imagem) */
+.header-claro {
+  height: 65px;
+  background-color: #0f172a;
+  border-bottom: 1px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  color: #ffffff;
+}
+
+.brand-claro {
+  font-size: 1.2rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: #ffffff;
+}
+
+.header-right-claro {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.badge-demo-claro {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.user-profile-claro {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.user-text-claro {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+}
+
+.user-text-claro strong {
+  font-size: 0.85rem;
+  color: #ffffff;
+}
+
+.user-text-claro small {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.user-avatar-claro {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: #fff;
+}
+
+.btn-sair-claro {
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.375rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Corpo Principal */
+.corpo-dashboard-claro {
+  display: flex;
+  flex: 1;
+}
+
+/* Sidebar Esquerda Branca */
+.sidebar-claro {
+  width: 250px;
+  background-color: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.nav-titulo-claro {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.nav-titulo-claro.separator {
+  margin-top: 1.5rem;
+}
+
+.sidebar-btn-claro {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: #475569;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sidebar-btn-claro:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.sidebar-btn-claro.ativo {
+  background-color: #eff6ff;
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.sidebar-footer-claro {
+  margin-top: auto;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* Main Area Clara */
+.main-claro {
+  flex: 1;
+  padding: 1.5rem 2rem;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Sub-nav Abas Superiores */
+.subnav-tabs-claro {
+  display: flex;
+  gap: 0.5rem;
+  background-color: #ffffff;
+  padding: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.subtab-btn-claro {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.subtab-btn-claro:hover {
+  color: #0f172a;
+  background-color: #f8fafc;
+}
+
+.subtab-btn-claro.ativo {
+  background-color: #2563eb;
+  color: white;
+}
+
+/* Cards Métricas Claros */
+.cards-metrica-grid-claro {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.card-m-item-claro {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.card-m-header-claro {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.card-m-title-claro {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.05em;
+}
+
+.card-m-number-claro {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-top: 0.2rem;
+}
+
+.card-m-number-claro.text-green-claro {
+  color: #059669;
+}
+
+.card-icon-blue-claro, .card-icon-green-claro, .card-icon-yellow-claro {
+  width: 36px;
+  height: 36px;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+.card-icon-blue-claro { background-color: #eff6ff; color: #2563eb; }
+.card-icon-green-claro { background-color: #ecfdf5; color: #059669; }
+.card-icon-yellow-claro { background-color: #fffbeb; color: #d97706; }
+
+.progress-row-claro {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.progress-bar-bg-claro {
+  width: 100%;
+  height: 6px;
+  background-color: #f1f5f9;
+  border-radius: 3px;
+  margin-top: 0.25rem;
+  overflow: hidden;
+}
+
+.progress-fill-claro {
+  height: 100%;
+  background-color: #2563eb;
+  border-radius: 3px;
+}
+
+.mt-2 { margin-top: 0.5rem; }
+
+.card-footer-info-claro {
+  font-size: 0.7rem;
+  color: #64748b;
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tag-meta-claro {
+  color: #059669;
+  font-weight: 700;
+}
+
+.patio-status-list-claro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.patio-status-row-claro {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f8fafc;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.8rem;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+}
+
+.badge-num-claro {
+  background-color: #e2e8f0;
+  color: #334155;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.badge-num-claro.blue {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+/* Seção Pátio Tabela Clara */
+.secao-patio-box-claro {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.secao-patio-header-claro {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.secao-patio-header-claro h3 {
+  font-size: 1.1rem;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.secao-patio-header-claro p {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-top: 0.1rem;
+}
+
+.btn-painel-operacional-claro {
+  background-color: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.375rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tabela-claro-container {
+  overflow-x: auto;
+}
+
+.tabela-claro {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.tabela-claro th {
+  background-color: #f8fafc;
+  color: #64748b;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.tabela-claro td {
+  padding: 1rem;
+  font-size: 0.85rem;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.placa-sub-claro {
+  font-size: 0.7rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.hora-sub-claro {
+  font-size: 0.65rem;
+  color: #2563eb;
+  margin-top: 0.1rem;
+}
+
+.tel-sub-claro {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.valor-sub-claro {
+  font-size: 0.75rem;
+  color: #059669;
+  font-weight: 600;
+}
+
+.badge-porte-claro {
+  background-color: #f1f5f9;
+  color: #475569;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+}
+
+.status-pill-claro {
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.status-pill-claro.andamento {
+  background-color: #eff6ff;
+  color: #2563eb;
+}
+
+.acoes-btns-claro {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.btn-concluir-claro {
+  background-color: #10b981;
+  color: #ffffff;
+  border: none;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-concluir-claro:hover {
+  background-color: #059669;
+}
+
+.btn-lixeira-claro {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.btn-lixeira-claro:hover {
+  color: #ef4444;
+}
+
+/* Botão Flutuante Inferior Direito */
+.btn-nova-lavagem-flutuante-claro {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background-color: #0f172a;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.25rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-nova-lavagem-flutuante-claro:hover {
+  background-color: #1e293b;
+}

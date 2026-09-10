@@ -1,5 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import Login from './paginas/cadastro_cliente';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './paginas/Login';
+import CadastroCliente from './paginas/cadastro_cliente';
+import EsqueletoAdmin from './paginas/pagina_admin';
+import RotaProtegida from './rotas_protegidas';
 
 export default function App() {
   // Estado para guardar a mensagem que vem do backend
@@ -17,16 +21,25 @@ export default function App() {
   }, []);
 
   return (
-    <div>
-      {/* BARRA DE TESTE - Você pode apagar esta div inteira depois */}
-      <div style={{ backgroundColor: '#222', color: '#fff', padding: '10px', textAlign: 'center' }}>
-        Status do Servidor: <strong style={{ color: mensagemBackend.includes('Erro') ? '#ff4444' : '#00C851' }}>
-          {mensagemBackend || 'Conectando...'}
-        </strong>
-      </div>
+    <BrowserRouter>
+      <Routes>
+        {/* Redireciona a raiz "/" direto para a tela de login */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
 
-      {/* Sua tela de cadastro original continua renderizando normalmente aqui */}
-      <Login />
-    </div>
+        {/* Rotas Públicas */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/cadastro" element={<CadastroCliente />} />
+
+        {/* Rota Protegida do Administrador */}
+        <Route 
+          path="/admin" 
+          element={
+            <RotaProtegida>
+              <EsqueletoAdmin />
+            </RotaProtegida>
+          } 
+        />
+      </Routes>
+    </BrowserRouter>
   );
 }

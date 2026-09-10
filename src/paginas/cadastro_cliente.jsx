@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import '../paginas_css/Cadastro_Cliente.css';
 
 export default function CadastroCliente() {
@@ -78,7 +79,7 @@ export default function CadastroCliente() {
         </form>
 
         <p className="rodape-cliente">
-          Já tem uma conta? <a href="/login">Faça login</a>
+          Já tem uma conta? <a href="/Login">Faça login</a>
         </p>
       </div>
     </div>
