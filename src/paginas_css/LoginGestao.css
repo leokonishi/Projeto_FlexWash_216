@@ -1,0 +1,149 @@
+/* Fundo geral da tela de gestão */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #0d1322; /* Azul escuro bem profundo */
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  padding: 20px;
+}
+
+/* Cartão central do login */
+.login-card {
+  background: #ffffff;
+  padding: 40px;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Detalhe de linha azul no topo do cartão */
+.login-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: linear-gradient(90deg, #0052cc, #2684ff);
+}
+
+/* Espaço para o ícone/logo no topo */
+.logo-placeholder {
+  width: 50px;
+  height: 50px;
+  background-color: #f0f4f8;
+  border-radius: 12px;
+  margin: 0 auto 15px auto;
+}
+
+/* Títulos do card */
+.login-card h2 {
+  text-align: center;
+  color: #1a202c;
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.subtitulo {
+  text-align: center;
+  color: #718096;
+  font-size: 13px;
+  margin-bottom: 25px;
+}
+
+/* Rótulos dos campos */
+.label-campo {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #a0aec0;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  margin-top: 16px;
+}
+
+/* Seletor de Perfis (Administrador / Funcionário) */
+.perfil-selector {
+  display: flex;
+  background-color: #f7fafc;
+  border-radius: 10px;
+  padding: 4px;
+  gap: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.perfil-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #718096;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.perfil-btn.ativo {
+  background-color: #ffffff;
+  color: #0052cc;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+/* Inputs de texto e senha */
+.input-wrapper input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background-color: #fcfdfe;
+  font-size: 14px;
+  color: #2d3748;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.input-wrapper input:focus {
+  border-color: #2684ff;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(38, 132, 255, 0.1);
+}
+
+/* Mensagem de erro */
+.erro-msg {
+  background-color: #fff5f5;
+  color: #e53e3e;
+  font-size: 12px;
+  padding: 10px;
+  border-radius: 6px;
+  margin-top: 15px;
+  text-align: center;
+  border: 1px solid #feb2b2;
+}
+
+/* Botão de envio (Acessar Painel) */
+.submit-btn {
+  width: 100%;
+  background-color: #0d1322;
+  color: #ffffff;
+  border: none;
+  padding: 14px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 25px;
+  transition: background-color 0.2s;
+}
+
+.submit-btn:hover {
+  background-color: #1a2639;
+}

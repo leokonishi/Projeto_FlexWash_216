@@ -37,7 +37,7 @@ router.post('/login', (req, res) => {
 
       // Gera o Token JWT válido por 2 horas
       const token = jwt.sign(
-        { id: cliente.id, email: cliente.email, nome: cliente.nome },
+        { id: cliente.id, email: cliente.email, perfil: cliente.perfil }, // permite que somente o cliente acesse a pagina de cliente 
         JWT_SECRET,
         { expiresIn: '2h' }
       );
