@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home - Flex Wash</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #1e2f61;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .home-box {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .home-box h3 {
+            color: #1c2541;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .home-box p {
+            color: #4a5568;
+            font-size: 15px;
+            margin-bottom: 25px;
+        }
+
+        /* Botão de Sair / Logout */
+        .btn-sair {
+            width: 100%;
+            padding: 12px;
+            background-color: #d90429; /* Tom avermelhado para indicar ação de sair */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            text-decoration: none;
+        }
+
+        .btn-sair:hover {
+            background-color: #8d0801;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="home-box">
+        <h3>Bem-vindo!</h3>
+        <p>Você está logado com sucesso no sistema.</p>
+        
+        <!-- Botão para voltar à tela de login -->
+        <a href="login.html" class="btn-sair">Sair da Conta</a>
+    </div>
+
+</body>
+</html>

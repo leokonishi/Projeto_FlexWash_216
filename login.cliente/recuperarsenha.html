@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recuperar Senha - Flex Wash</title>
+
+    <!-- css -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #1e2f61; /* Azul escuro padrão */
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-box {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .login-box h2 {
+            color: #1c2541;
+            margin-bottom: 10px;
+            font-size: 26px;
+        }
+
+        .login-box p {
+            color: #4a5568;
+            font-size: 13px;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .login-box form {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .login-box input[type="email"] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #dcdcdc;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .login-box input[type="email"]:focus {
+            border-color: #3a506b;
+        }
+
+        .login-box input[type="submit"] {
+            width: 100%;
+            padding: 12px;
+            background-color: #1c2541;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 5px;
+        }
+
+        .login-box input[type="submit"]:hover {
+            background-color: #3a506b;
+        }
+
+        .login-box a {
+            margin-top: 20px;
+            color: #48cae4;
+            text-decoration: none;
+            font-size: 13px;
+            text-align: center;
+            transition: color 0.2s;
+        }
+
+        .login-box a:hover {
+            text-decoration: underline;
+            color: #0077b6;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-box">
+        <h2>Recuperar Senha</h2>
+        <p>Digite seu e-mail cadastrado e enviaremos instruções para redefinir sua senha.</p>
+        
+        <form onsubmit="RecuperarSenha(event)">
+            <input type="email" id="email-recuperacao" placeholder="Digite seu e-mail" name="email" required>         
+            <input type="submit" value="Enviar Instruções">
+        </form>
+        
+        <a href="login.html">Voltar para o Login</a>
+    </div>
+
+    <script>
+        function RecuperarSenha(event) {
+            event.preventDefault();
+            
+            var emailDigitado = document.getElementById("email-recuperacao").value;
+            
+            // Aqui você pode simular o envio ou checar se bate com o localStorage
+            var emailSalvo = localStorage.getItem("usuarioEmail");
+
+            if (emailDigitado === emailSalvo) {
+                alert("Instruções de recuperação enviadas para o seu e-mail!");
+                location.href = "login.html";
+            } else {
+                alert("Este e-mail não está cadastrado em nosso sistema.");
+            }
+        }
+    </script>
+
+</body>
+</html>
