@@ -20,8 +20,10 @@ export default function Login() {
       const resultado = await resposta.json();
 
       if (resposta.ok) {
+       localStorage.setItem('token_flexwash', resultado.token);
+
         alert(resultado.mensagem || 'Login realizado com sucesso!');
-        navigate('/dashboard'); // Ajuste para a rota principal do seu painel
+        navigate('/dashboard');
       } else {
         alert(resultado.mensagem || 'E-mail ou senha inválidos.');
       }
@@ -29,6 +31,7 @@ export default function Login() {
       console.error('Erro na requisição:', erro);
       alert('Não foi possível conectar ao servidor.');
     }
+
   };
 
   return (

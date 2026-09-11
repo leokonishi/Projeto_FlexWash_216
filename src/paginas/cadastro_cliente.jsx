@@ -44,7 +44,7 @@ export default function CadastroCliente() {
   return (
     <div className="container-cadastro-cliente">
       <div className="cartao-cadastro-cliente">
-        <h1 className="titulo-cadastro-cliente">Flex Wash</h1>
+        <h1 className="titulo-cadastro-cliente">Flex Wash Cliente</h1>
         <p className="subtitulo-cadastro-cliente">Gestão Inteligente de Estética Automotiva</p>
 
         <form onSubmit={aoEnviarFormulario}>

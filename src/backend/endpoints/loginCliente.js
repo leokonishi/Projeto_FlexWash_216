@@ -1,7 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken'); // Importa o JWT
 const db = require('../bd');
+
+// Defina uma chave secreta para assinar os tokens
+const JWT_SECRET = 'flexwash_chave_secreta_super_segura';
 
 router.post('/login', (req, res) => {
   const { email, senha } = req.body;
@@ -22,23 +26,27 @@ router.post('/login', (req, res) => {
       return res.status(401).json({ sucesso: false, mensagem: 'E-mail ou senha inválidos.' });
     }
 
-
     const cliente = resultados[0];
-  console.log('Cliente encontrado no banco:', cliente.email);
-  console.log('Hash salvo no banco:', cliente.senha);
 
     try {
-      // Compara a senha digitada com o hash salvo no banco
       const senhaCorreta = await bcrypt.compare(senha, cliente.senha);
 
       if (!senhaCorreta) {
         return res.status(401).json({ sucesso: false, mensagem: 'E-mail ou senha inválidos.' });
       }
 
-      // Login bem-sucedido (Corrigido de return.status para res.status)
+      // Gera o Token JWT válido por 2 horas
+      const token = jwt.sign(
+        { id: cliente.id, email: cliente.email, nome: cliente.nome },
+        JWT_SECRET,
+        { expiresIn: '2h' }
+      );
+
+      // Retorna o token junto com a mensagem de sucesso
       return res.status(200).json({
         sucesso: true,
         mensagem: 'Login realizado com sucesso!',
+        token,
         usuario: {
           id: cliente.id,
           nome: cliente.nome,
