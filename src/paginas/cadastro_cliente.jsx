@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import '../paginas_css/Cadastro_Cliente.css';
 
 export default function CadastroCliente() {
+  const navigate = useNavigate(); // Inicializa o ganho de navegação
+
   const [formulario, setFormulario] = useState({
     nome: '',
     email: '',
@@ -14,7 +16,7 @@ export default function CadastroCliente() {
     setFormulario({ ...formulario, [e.target.name]: e.target.value });
   };
 
-const aoEnviarFormulario = async (e) => {
+  const aoEnviarFormulario = async (e) => {
     e.preventDefault();
     
     try {
@@ -30,8 +32,9 @@ const aoEnviarFormulario = async (e) => {
 
       if (resposta.ok) {
         alert(resultado.mensagem || 'Cliente cadastrado com sucesso!');
-        // Opcional: limpar o formulário após o sucesso
-        setFormulario({ nome: '', email: '', senha: '', telefone: '' });
+        
+        // Redireciona para a página de login configurada nas suas rotas
+        navigate('/Login'); 
       } else {
         alert(resultado.mensagem || 'Erro ao cadastrar cliente.');
       }
@@ -101,7 +104,7 @@ const aoEnviarFormulario = async (e) => {
         </form>
 
         <p className="rodape-cliente">
-          Já tem uma conta? <a href="/Login">Faça login</a>
+          Já tem uma conta? <Link to="/Login">Faça login</Link>
         </p>
       </div>
     </div>

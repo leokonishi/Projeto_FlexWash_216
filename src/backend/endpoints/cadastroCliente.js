@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcrypt'); // Importa a biblioteca de criptografia
+const bcrypt = require('bcrypt');
 const db = require('../bd'); 
 
 router.post('/clientes', async (req, res) => {
@@ -11,7 +11,6 @@ router.post('/clientes', async (req, res) => {
   }
 
   try {
-    // Define o custo do hash (número de rounds) e criptografa a senha
     const saltRounds = 10;
     const senhaCriptografada = await bcrypt.hash(senha, saltRounds);
 
