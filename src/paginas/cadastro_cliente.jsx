@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import '../paginas_css/Cadastro_Cliente.css';
 
 export default function CadastroCliente() {
@@ -14,9 +14,31 @@ export default function CadastroCliente() {
     setFormulario({ ...formulario, [e.target.name]: e.target.value });
   };
 
-  const aoEnviarFormulario = (e) => {
+const aoEnviarFormulario = async (e) => {
     e.preventDefault();
-    console.log('Dados de cadastro do cliente:', formulario);
+    
+    try {
+      const resposta = await fetch('http://localhost:8080/api/clientes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formulario),
+      });
+
+      const resultado = await resposta.json();
+
+      if (resposta.ok) {
+        alert(resultado.mensagem || 'Cliente cadastrado com sucesso!');
+        // Opcional: limpar o formulário após o sucesso
+        setFormulario({ nome: '', email: '', senha: '', telefone: '' });
+      } else {
+        alert(resultado.mensagem || 'Erro ao cadastrar cliente.');
+      }
+    } catch (erro) {
+      console.error('Erro na requisição:', erro);
+      alert('Não foi possível conectar ao servidor. Verifique se o backend está rodando.');
+    }
   };
 
   return (
