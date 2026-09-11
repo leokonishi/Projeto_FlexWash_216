@@ -1,14 +1,34 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import '../paginas_css/Login.css';
 
 export default function Login() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    console.log("Tentando logar com:", email, senha);
+    
+    try {
+      const resposta = await fetch('http://localhost:8080/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, senha }),
+      });
+
+      const resultado = await resposta.json();
+
+      if (resposta.ok) {
+        alert(resultado.mensagem || 'Login realizado com sucesso!');
+        navigate('/dashboard'); // Ajuste para a rota principal do seu painel
+      } else {
+        alert(resultado.mensagem || 'E-mail ou senha inválidos.');
+      }
+    } catch (erro) {
+      console.error('Erro na requisição:', erro);
+      alert('Não foi possível conectar ao servidor.');
+    }
   };
 
   return (

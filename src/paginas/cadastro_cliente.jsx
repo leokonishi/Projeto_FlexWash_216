@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import '../paginas_css/Cadastro_Cliente.css';
 
 export default function CadastroCliente() {
+  const navigate = useNavigate();
   const [formulario, setFormulario] = useState({
     nome: '',
     email: '',
@@ -14,9 +15,30 @@ export default function CadastroCliente() {
     setFormulario({ ...formulario, [e.target.name]: e.target.value });
   };
 
-  const aoEnviarFormulario = (e) => {
+  const aoEnviarFormulario = async (e) => {
     e.preventDefault();
-    console.log('Dados de cadastro do cliente:', formulario);
+
+    try {
+      const resposta = await fetch('http://localhost:8080/api/clientes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formulario),
+      });
+
+      const resultado = await resposta.json();
+
+      if (resposta.ok) {
+        alert(resultado.mensagem || 'Cliente cadastrado com sucesso!');
+        navigate('/Login');
+      } else {
+        alert(resultado.mensagem || 'Erro ao realizar cadastro.');
+      }
+    } catch (erro) {
+      console.error('Erro na conexão com o servidor:', erro);
+      alert('Não foi possível conectar ao servidor backend.');
+    }
   };
 
   return (
@@ -79,7 +101,7 @@ export default function CadastroCliente() {
         </form>
 
         <p className="rodape-cliente">
-          Já tem uma conta? <a href="/Login">Faça login</a>
+          Já tem uma conta? <Link to="/Login">Faça login</Link>
         </p>
       </div>
     </div>

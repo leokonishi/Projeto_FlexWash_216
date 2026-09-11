@@ -11,6 +11,8 @@ app.use(express.json());
 // Registra o endpoint de cadastro
 app.use('/api', cadastroCliente);
 
+app.use('/api', require('./endpoints/loginCliente'));
+
 app.listen(PORTA, () => {
   console.log(`Servidor rodando na porta ${PORTA}`);
 });
