@@ -21,7 +21,7 @@ export default function CadastroCliente() {
     e.preventDefault();
     
     try {
-      const resposta = await fetch('http://localhost:8080/api/clientes', {
+      const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/clientes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
