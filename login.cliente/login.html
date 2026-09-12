@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <style>/* Reset básico e estilização do fundo */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #1e2f61; /* Azul escuro igual à referência */
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Caixa principal de login */
+.login-box {
+    background-color: #ffffff;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Título */
+.login-box h2 {
+    color: #1c2541;
+    margin-bottom: 24px;
+    font-size: 28px;
+}
+
+/* Formulário e Inputs */
+.login-box form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Espaçamento entre os inputs */
+}
+
+.login-box input[type="email"],
+.login-box input[type="password"] {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #dcdcdc;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.login-box input[type="email"]:focus,
+.login-box input[type="password"]:focus {
+    border-color: #3a506b; /* Cor do input quando selecionado */
+}
+
+/* Botão de Entrar */
+.login-box input[type="submit"] {
+    width: 100%;
+    padding: 12px;
+    background-color: #1c2541; /* Cor escura combinando com o tema */
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin-top: 5px;
+}
+
+.login-box input[type="submit"]:hover {
+    background-color: #3a506b;
+}
+
+/* Links de navegação (Cadastro / Esqueceu a senha) */
+.login-box a {
+    margin-top: 15px;
+    color: #48cae4;
+    text-decoration: none;
+    font-size: 13px;
+    text-align: center;
+    transition: color 0.2s;
+}
+
+.login-box a:hover {
+    text-decoration: underline;
+    color: #0077b6;
+}</style>
+
+</head>
+
+<body>
+    <div class="login-box">
+        <h2>FLEX WASH</h2>
+        <form onsubmit="Logar(event)">
+   
+    <input type="email" id="email" placeholder="Email" name="email" required>        
+    <input type="password" id="password" placeholder="Senha" name="password" required>
+    
+    
+    <input type="submit" value="Entrar">
+</form>
+        <a href="cadastro.html">Ainda não possui cadastro?</a>
+        <a href="recuperarsenha.html">Esqueceu sua senha?</a>
+    </div>
+
+    <script>
+
+    function Logar(event) {
+        event.preventDefault();
+
+        // Nomes corretos batendo com os IDs dos inputs
+        var emailDigitado = document.getElementById("email").value;
+        var senhaDigitada = document.getElementById("password").value;
+
+        // Pega os dados salvos no navegador
+        var emailSalvo = localStorage.getItem("usuarioEmail");
+        var senhaSalva = localStorage.getItem("usuarioSenha");
+
+        // Compara o que foi digitado com o que está salvo
+        if (emailDigitado === emailSalvo && senhaDigitada === senhaSalva) {
+            alert("Login bem-sucedido!");
+            location.href = "home.html";
+        } else {
+            alert("Email ou senha incorretos.");
+        }
+    }
+
+    </script>
+
+
+</body>
+</html>

@@ -12,9 +12,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
+<<<<<<< HEAD
+    "jsonwebtoken": "^9.0.3",
+=======
+    "@rolldown/binding-win32-x64-msvc": "^1.2.8",
+>>>>>>> 281b8036f553278d45215c5b5bd1a98b6d83904f
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.3"
