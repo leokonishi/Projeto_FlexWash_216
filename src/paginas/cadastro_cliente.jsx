@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import '../paginas_css/Cadastro_Cliente.css';
+// CORREÇÃO: Nome do arquivo exatamente igual ao que está na pasta (tudo minúsculo)
+import '../paginas_css/cadastro_cliente.css';
 
 export default function CadastroCliente() {
   const navigate = useNavigate(); // Inicializa o ganho de navegação

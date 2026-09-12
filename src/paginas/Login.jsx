@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import '../paginas_css/Login.css';
+import '../paginas_css/login.css';
 
 export default function Login() {
   const [email, setEmail] = useState('');
