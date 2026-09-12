@@ -69,6 +69,20 @@ app.put('/api/lavagens/:id/concluir', (req, res) => {
   res.json({ sucesso: true, mensagem: `Serviço ${id} concluído com sucesso!` });
 });
 
+// Rota de Login para autenticar o usuário
+app.post('/api/login', (req, res) => {
+  const { email, senha } = req.body;
+  res.json({
+    sucesso: true,
+    mensagem: "Login realizado com sucesso!",
+    token: "token_fake_flexwash_123456",
+    usuario: {
+      nome: "Gustavo Melo",
+      cargo: "ADMINISTRADOR"
+    }
+  });
+});
+
 // ==========================================
 
 const PORT = process.env.PORT || 3000;
