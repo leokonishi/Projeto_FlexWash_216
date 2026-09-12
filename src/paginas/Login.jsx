@@ -23,7 +23,7 @@ export default function Login() {
        localStorage.setItem('token_flexwash', resultado.token);
 
         alert(resultado.mensagem || 'Login realizado com sucesso!');
-        navigate('/dashboard');
+        navigate('/PaginaCliente');
       } else {
         alert(resultado.mensagem || 'E-mail ou senha inválidos.');
       }

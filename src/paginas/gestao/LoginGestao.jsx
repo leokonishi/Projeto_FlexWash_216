@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import '../paginas_css/LoginGestao.css';; // Opcional para seus estilos específicos
+import '../../paginas_css/LoginGestao.css'; // Opcional para seus estilos específicos
 
 export default function LoginGestao() {
-  const [perfilSelecionado, setPerfilSelecionado] = useState('administrador'); // 'administrador' ou 'funcionario'
+  const [perfilSelecionado, setPerfilSelecionado] = useState('administrador');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
-    
     e.preventDefault();
     setErro('');
 
@@ -27,12 +26,24 @@ export default function LoginGestao() {
         throw new Error(resultado.mensagem || 'Erro ao realizar login.');
       }
 
+      // Validação adicional de segurança no front-end:
+      // Se o usuário logou com sucesso, mas o perfil real dele no banco for 'funcionario' 
+      // e ele tentou forçar o login selecionando a aba 'administrador', barramos aqui.
+      if (resultado.usuario.perfil === 'funcionario' && perfilSelecionado === 'administrador') {
+        alert('Erro: Este usuário é um Funcionário e não possui permissão de Administrador!');
+        setErro('Acesso negado: Perfil de administrador inválido para este usuário.');
+        return;
+      }
+
+      // Alerta de login bem-sucedido com o nome do usuário
+      alert(`Login bem-sucedido! Bem-vindo(a), ${resultado.usuario.nome}.`);
+
       // Salva o token no navegador
       localStorage.setItem('token_flexwash', resultado.token);
 
-      // Redireciona com base no perfil retornado ou selecionado
-      if (perfilSelecionado === 'administrador') {
-        navigate('/admin/dashboard');
+      // Redireciona com base no perfil validado
+      if (resultado.usuario.perfil === 'administrador') {
+        navigate('/admin');
       } else {
         navigate('/funcionario/painel');
       }
