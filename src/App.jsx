@@ -12,7 +12,7 @@ export default function App() {
 
   useEffect(() => {
     // Tenta conectar com a API na porta 3000
-    fetch('http://localhost:3000/')
+    fetch(`${import.meta.env.VITE_API_URL}/`)
       .then(resposta => resposta.json())
       .then(dados => setMensagemBackend(dados.message))
       .catch(erro => {

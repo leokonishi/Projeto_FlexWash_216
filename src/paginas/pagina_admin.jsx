@@ -17,17 +17,21 @@ export default function PaginaAdmin() {
   const [listaPatio, setListaPatio] = useState([]);
   const [carregando, setCarregando] = useState(true);
 
-  // Preparado para buscar dados do backend futuramente
+  // Busca de dados utilizando a API de produção da Vercel
   useEffect(() => {
     async function buscarDadosDoBackend() {
       try {
-        // FUTURO: Substitua pela chamada real da API
-        // const resposta = await fetch('http://localhost:8080/api/dashboard', {
-        //   headers: { 'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` }
-        // });
-        // const dados = await resposta.json();
+        const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/dashboard`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` }
+        });
 
-        setTimeout(() => {
+        if (resposta.ok) {
+          const dados = await resposta.json();
+          // Se o backend retornar os dados reais, atualizamos aqui:
+          if (dados.metricas) setMetricas(dados.metricas);
+          if (dados.listaPatio) setListaPatio(dados.listaPatio);
+        } else {
+          // Fallback temporário se a rota do backend ainda estiver em construção
           setMetricas({
             veiculosDoDia: 3,
             portes: { pequeno: 1, medio: 1, grande: 1 },
@@ -53,10 +57,11 @@ export default function PaginaAdmin() {
               enderecoLevaTraz: 'Rua das Flores, 123 - Barueri/SP'
             }
           ]);
-          setCarregando(false);
-        }, 500);
+        }
+        setCarregando(false);
       } catch (erro) {
         console.error("Erro ao carregar dados do backend:", erro);
+        // Fallback de segurança para a tela não quebrar
         setCarregando(false);
       }
     }
@@ -75,7 +80,10 @@ export default function PaginaAdmin() {
 
   const handleConcluirServico = async (idServico) => {
     try {
-      // FUTURO: await fetch(`http://localhost:8080/api/lavagens/${idServico}/concluir`, { method: 'PUT' });
+      await fetch(`${import.meta.env.VITE_API_URL}/api/lavagens/${idServico}/concluir`, { 
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` }
+      });
       alert(`Serviço ${idServico} concluído com sucesso!`);
     } catch (erro) {
       alert("Erro ao concluir o serviço.");
