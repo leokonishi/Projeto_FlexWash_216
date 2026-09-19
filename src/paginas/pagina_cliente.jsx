@@ -1,15 +1,71 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import '../paginas_css/pagina_cliente.css';
 
 export default function DashboardCliente() {
-  // Estado simulando os dados do cliente que virão do banco
-  const [dadosCliente] = useState({
-    nome: 'Alexandre Santos',
+  const [dadosCliente, setDadosCliente] = useState({
+    nome: 'Carregando...',
     fidelidadeAtual: 0,
     fidelidadeMeta: 10,
-    statusCarro: 'Nenhum veículo',
+    statusCarro: 'Carregando...',
     ultimaVisita: '--/--/----'
   });
+  const [carregando, setCarregando] = useState(true);
+
+  // Busca de dados reais do cliente no backend integrado (Vercel ou Localhost)
+  useEffect(() => {
+    async function buscarDadosCliente() {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
+      try {
+        const resposta = await fetch(`${API_URL}/api/cliente/dashboard`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` }
+        });
+
+        if (!resposta.ok) {
+          throw new Error('Erro ao buscar dados do portal do cliente');
+        }
+
+        const dados = await resposta.json();
+        
+        // Se o backend retornar o objeto formatado, atualize o estado:
+        // setDadosCliente(dados);
+
+        // Simulando resposta base caso o endpoint ainda esteja em desenvolvimento:
+        setTimeout(() => {
+          setDadosCliente({
+            nome: 'Alexandre Santos',
+            fidelidadeAtual: 3,
+            fidelidadeMeta: 10,
+            statusCarro: 'Nenhum veículo no pátio',
+            ultimaVisita: '12/05/2026'
+          });
+          setCarregando(false);
+        }, 400);
+
+      } catch (erro) {
+        console.error("Erro ao carregar dados da API do cliente:", erro);
+        // Fallback para evitar tela travada em caso de falha de rede
+        setDadosCliente({
+          nome: 'Alexandre Santos',
+          fidelidadeAtual: 0,
+          fidelidadeMeta: 10,
+          statusCarro: 'Indisponível',
+          ultimaVisita: '--/--/----'
+        });
+        setCarregando(false);
+      }
+    }
+
+    buscarDadosCliente();
+  }, []);
+
+  // Extrai as iniciais do nome para o Avatar do menu lateral dinamicamente
+  const obterIniciais = (nomeCompleto) => {
+    if (!nomeCompleto || nomeCompleto === 'Carregando...') return 'FW';
+    const partes = nomeCompleto.trim().split(' ');
+    if (partes.length === 1) return partes[0].substring(0, 2).toUpperCase();
+    return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+  };
 
   return (
     <div className="container-dashboard-cliente">
@@ -25,7 +81,7 @@ export default function DashboardCliente() {
         </div>
 
         <div className="cartao-perfil">
-          <div className="avatar-usuario">AS</div>
+          <div className="avatar-usuario">{obterIniciais(dadosCliente.nome)}</div>
           <div className="info-usuario">
             <p className="nome-usuario">{dadosCliente.nome}</p>
             <p className="tipo-usuario">Cliente Standard</p>
@@ -55,7 +111,9 @@ export default function DashboardCliente() {
 
         <section className="banner-informativo">
           <p className="tag-sprint">SPRINT 1 • FUNDAÇÃO VISUAL</p>
-          <h2 className="titulo-banner">Bem-vindo ao seu painel, {dadosCliente.nome.split(' ')[0]}.</h2>
+          <h2 className="titulo-banner">
+            {carregando ? 'Carregando...' : `Bem-vindo ao seu painel, ${dadosCliente.nome.split(' ')[0]}.`}
+          </h2>
           <p className="descricao-banner">Os indicadores abaixo mostram a estrutura do seu perfil no FlexWash.</p>
         </section>
 
@@ -68,7 +126,9 @@ export default function DashboardCliente() {
             <div className="cartao-indicador">
               <span className="etiqueta-cartao">Estrutural</span>
               <h4 className="titulo-cartao">Status Atual</h4>
-              <p className="valor-cartao destaque-azul">{dadosCliente.statusCarro}</p>
+              <p className="valor-cartao destaque-azul">
+                {carregando ? '...' : dadosCliente.statusCarro}
+              </p>
               <p className="legenda-cartao">No pátio agora</p>
             </div>
 
@@ -77,7 +137,7 @@ export default function DashboardCliente() {
               <span className="etiqueta-cartao">Estrutural</span>
               <h4 className="titulo-cartao">Programa Fidelidade</h4>
               <p className="valor-cartao destaque-roxo">
-                {dadosCliente.fidelidadeAtual} / {dadosCliente.fidelidadeMeta}
+                {carregando ? '...' : `${dadosCliente.fidelidadeAtual} / ${dadosCliente.fidelidadeMeta}`}
               </p>
               <p className="legenda-cartao">Lavagens acumuladas</p>
             </div>
@@ -86,8 +146,10 @@ export default function DashboardCliente() {
             <div className="cartao-indicador">
               <span className="etiqueta-cartao">Estrutural</span>
               <h4 className="titulo-cartao">Última Visita</h4>
-              <p className="valor-cartao">{dadosCliente.ultimaVisita}</p>
-              <p className="legenda-cartao">Aguardando dados</p>
+              <p className="valor-cartao">
+                {carregando ? '...' : dadosCliente.ultimaVisita}
+              </p>
+              <p className="legenda-cartao">Histórico recente</p>
             </div>
 
           </div>

@@ -10,8 +10,11 @@ export default function Login() {
   const handleLogin = async (e) => {
     e.preventDefault();
     
+    // Define a URL base da API (pega da Vercel em produção ou usa o localhost para testes)
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
     try {
-      const resposta = await fetch('http://localhost:8080/api/login', {
+      const resposta = await fetch(`${API_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, senha }),
@@ -20,7 +23,7 @@ export default function Login() {
       const resultado = await resposta.json();
 
       if (resposta.ok) {
-       localStorage.setItem('token_flexwash', resultado.token);
+        localStorage.setItem('token_flexwash', resultado.token);
 
         alert(resultado.mensagem || 'Login realizado com sucesso!');
         navigate('/PaginaCliente');

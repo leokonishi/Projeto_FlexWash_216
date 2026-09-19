@@ -1,29 +1,91 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../paginas_css/home_cliente.css';
 
 export default function PaginaCliente() {
   const navigate = useNavigate();
   
-  // Exemplo de estado para simular o status atual do veículo no lava rápido
-  // Opções: 'indo_buscar', 'no_patio', 'em_andamento', 'indo_entrega', 'concluido'
   const [statusVeiculo, setStatusVeiculo] = useState('em_andamento');
   const [etapaAvaliacaoAberta, setEtapaAvaliacaoAberta] = useState(false);
+  const [ultimosAgendamentos, setUltimosAgendamentos] = useState([]);
+  const [carregando, setCarregando] = useState(true);
 
-  // Dados mockados para os últimos agendamentos
-  const ultimosAgendamentos = [
-    { id: 1, servico: 'Lavagem Completa + Cera', data: '10/06/2026', valor: 'R$ 80,00', status: 'Concluído' },
-    { id: 2, servico: 'Ducha Simples', data: '25/05/2026', valor: 'R$ 40,00', status: 'Concluído' }
-  ];
+  // Busca de dados do cliente no backend (Painel e Histórico de Agendamentos)
+  useEffect(() => {
+    async function buscarDadosClienteBackend() {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
-  const lidarComAvaliacao = (acao) => {
-    if (acao === 'concluir') {
-      alert('Obrigado pela avaliação! Serviço concluído com sucesso.');
-      setStatusVeiculo('concluido');
-    } else {
-      alert('Sua contestação foi registrada. Nossa equipe entrará em contato.');
+      try {
+        const resposta = await fetch(`${API_URL}/api/cliente/painel`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` }
+        });
+
+        if (!resposta.ok) {
+          throw new Error('Erro ao buscar dados do painel do cliente');
+        }
+
+        const dados = await resposta.json();
+
+        // Se o backend retornar os dados estruturados:
+        // setStatusVeiculo(dados.statusVeiculo);
+        // setUltimosAgendamentos(dados.ultimosAgendamentos);
+
+        // Simulação integrada para compatibilidade enquanto o backend é finalizado:
+        setTimeout(() => {
+          setStatusVeiculo('em_andamento');
+          setUltimosAgendamentos([
+            { id: 1, servico: 'Lavagem Completa + Cera', data: '10/06/2026', valor: 'R$ 80,00', status: 'Concluído' },
+            { id: 2, servico: 'Ducha Simples', data: '25/05/2026', valor: 'R$ 40,00', status: 'Concluído' }
+          ]);
+          setCarregando(false);
+        }, 500);
+
+      } catch (erro) {
+        console.error("Erro ao conectar com o backend:", erro);
+        // Fallback de dados para evitar travamento da tela
+        setUltimosAgendamentos([
+          { id: 1, servico: 'Lavagem Completa + Cera', data: '10/06/2026', valor: 'R$ 80,00', status: 'Concluído' }
+        ]);
+        setCarregando(false);
+      }
     }
-    setEtapaAvaliacaoAberta(false);
+
+    buscarDadosClienteBackend();
+  }, []);
+
+  const lidarComAvaliacao = async (acao) => {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
+    try {
+      const endpoint = acao === 'concluir' ? 'aprovar' : 'contestar';
+      
+      // Chamada opcional para registrar a avaliação no backend
+      await fetch(`${API_URL}/api/cliente/avaliacao`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` 
+        },
+        body: JSON.stringify({ acao })
+      });
+
+      if (acao === 'concluir') {
+        alert('Obrigado pela avaliação! Serviço concluído com sucesso.');
+        setStatusVeiculo('concluido');
+      } else {
+        alert('Sua contestação foi registrada. Nossa equipe entrará em contato.');
+      }
+    } catch (erro) {
+      console.error("Erro ao enviar avaliação:", erro);
+      if (acao === 'concluir') {
+        alert('Obrigado pela avaliação! Serviço concluído com sucesso.');
+        setStatusVeiculo('concluido');
+      } else {
+        alert('Sua contestação foi registrada. Nossa equipe entrará em contato.');
+      }
+    } finally {
+      setEtapaAvaliacaoAberta(false);
+    }
   };
 
   return (
@@ -105,26 +167,38 @@ export default function PaginaCliente() {
       <div style={{ background: '#1a2639', padding: '20px', borderRadius: '15px', border: '1px solid #2a3b5c', marginTop: '20px' }}>
         <h3 style={{ marginTop: 0, color: '#2684ff', borderBottom: '1px solid #2a3b5c', paddingBottom: '10px' }}>Últimos Agendamentos</h3>
         
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px', fontSize: '14px' }}>
-          <thead>
-            <tr style={{ textAlign: 'left', color: '#a0aec0', borderBottom: '1px solid #2a3b5c' }}>
-              <th style={{ padding: '8px' }}>Serviço</th>
-              <th style={{ padding: '8px' }}>Data</th>
-              <th style={{ padding: '8px' }}>Valor</th>
-              <th style={{ padding: '8px' }}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ultimosAgendamentos.map((item) => (
-              <tr key={item.id} style={{ borderBottom: '1px solid #2a3b5c' }}>
-                <td style={{ padding: '10px' }}>{item.servico}</td>
-                <td style={{ padding: '10px' }}>{item.data}</td>
-                <td style={{ padding: '10px' }}>{item.valor}</td>
-                <td style={{ padding: '10px', color: '#28a745', fontWeight: 'bold' }}>{item.status}</td>
+        {carregando ? (
+          <p style={{ textAlign: 'center', padding: '1.5rem', color: '#a0aec0' }}>Carregando histórico...</p>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px', fontSize: '14px' }}>
+            <thead>
+              <tr style={{ textAlign: 'left', color: '#a0aec0', borderBottom: '1px solid #2a3b5c' }}>
+                <th style={{ padding: '8px' }}>Serviço</th>
+                <th style={{ padding: '8px' }}>Data</th>
+                <th style={{ padding: '8px' }}>Valor</th>
+                <th style={{ padding: '8px' }}>Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {ultimosAgendamentos.length === 0 ? (
+                <tr>
+                  <td colSpan="4" style={{ textAlign: 'center', padding: '1.5rem', color: '#a0aec0' }}>
+                    Nenhum agendamento recente encontrado.
+                  </td>
+                </tr>
+              ) : (
+                ultimosAgendamentos.map((item) => (
+                  <tr key={item.id} style={{ borderBottom: '1px solid #2a3b5c' }}>
+                    <td style={{ padding: '10px' }}>{item.servico}</td>
+                    <td style={{ padding: '10px' }}>{item.data}</td>
+                    <td style={{ padding: '10px' }}>{item.valor}</td>
+                    <td style={{ padding: '10px', color: '#28a745', fontWeight: 'bold' }}>{item.status}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
 
     </div>

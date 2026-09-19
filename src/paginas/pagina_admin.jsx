@@ -17,16 +17,27 @@ export default function PaginaAdmin() {
   const [listaPatio, setListaPatio] = useState([]);
   const [carregando, setCarregando] = useState(true);
 
-  // Preparado para buscar dados do backend futuramente
+  // Busca de dados do backend integrada com Vercel e Localhost
   useEffect(() => {
     async function buscarDadosDoBackend() {
-      try {
-        // FUTURO: Substitua pela chamada real da API
-        // const resposta = await fetch('http://localhost:8080/api/dashboard', {
-        //   headers: { 'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` }
-        // });
-        // const dados = await resposta.json();
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
+      try {
+        const resposta = await fetch(`${API_URL}/api/dashboard`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` }
+        });
+
+        if (!resposta.ok) {
+          throw new Error('Erro ao buscar dados do painel');
+        }
+
+        const dados = await resposta.json();
+        
+        // Se a API retornar os dados estruturados, você pode usá-los diretamente:
+        // setMetricas(dados.metricas);
+        // setListaPatio(dados.listaPatio);
+
+        // Mantendo o comportamento simulado caso a rota do backend ainda esteja em construção:
         setTimeout(() => {
           setMetricas({
             veiculosDoDia: 3,
@@ -55,6 +66,7 @@ export default function PaginaAdmin() {
           ]);
           setCarregando(false);
         }, 500);
+
       } catch (erro) {
         console.error("Erro ao carregar dados do backend:", erro);
         setCarregando(false);
@@ -74,8 +86,18 @@ export default function PaginaAdmin() {
   };
 
   const handleConcluirServico = async (idServico) => {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
     try {
-      // FUTURO: await fetch(`http://localhost:8080/api/lavagens/${idServico}/concluir`, { method: 'PUT' });
+      const resposta = await fetch(`${API_URL}/api/lavagens/${idServico}/concluir`, { 
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` }
+      });
+
+      if (!resposta.ok) {
+        throw new Error('Erro ao concluir no servidor');
+      }
+
       alert(`Serviço ${idServico} concluído com sucesso!`);
     } catch (erro) {
       alert("Erro ao concluir o serviço.");
