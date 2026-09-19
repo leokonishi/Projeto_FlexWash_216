@@ -25,12 +25,10 @@ app.get('/api/protegida', verificarToken, (req, res) => {
 });
 
 // Correção: Removemos o ponto e vírgula para que o listen só rode localmente
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
-  });
-}
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
+});
 
 // Exporta o app para a Vercel transformar em Serverless Function
 module.exports = app;
