@@ -1,0 +1,110 @@
+.container-login {
+  min-height: 100vh;
+  background-color: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  font-family: 'Inter', sans-serif;
+}
+
+.cartao-login {
+  max-width: 28rem;
+  width: 100%;
+  background-color: #1e293b;
+  padding: 2rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+  border: 1px solid #334155;
+}
+
+.cabecalho-login {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.titulo-login {
+  font-size: 1.875rem;
+  font-weight: bold;
+  color: #ffffff;
+  letter-spacing: 0.05em;
+}
+
+.titulo-login span {
+  color: #3b82f6;
+}
+
+.subtitulo-login {
+  color: #94a3b8;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.formulario-login {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.grupo-campo-login {
+  display: flex;
+  flex-direction: column;
+}
+
+.grupo-campo-login label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #cbd5e1;
+  margin-bottom: 0.5rem;
+}
+
+.grupo-campo-login input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  color: #ffffff;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.grupo-campo-login input::placeholder {
+  color: #64748b;
+}
+
+.grupo-campo-login input:focus {
+  border-color: #3b82f6;
+}
+
+.botao-entrar {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #2563eb;
+  color: white;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.botao-entrar:hover {
+  background-color: #3b82f6;
+}
+
+.rodape-login {
+  text-align: center;
+  margin-top: 1.5rem;
+  font-size: 0.875rem;
+  color: #94a3b8;
+}
+
+.rodape-login a {
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+.rodape-login a:hover {
+  text-decoration: underline;
+}
