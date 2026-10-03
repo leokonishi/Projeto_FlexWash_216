@@ -10,7 +10,6 @@ export default function PaginaCliente() {
   const [ultimosAgendamentos, setUltimosAgendamentos] = useState([]);
   const [carregando, setCarregando] = useState(true);
 
-  // Busca de dados do cliente no backend (Painel e Histórico de Agendamentos)
   useEffect(() => {
     async function buscarDadosClienteBackend() {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -24,27 +23,19 @@ export default function PaginaCliente() {
           throw new Error('Erro ao buscar dados do painel do cliente');
         }
 
-        const dados = await resposta.json();
-
-        // Se o backend retornar os dados estruturados:
-        // setStatusVeiculo(dados.statusVeiculo);
-        // setUltimosAgendamentos(dados.ultimosAgendamentos);
-
-        // Simulação integrada para compatibilidade enquanto o backend é finalizado:
         setTimeout(() => {
           setStatusVeiculo('em_andamento');
           setUltimosAgendamentos([
-            { id: 1, servico: 'Lavagem Completa + Cera', data: '10/06/2026', valor: 'R$ 80,00', status: 'Concluído' },
-            { id: 2, servico: 'Ducha Simples', data: '25/05/2026', valor: 'R$ 40,00', status: 'Concluído' }
+            { id: 1, servico: 'Lavagem Completa + Cera', data: '10/06/2026', valor: 'R$ 80,00', status: 'Concluido' },
+            { id: 2, servico: 'Ducha Simples', data: '25/05/2026', valor: 'R$ 40,00', status: 'Concluido' }
           ]);
           setCarregando(false);
         }, 500);
 
       } catch (erro) {
         console.error("Erro ao conectar com o backend:", erro);
-        // Fallback de dados para evitar travamento da tela
         setUltimosAgendamentos([
-          { id: 1, servico: 'Lavagem Completa + Cera', data: '10/06/2026', valor: 'R$ 80,00', status: 'Concluído' }
+          { id: 1, servico: 'Lavagem Completa + Cera', data: '10/06/2026', valor: 'R$ 80,00', status: 'Concluido' }
         ]);
         setCarregando(false);
       }
@@ -57,9 +48,6 @@ export default function PaginaCliente() {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
     try {
-      const endpoint = acao === 'concluir' ? 'aprovar' : 'contestar';
-      
-      // Chamada opcional para registrar a avaliação no backend
       await fetch(`${API_URL}/api/cliente/avaliacao`, {
         method: 'POST',
         headers: { 
@@ -70,137 +58,165 @@ export default function PaginaCliente() {
       });
 
       if (acao === 'concluir') {
-        alert('Obrigado pela avaliação! Serviço concluído com sucesso.');
+        alert('Obrigado pela avaliacao! Servico concluido com sucesso.');
         setStatusVeiculo('concluido');
       } else {
-        alert('Sua contestação foi registrada. Nossa equipe entrará em contato.');
+        alert('Sua contestacao foi registrada. Nossa equipe entrara em contato.');
       }
     } catch (erro) {
-      console.error("Erro ao enviar avaliação:", erro);
+      console.error("Erro ao enviar avaliacao:", erro);
       if (acao === 'concluir') {
-        alert('Obrigado pela avaliação! Serviço concluído com sucesso.');
+        alert('Obrigado pela avaliacao! Servico concluido com sucesso.');
         setStatusVeiculo('concluido');
       } else {
-        alert('Sua contestação foi registrada. Nossa equipe entrará em contato.');
+        alert('Sua contestacao foi registrada. Nossa equipe entrara em contato.');
       }
     } finally {
       setEtapaAvaliacaoAberta(false);
     }
   };
 
-  return (
-    <div style={{ padding: '30px', backgroundColor: '#0d1322', minHeight: '100vh', color: '#fff', fontFamily: 'Segoe UI, sans-serif' }}>
-      
-      {/* 1. Card de Boas-Vindas */}
-      <div style={{ background: 'linear-gradient(90deg, #0052cc, #2684ff)', padding: '25px', borderRadius: '15px', marginBottom: '25px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
-        <h1 style={{ margin: '0 0 10px 0', fontSize: '24px' }}>Bem-vindo(a) ao Flex Wash! 🚗✨</h1>
-        <p style={{ margin: 0, fontSize: '14px', opacity: 0.9 }}>Gestão inteligente e estética automotiva de alto padrão para o seu veículo.</p>
-      </div>
+  const lidarComLogout = () => {
+    localStorage.removeItem('token_flexwash');
+    navigate('/login');
+  };
 
-      {/* Grid de Seções */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-        
-        {/* 2. Status do Serviço Atual */}
-        <div style={{ background: '#1a2639', padding: '20px', borderRadius: '15px', border: '1px solid #2a3b5c' }}>
-          <h3 style={{ marginTop: 0, color: '#2684ff', borderBottom: '1px solid #2a3b5c', paddingBottom: '10px' }}>Status Atual do Veículo</h3>
+  return (
+    <div className="home-cliente-pagina-completa">
+      
+      {/* Navbar Superior (Padrao Admin) */}
+      <header className="navbar-superior">
+        <div className="navbar-conteudo">
+          <h2 className="navbar-logo">FLEX WASH</h2>
           
-          <div style={{ margin: '15px 0', fontSize: '15px' }}>
-            <p><strong>Situação atual:</strong> 
-              <span style={{ marginLeft: '8px', padding: '4px 10px', borderRadius: '6px', backgroundColor: '#ffc107', color: '#000', fontSize: '13px', fontWeight: 'bold' }}>
-                {statusVeiculo === 'indo_buscar' && 'Veículo indo buscar 🚙'}
-                {statusVeiculo === 'no_patio' && 'Veículo no pátio 🅿️'}
-                {statusVeiculo === 'em_andamento' && 'Serviço em andamento 🧽'}
-                {statusVeiculo === 'indo_entrega' && 'Indo fazer a entrega do veículo 🚚'}
-                {statusVeiculo === 'concluido' && 'Serviço Finalizado ✅'}
-              </span>
-            </p>
+          <div className="navbar-usuario-area">
+            <div className="navbar-info-texto">
+              <span className="navbar-nome-usuario">Cliente FlexWash</span>
+              <span className="navbar-perfil-usuario">AREA DO CLIENTE</span>
+            </div>
+            <div className="navbar-avatar">CF</div>
+            <button onClick={lidarComLogout} className="btn-sair-navbar">
+              Sair
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Conteudo Principal */}
+      <main className="home-cliente-container">
+        
+        {/* 1. Card de Boas-Vindas */}
+        <div className="home-cliente-banner">
+          <h1>Bem-vindo ao Flex Wash</h1>
+          <p>Gestao inteligente e estetica automotiva de alto padrao para o seu veiculo.</p>
+        </div>
+
+        {/* Grid de Secoes */}
+        <div className="home-cliente-grid">
+          
+          {/* 2. Status do Servico Atual */}
+          <div className="home-cliente-card">
+            <h3>Status Atual do Veiculo</h3>
+            
+            <div className="home-cliente-status-box">
+              <p><strong>Situacao atual:</strong> 
+                <span className="badge-status">
+                  {statusVeiculo === 'indo_buscar' && 'Veiculo indo buscar'}
+                  {statusVeiculo === 'no_patio' && 'Veiculo no patio'}
+                  {statusVeiculo === 'em_andamento' && 'Servico em andamento'}
+                  {statusVeiculo === 'indo_entrega' && 'Indo fazer a entrega do veiculo'}
+                  {statusVeiculo === 'concluido' && 'Servico Finalizado'}
+                </span>
+              </p>
+            </div>
+
+            {(statusVeiculo === 'indo_entrega' || statusVeiculo === 'em_andamento') && !etapaAvaliacaoAberta && (
+              <button 
+                onClick={() => setEtapaAvaliacaoAberta(true)}
+                className="btn-sucesso"
+              >
+                Avaliar Servico & Pagamento
+              </button>
+            )}
+
+            {etapaAvaliacaoAberta && (
+              <div className="box-avaliacao-interna">
+                <p>O servico foi entregue do jeito esperado? Escolha uma opcao:</p>
+                <div className="grupo-botoes-avaliacao">
+                  <button 
+                    onClick={() => lidarComAvaliacao('concluir')}
+                    className="btn-aprovar"
+                  >
+                    Concluir / Aprovar
+                  </button>
+                  <button 
+                    onClick={() => lidarComAvaliacao('contestar')}
+                    className="btn-contestar"
+                  >
+                    Contestar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Simulação de gatilho para avaliação quando chegar na etapa de pagamento/entrega */}
-          {(statusVeiculo === 'indo_entrega' || statusVeiculo === 'em_andamento') && !etapaAvaliacaoAberta && (
+          {/* 3. Card Intuitivo para Novo Agendamento */}
+          <div className="home-cliente-card flex-between">
+            <div>
+              <h3>Novo Agendamento</h3>
+              <p className="texto-descricao-card">Precisa deixar seu carro brilhando de novo? Agende um horario com nossa equipe em poucos cliques.</p>
+            </div>
             <button 
-              onClick={() => setEtapaAvaliacaoAberta(true)}
-              style={{ width: '100%', padding: '12px', background: '#28a745', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', marginTop: '10px' }}
+              onClick={() => alert('Abrir fluxo de novo agendamento')}
+              className="btn-primario"
             >
-              Avaliar Serviço & Pagamento 💳
+              Agendar Nova Lavagem
             </button>
-          )}
+          </div>
 
-          {etapaAvaliacaoAberta && (
-            <div style={{ background: '#0d1322', padding: '15px', borderRadius: '10px', marginTop: '15px', border: '1px solid #28a745' }}>
-              <p style={{ margin: '0 0 10px 0', fontSize: '13px' }}>O serviço foi entregue do jeito esperado? Escolha uma opção:</p>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button 
-                  onClick={() => lidarComAvaliacao('concluir')}
-                  style={{ flex: 1, padding: '10px', background: '#28a745', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                  Concluir / Aprovar 👍
-                </button>
-                <button 
-                  onClick={() => lidarComAvaliacao('contestar')}
-                  style={{ flex: 1, padding: '10px', background: '#dc3545', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                  Contestar ⚠️
-                </button>
-              </div>
+        </div>
+
+        {/* 4. Informacoes sobre os Ultimos Agendamentos */}
+        <div className="home-cliente-card secao-tabela">
+          <h3>Ultimos Agendamentos</h3>
+          
+          {carregando ? (
+            <p className="texto-carregando">Carregando historico...</p>
+          ) : (
+            <div className="table-responsive">
+              <table className="tabela-historico">
+                <thead>
+                  <tr>
+                    <th>Servico</th>
+                    <th>Data</th>
+                    <th>Valor</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ultimosAgendamentos.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" className="tabela-vazia">
+                        Nenhum agendamento recente encontrado.
+                      </td>
+                    </tr>
+                  ) : (
+                    ultimosAgendamentos.map((item) => (
+                      <tr key={item.id}>
+                        <td>{item.servico}</td>
+                        <td>{item.data}</td>
+                        <td>{item.valor}</td>
+                        <td className="status-concluido">{item.status}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
 
-        {/* 3. Card Intuitivo para Novo Agendamento */}
-        <div style={{ background: '#1a2639', padding: '20px', borderRadius: '15px', border: '1px solid #2a3b5c', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-          <div>
-            <h3 style={{ marginTop: 0, color: '#2684ff', borderBottom: '1px solid #2a3b5c', paddingBottom: '10px' }}>Novo Agendamento</h3>
-            <p style={{ fontSize: '14px', color: '#a0aec0', marginTop: '10px' }}>Precisa deixar seu carro brilhando de novo? Agende um horário com nossa equipe em poucos cliques.</p>
-          </div>
-          <button 
-            onClick={() => alert('Abrir fluxo de novo agendamento')}
-            style={{ width: '100%', padding: '14px', background: '#2684ff', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '15px' }}
-          >
-            Agendar Nova Lavagem ➕
-          </button>
-        </div>
-
-      </div>
-
-      {/* 4. Informações sobre os Últimos Agendamentos */}
-      <div style={{ background: '#1a2639', padding: '20px', borderRadius: '15px', border: '1px solid #2a3b5c', marginTop: '20px' }}>
-        <h3 style={{ marginTop: 0, color: '#2684ff', borderBottom: '1px solid #2a3b5c', paddingBottom: '10px' }}>Últimos Agendamentos</h3>
-        
-        {carregando ? (
-          <p style={{ textAlign: 'center', padding: '1.5rem', color: '#a0aec0' }}>Carregando histórico...</p>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px', fontSize: '14px' }}>
-            <thead>
-              <tr style={{ textAlign: 'left', color: '#a0aec0', borderBottom: '1px solid #2a3b5c' }}>
-                <th style={{ padding: '8px' }}>Serviço</th>
-                <th style={{ padding: '8px' }}>Data</th>
-                <th style={{ padding: '8px' }}>Valor</th>
-                <th style={{ padding: '8px' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ultimosAgendamentos.length === 0 ? (
-                <tr>
-                  <td colSpan="4" style={{ textAlign: 'center', padding: '1.5rem', color: '#a0aec0' }}>
-                    Nenhum agendamento recente encontrado.
-                  </td>
-                </tr>
-              ) : (
-                ultimosAgendamentos.map((item) => (
-                  <tr key={item.id} style={{ borderBottom: '1px solid #2a3b5c' }}>
-                    <td style={{ padding: '10px' }}>{item.servico}</td>
-                    <td style={{ padding: '10px' }}>{item.data}</td>
-                    <td style={{ padding: '10px' }}>{item.valor}</td>
-                    <td style={{ padding: '10px', color: '#28a745', fontWeight: 'bold' }}>{item.status}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
-
+      </main>
     </div>
   );
 }

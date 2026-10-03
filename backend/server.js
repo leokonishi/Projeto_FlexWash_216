@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const cadastroCliente = require('./endpoints/cadastroCliente');
 const loginGestao = require('./endpoints/loginGestao');
+const funcionariosRoutes = require('./endpoints/funcionarios');
 require('dotenv').config();
 const verificarToken = require('./middleware/auth'); // Importa o "segurança"
 
@@ -13,6 +14,7 @@ app.use(express.json());
 // Registra os endpoints
 app.use('/api', cadastroCliente);
 app.use('/api', require('./endpoints/loginCliente'));
+app.use('/api', funcionariosRoutes);
 app.use('/api', loginGestao); // Regista o login da gestão aqui
 
 // Rota protegida de teste para validar o middleware de token

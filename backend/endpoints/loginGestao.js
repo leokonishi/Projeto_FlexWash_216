@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const db = require('../bd'); // Ajuste o caminho do banco se necessário
+const db = require('../bd');
 
 const JWT_SECRET = 'flexwash_chave_secreta_super_segura';
 
@@ -13,17 +13,27 @@ router.post('/login-gestao', (req, res) => {
     return res.status(400).json({ sucesso: false, mensagem: 'Informe o e-mail, a senha e o perfil.' });
   }
 
-  // Aqui você pode adaptar o nome da tabela conforme o seu banco (ex: funcionarios ou usuarios_gestao)
-  const sql = 'SELECT * FROM funcionarios WHERE email = ? AND perfil = ?';
+  // Normaliza o perfil (ex: "Funcionário" -> "funcionario", "Admin" -> "administrador")
+  let perfilNormalizado = String(perfil)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
 
-  db.query(sql, [email, perfil], async (err, resultados) => {
+  if (perfilNormalizado === 'admin') {
+    perfilNormalizado = 'administrador';
+  }
+
+  const sql = 'SELECT * FROM funcionarios WHERE email = ? AND LOWER(perfil) = ?';
+
+  db.query(sql, [email.trim(), perfilNormalizado], async (err, resultados) => {
     if (err) {
-      console.error('Erro no servidor ao buscar usuário de gestão:', err.message);
+      console.error('Erro no servidor ao buscar usuario de gestao:', err.message);
       return res.status(500).json({ sucesso: false, mensagem: 'Erro interno no servidor.' });
     }
 
     if (resultados.length === 0) {
-      return res.status(401).json({ sucesso: false, mensagem: 'E-mail, senha ou perfil inválidos.' });
+      return res.status(401).json({ sucesso: false, mensagem: 'E-mail, senha ou perfil invalidos.' });
     }
 
     const usuario = resultados[0];
@@ -32,10 +42,9 @@ router.post('/login-gestao', (req, res) => {
       const senhaCorreta = await bcrypt.compare(senha, usuario.senha);
 
       if (!senhaCorreta) {
-        return res.status(401).json({ sucesso: false, mensagem: 'E-mail, senha ou perfil inválidos.' });
+        return res.status(401).json({ sucesso: false, mensagem: 'E-mail, senha ou perfil invalidos.' });
       }
 
-      // Gera o Token JWT contendo o ID, email e o perfil ('administrador' ou 'funcionario')
       const token = jwt.sign(
         { id: usuario.id, email: usuario.email, perfil: usuario.perfil },
         JWT_SECRET,
@@ -50,12 +59,13 @@ router.post('/login-gestao', (req, res) => {
           id: usuario.id,
           nome: usuario.nome,
           email: usuario.email,
-          perfil: usuario.perfil
+          perfil: usuario.perfil,
+          funcoes: usuario.funcoes || ''
         }
       });
     } catch (erro) {
       console.error('Erro ao verificar senha:', erro);
-      return res.status(500).json({ sucesso: false, mensagem: 'Erro ao processar autenticação.' });
+      return res.status(500).json({ sucesso: false, mensagem: 'Erro ao processar autenticacao.' });
     }
   });
 });

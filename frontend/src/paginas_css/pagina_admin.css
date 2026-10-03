@@ -7,16 +7,18 @@
   flex-direction: column;
 }
 
-/* Header Superior Escuro com texto branco (igual à imagem) */
+/* Header Superior Escuro */
 .header-claro {
   height: 65px;
   background-color: #0f172a;
-  border-bottom: 1px solid #cbd5e1;
+  border-bottom: 1px solid #1e293b;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 1.5rem;
   color: #ffffff;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .brand-claro {
@@ -29,16 +31,7 @@
 .header-right-claro {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
-}
-
-.badge-demo-claro {
-  background-color: rgba(16, 185, 129, 0.15);
-  color: #34d399;
-  font-size: 0.75rem;
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
-  font-weight: 600;
+  gap: 1rem;
 }
 
 .user-profile-claro {
@@ -86,12 +79,19 @@
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-sair-claro:hover {
+  background-color: #dc2626;
 }
 
 /* Corpo Principal */
 .corpo-dashboard-claro {
   display: flex;
   flex: 1;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Sidebar Esquerda Branca */
@@ -103,6 +103,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  flex-shrink: 0;
 }
 
 .nav-titulo-claro {
@@ -142,20 +143,13 @@
   font-weight: 600;
 }
 
-.sidebar-footer-claro {
-  margin-top: auto;
-  font-size: 0.75rem;
-  color: #94a3b8;
-  padding-top: 1rem;
-  border-top: 1px solid #e2e8f0;
-}
-
 /* Main Area Clara */
 .main-claro {
   flex: 1;
   padding: 1.5rem 2rem;
   overflow-y: auto;
   position: relative;
+  min-width: 0; /* Impede que elementos filhos estourem o flex container */
 }
 
 /* Sub-nav Abas Superiores */
@@ -168,6 +162,7 @@
   border: 1px solid #e2e8f0;
   margin-bottom: 1.5rem;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  overflow-x: auto;
 }
 
 .subtab-btn-claro {
@@ -179,6 +174,7 @@
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
   transition: all 0.2s;
 }
 
@@ -234,13 +230,10 @@
 }
 
 .card-icon-blue-claro, .card-icon-green-claro, .card-icon-yellow-claro {
-  width: 36px;
-  height: 36px;
+  padding: 0.4rem 0.6rem;
   border-radius: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1rem;
+  font-size: 0.75rem;
+  font-weight: bold;
 }
 .card-icon-blue-claro { background-color: #eff6ff; color: #2563eb; }
 .card-icon-green-claro { background-color: #ecfdf5; color: #059669; }
@@ -331,6 +324,8 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .secao-patio-header-claro h3 {
@@ -364,6 +359,7 @@
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  min-width: 650px;
 }
 
 .tabela-claro th {
@@ -454,7 +450,8 @@
   border: none;
   color: #94a3b8;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .btn-lixeira-claro:hover {
@@ -476,8 +473,48 @@
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: all 0.2s;
+  z-index: 50;
 }
 
 .btn-nova-lavagem-flutuante-claro:hover {
   background-color: #1e293b;
+}
+
+/* Responsividade para Tablets e Celulares (Media Queries Corrigidas) */
+@media (max-width: 1024px) {
+  .cards-metrica-grid-claro {
+    grid-template-columns: repeat(1, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .corpo-dashboard-claro {
+    flex-direction: column; /* Empilha a sidebar para cima ou oculta corretamente em mobile */
+  }
+
+  .sidebar-claro {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 1rem;
+    display: none; /* Oculta a sidebar lateral em telemóveis para focar o conteúdo principal fluido */
+  }
+
+  .main-claro {
+    padding: 1rem;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .header-claro {
+    padding: 0 1rem;
+  }
+
+  .user-text-claro {
+    display: none; /* Oculta detalhes do texto do utilizador no topo mobile */
+  }
+
+  .cards-metrica-grid-claro {
+    grid-template-columns: 1fr;
+  }
 }
