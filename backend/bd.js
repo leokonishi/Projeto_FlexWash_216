@@ -5,12 +5,12 @@ require('dotenv').config();
 console.log("Tentando conectar com o usuário:", process.hisDB_USER || process.env.DB_USER);
 
 const conexao = mysql.createConnection({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: 19164, // Porta do Aiven informada explicitamente para evitar conflito com a porta do servidor
-  ssl: {
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT,
+    ssl: {
     rejectUnauthorized: false
   }
 });
