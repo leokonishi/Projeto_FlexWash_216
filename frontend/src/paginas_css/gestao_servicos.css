@@ -1,0 +1,236 @@
+.gs-grid-container {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.gs-card-formulario,
+.gs-card-listagem {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1.75rem;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
+}
+
+.gs-titulo-card {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+}
+
+.gs-subtitulo-card {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0 0 1.5rem 0;
+}
+
+.gs-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.gs-form-row-dupla {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.gs-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.gs-form-group label,
+.gs-filtro-item label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.gs-form-group input,
+.gs-form-group textarea,
+.gs-filtro-item input {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background-color: #ffffff;
+  font-size: 0.85rem;
+  color: #1e293b;
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.gs-form-group textarea {
+  resize: vertical;
+}
+
+.gs-form-group input:focus,
+.gs-form-group textarea:focus,
+.gs-filtro-item input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.gs-btn-confirmar {
+  margin-top: 0.5rem;
+  width: 100%;
+  background-color: #0f172a;
+  color: #ffffff;
+  border: none;
+  padding: 0.9rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gs-btn-confirmar:hover {
+  background-color: #1e293b;
+}
+
+.gs-btn-confirmar:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.gs-barra-filtros {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.gs-tabela-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.gs-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.gs-tabela th {
+  background-color: #f8fafc;
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.gs-tabela td {
+  padding: 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.82rem;
+  color: #334155;
+}
+
+.gs-tabela td strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.gs-desc-sub {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin-top: 0.2rem;
+}
+
+.gs-valor-destaque {
+  font-weight: 700;
+  color: #059669;
+}
+
+.gs-badge-ativo {
+  background-color: #ecfdf5;
+  color: #059669;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.gs-badge-inativo {
+  background-color: #fef2f2;
+  color: #dc2626;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.gs-aviso-vazio {
+  text-align: center;
+  padding: 2rem;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 1024px) {
+  .gs-grid-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Botões de Ação na Tabela e Formulário */
+.gs-acoes-flex {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.gs-btn-editar {
+  background-color: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.gs-btn-editar:hover {
+  background-color: #e2e8f0;
+}
+
+.gs-btn-toggle {
+  background-color: #fee2e2;
+  color: #dc2626;
+  border: none;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gs-btn-cancelar {
+  margin-top: 0.5rem;
+  width: 100%;
+  background-color: transparent;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+  padding: 0.8rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.gs-btn-cancelar:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}

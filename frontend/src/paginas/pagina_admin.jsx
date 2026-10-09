@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import GestaoFuncionarios from './GestaoFuncionarios';
 import '../paginas_css/pagina_admin.css';
+import GestaoServicos from './GestaoServicos';
 
 export default function PaginaAdmin() {
   const navigate = useNavigate();
@@ -132,6 +133,12 @@ export default function PaginaAdmin() {
           <button className="sidebar-btn-claro" onClick={() => handleEmBreve('Historico / Relatorios')}>
             Historico / Relatorios
           </button>
+          <button 
+  className={abaAtiva === 'servicos' ? 'sidebar-btn-claro ativo' : 'sidebar-btn-claro'}
+  onClick={() => setAbaAtiva('servicos')}
+>
+  Servicos e Valores
+</button>
           <button 
             className={abaAtiva === 'funcionarios' ? 'sidebar-btn-claro ativo' : 'sidebar-btn-claro'}
             onClick={() => setAbaAtiva('funcionarios')}
@@ -337,6 +344,8 @@ export default function PaginaAdmin() {
           {abaAtiva === 'funcionarios' && (
             <GestaoFuncionarios />
           )}
+
+          {abaAtiva === 'servicos' && <GestaoServicos />}
 
           {/* Botao Flutuante Inferior Direito */}
           <button className="btn-nova-lavagem-flutuante-claro" onClick={() => handleEmBreve('Nova Lavagem')}>
