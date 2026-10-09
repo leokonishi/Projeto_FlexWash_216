@@ -9,6 +9,7 @@ const execucoesRoutes = require('./endpoints/execucoes');
 const comissoesFuncionarioRoutes = require('./endpoints/comissoesFuncionario');
 const tarefasFuncionarioRoutes = require('./endpoints/tarefasFuncionario');
 const comissoesAdminRoutes = require('./endpoints/comissoesAdmin');
+const faturamentoAdminRoutes = require('./endpoints/faturamentoAdmin');
 const verificarToken = require('./middleware/auth');
 
 // 1. INICIALIZA O APP PRIMEIRO
@@ -26,6 +27,7 @@ app.use('/api', execucoesRoutes);
 app.use('/api', comissoesFuncionarioRoutes);
 app.use('/api', comissoesAdminRoutes);
 app.use('/api', tarefasFuncionarioRoutes);
+app.use('/api', faturamentoAdminRoutes);
 app.use('/api', loginGestao);
 
 // Rota protegida de teste
