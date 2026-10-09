@@ -69,11 +69,27 @@ router.get('/servicos', async (req, res) => {
 
 router.post('/servicos', verificarAdmin, async (req, res) => {
   const { nome, descricao, preco_base, duracao_estimada } = req.body;
-  if (!nome || !preco_base) return res.status(400).json({ sucesso: false, mensagem: 'Nome e preco obrigatorios.' });
+
+  // 1. Validação de Dados Incompletos ou Vazios (Evita salvar só espaços)
+  if (!nome || nome.trim() === '') {
+    return res.status(400).json({ sucesso: false, mensagem: 'O nome do servico e obrigatorio.' });
+  }
+
+  // 2. Validação de Valores Negativos
+  if (preco_base === undefined || parseFloat(preco_base) < 0) {
+    return res.status(400).json({ sucesso: false, mensagem: 'O preco base e obrigatorio e nao pode ser negativo.' });
+  }
+
+  if (duracao_estimada !== undefined && parseInt(duracao_estimada) < 0) {
+    return res.status(400).json({ sucesso: false, mensagem: 'A duracao estimada nao pode ser negativa.' });
+  }
 
   try {
     const novo = await ServicoDB.inserir({
-      nome, descricao: descricao || '', preco_base: parseFloat(preco_base), duracao_estimada: parseInt(duracao_estimada) || 0
+      nome: nome.trim(), // Remove espaços extras no início e fim
+      descricao: descricao ? descricao.trim() : '',
+      preco_base: parseFloat(preco_base),
+      duracao_estimada: parseInt(duracao_estimada) || 0
     });
     return res.status(201).json({ sucesso: true, mensagem: 'Servico cadastrado.', dados: novo });
   } catch (erro) {
@@ -86,14 +102,22 @@ router.put('/servicos/:id', verificarAdmin, async (req, res) => {
   const { id } = req.params;
   const { nome, descricao, preco_base, duracao_estimada, ativo } = req.body;
 
-  if (!nome || preco_base === undefined) {
-    return res.status(400).json({ sucesso: false, mensagem: 'Nome e preco base sao obrigatorios.' });
+  if (!nome || nome.trim() === '') {
+    return res.status(400).json({ sucesso: false, mensagem: 'O nome do servico e obrigatorio.' });
+  }
+
+  if (preco_base === undefined || parseFloat(preco_base) < 0) {
+    return res.status(400).json({ sucesso: false, mensagem: 'O preco base nao pode ser negativo.' });
+  }
+
+  if (duracao_estimada !== undefined && parseInt(duracao_estimada) < 0) {
+    return res.status(400).json({ sucesso: false, mensagem: 'A duracao estimada nao pode ser negativa.' });
   }
 
   try {
     const atualizado = await ServicoDB.atualizar(id, {
-      nome,
-      descricao: descricao || '',
+      nome: nome.trim(),
+      descricao: descricao ? descricao.trim() : '',
       preco_base: parseFloat(preco_base),
       duracao_estimada: parseInt(duracao_estimada) || 0,
       ativo: Boolean(ativo)
@@ -101,9 +125,7 @@ router.put('/servicos/:id', verificarAdmin, async (req, res) => {
 
     return res.status(200).json({ sucesso: true, mensagem: 'Servico atualizado!', dados: atualizado });
   } catch (erro) {
-    console.error('Erro ao editar servico:', erro);
     return res.status(500).json({ sucesso: false, mensagem: 'Erro interno ao editar.' });
   }
 });
-
 module.exports = router;

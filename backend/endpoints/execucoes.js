@@ -7,8 +7,20 @@ router.post('/execucoes', verificarToken, (req, res) => {
   const { cliente_id, veiculo_id, servico_id, valor_total } = req.body;
   const funcionario_id = req.usuarioLogado.id;
 
-  if (!cliente_id || !veiculo_id || !servico_id || !valor_total) {
-    return res.status(400).json({ sucesso: false, mensagem: 'Faltam dados obrigatorios.' });
+  // Validação 1: Dados Incompletos
+  if (!cliente_id || !veiculo_id || !servico_id || valor_total === undefined) {
+    return res.status(400).json({ 
+      sucesso: false, 
+      mensagem: 'Todos os campos (cliente, veiculo, servico e valor total) sao obrigatorios.' 
+    });
+  }
+
+  // Validação 2: Preço Negativo (Trava de Segurança Financeira)
+  if (parseFloat(valor_total) < 0) {
+    return res.status(400).json({ 
+      sucesso: false, 
+      mensagem: 'Erro de seguranca: O valor total do servico nao pode ser negativo.' 
+    });
   }
 
   // 1. BUSCA A REGRA DE COMISSÃO ATUAL DO SERVIÇO
