@@ -4,8 +4,8 @@ const db = require('../bd');
 const verificarToken = require('../middleware/auth');
 
 router.post('/execucoes', verificarToken, (req, res) => {
-  const { cliente_id, veiculo_id, servico_id, valor_total } = req.body;
-  const funcionario_id = req.usuarioLogado.id;
+  // Agora recebemos um array (lista) com os IDs da equipe que fez a lavagem
+  const { cliente_id, veiculo_id, servico_id, valor_total, funcionarios_ids } = req.body;
 
   // Validação 1: Dados Incompletos
   if (!cliente_id || !veiculo_id || !servico_id || valor_total === undefined) {
@@ -15,7 +15,15 @@ router.post('/execucoes', verificarToken, (req, res) => {
     });
   }
 
-  // Validação 2: Preço Negativo (Trava de Segurança Financeira)
+  // Validação 2: Verificar se a equipe foi selecionada
+  if (!funcionarios_ids || !Array.isArray(funcionarios_ids) || funcionarios_ids.length === 0) {
+    return res.status(400).json({ 
+      sucesso: false, 
+      mensagem: 'Pelo menos um funcionario deve ser atribuido a esta lavagem.' 
+    });
+  }
+
+  // Validação 3: Preço Negativo (Trava de Segurança Financeira)
   if (parseFloat(valor_total) < 0) {
     return res.status(400).json({ 
       sucesso: false, 
@@ -32,52 +40,67 @@ router.post('/execucoes', verificarToken, (req, res) => {
       return res.status(500).json({ sucesso: false, mensagem: 'Erro interno ao consultar comissoes.' });
     }
 
-    let valorComissaoCalculada = 0;
+    let valorComissaoIndividual = 0;
     const totalServico = parseFloat(valor_total);
 
-    // 2. LÓGICA DO CÁLCULO (Se existir regra cadastrada)
+    // 2. LÓGICA DO CÁLCULO (Valor INTEGRAL para CADA funcionário selecionado)
     if (resultadosComissao.length > 0) {
       const regra = resultadosComissao[0];
 
       if (regra.tipo_comissao === 'percentual') {
-        // Ex: 50.00 * (15 / 100) = 7.50
-        valorComissaoCalculada = totalServico * (parseFloat(regra.valor_comissao) / 100);
+        // Ex: R$ 50.00 * (2 / 100) = R$ 1.00 para cada funcionário
+        valorComissaoIndividual = totalServico * (parseFloat(regra.valor_comissao) / 100);
       } else if (regra.tipo_comissao === 'fixo') {
-        // Ex: R$ 10.00 cravados
-        valorComissaoCalculada = parseFloat(regra.valor_comissao);
+        // Ex: R$ 5.00 cravados para cada funcionário
+        valorComissaoIndividual = parseFloat(regra.valor_comissao);
       }
     }
 
-    // 3. INSERE A ORDEM DE SERVIÇO COM O VALOR DA COMISSÃO CONGELADO (SNAPSHOT)
-    const sqlInsert = `
+    // 3. INSERE A ORDEM DE SERVIÇO PRINCIPAL (Sem os campos antigos de comissão e funcionário)
+    const sqlInsertOrdem = `
       INSERT INTO ordens_servico 
-      (cliente_id, veiculo_id, funcionario_id, servico_id, status_execucao, status_pagamento, valor_total, valor_comissao) 
-      VALUES (?, ?, ?, ?, 'Concluido', 'Pendente', ?, ?)
+      (cliente_id, veiculo_id, servico_id, status_execucao, status_pagamento, valor_total) 
+      VALUES (?, ?, ?, 'Concluido', 'Pendente', ?)
     `;
 
-    const valores = [
-      cliente_id, 
-      veiculo_id, 
-      funcionario_id, 
-      servico_id, 
-      totalServico,
-      valorComissaoCalculada
-    ];
-
-    db.query(sqlInsert, valores, (errInsert, result) => {
+    db.query(sqlInsertOrdem, [cliente_id, veiculo_id, servico_id, totalServico], (errInsert, resultOrdem) => {
       if (errInsert) {
-        console.error('Erro ao registar execucao no banco:', errInsert);
-        return res.status(500).json({ sucesso: false, mensagem: 'Erro ao registar o servico.' });
+        console.error('Erro ao registar ordem no banco:', errInsert);
+        return res.status(500).json({ sucesso: false, mensagem: 'Erro ao registar a ordem principal.' });
       }
 
-      return res.status(201).json({
-        sucesso: true,
-        mensagem: 'Servico e comissao registados com sucesso!',
-        dados: {
-          id_ordem: result.insertId,
-          valor_total: totalServico,
-          comissao_gerada: valorComissaoCalculada
+      const ordemId = resultOrdem.insertId;
+
+      // 4. VINCULA A EQUIPE (Insere cada lavador e sua respectiva comissão na tabela intermediária)
+      // O formato esperado pelo MySQL para multi-insert é um array de arrays: [[ordem, func1, valor], [ordem, func2, valor]]
+      const valoresEquipe = funcionarios_ids.map(func_id => [
+        ordemId, 
+        func_id, 
+        valorComissaoIndividual
+      ]);
+
+      const sqlInsertEquipe = `
+        INSERT INTO ordens_funcionarios 
+        (ordem_id, funcionario_id, valor_comissao_individual) 
+        VALUES ?
+      `;
+
+      db.query(sqlInsertEquipe, [valoresEquipe], (errEquipe) => {
+        if (errEquipe) {
+          console.error('Erro ao vincular equipe:', errEquipe);
+          return res.status(500).json({ sucesso: false, mensagem: 'Erro ao registrar as comissoes da equipe.' });
         }
+
+        return res.status(201).json({
+          sucesso: true,
+          mensagem: 'Serviço e comissoes registrados com sucesso!',
+          dados: {
+            id_ordem: ordemId,
+            valor_total: totalServico,
+            comissao_por_cabeca: valorComissaoIndividual,
+            total_funcionarios_envolvidos: funcionarios_ids.length
+          }
+        });
       });
     });
   });

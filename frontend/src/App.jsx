@@ -1,30 +1,33 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+
+// Importações - Área do Cliente
 import Login from './paginas/Login';
 import CadastroCliente from './paginas/cadastro_cliente';
-import EsqueletoAdmin from './paginas/pagina_admin';
-import PaginaCliente from './paginas/PaginaCliente'; // <-- 1. Importa a tela do cliente
-import RotaProtegida from './rotas_protegidas';
+import PaginaCliente from './paginas/PaginaCliente';
+
+
 import LoginGestao from './paginas/gestao/LoginGestao';
+import EsqueletoAdmin from './paginas/pagina_admin'; // Este é o seu painel principal
+import RotaProtegida from './rotas_protegidas';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Redireciona a raiz "/" direto para a tela de login */}
+
         <Route path="/" element={<Navigate to="/login" replace />} />
 
-        {/* Rotas Públicas */}
         <Route path="/login" element={<Login />} />
         <Route path="/cadastro" element={<CadastroCliente />} />
-        <Route path="/gestao/LoginGestao" element={<LoginGestao />} />
-        
-        {/* Rota da Home do Cliente (ajustada para /cliente/home) */}
         <Route path="/PaginaCliente" element={<PaginaCliente />} />
 
-        {/* Rota Protegida do Administrador */}
+    
+        <Route path="/gestao/LoginGestao" element={<LoginGestao />} />
+
+    
         <Route 
-          path="/admin" 
+          path="/painel" 
           element={
             <RotaProtegida>
               <EsqueletoAdmin />

@@ -8,6 +8,9 @@ export default function PaginaAdmin() {
   const navigate = useNavigate();
   const [abaAtiva, setAbaAtiva] = useState('inicio');
 
+  // Resgata o perfil do usuário logado para aplicar os bloqueios
+  const perfilUsuario = localStorage.getItem('perfil_flexwash') || 'funcionario';
+
   const [metricas, setMetricas] = useState({
     veiculosDoDia: 0,
     portes: { pequeno: 0, medio: 0, grande: 0 },
@@ -72,6 +75,7 @@ export default function PaginaAdmin() {
 
   const handleLogout = () => {
     localStorage.removeItem('token_flexwash');
+    localStorage.removeItem('perfil_flexwash');
     navigate('/login');
   };
 
@@ -88,9 +92,7 @@ export default function PaginaAdmin() {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` }
       });
 
-      if (!resposta.ok) {
-        throw new Error('Erro ao concluir no servidor');
-      }
+      if (!resposta.ok) throw new Error('Erro ao concluir no servidor');
 
       alert(`Servico ${idServico} concluido com sucesso!`);
     } catch (erro) {
@@ -106,14 +108,13 @@ export default function PaginaAdmin() {
         <div className="header-right-claro">
           <div className="user-profile-claro">
             <div className="user-text-claro">
-              <strong>Gustavo Melo</strong>
-              <small>ADMINISTRADOR</small>
+              <strong>Equipe Flex</strong>
+              {/* Dinamiza a etiqueta de cargo */}
+              <small>{perfilUsuario === 'administrador' ? 'ADMINISTRADOR' : 'OPERADOR DE PÁTIO'}</small>
             </div>
-            <div className="user-avatar-claro">GM</div>
+            <div className="user-avatar-claro">{perfilUsuario === 'administrador' ? 'ADM' : 'OP'}</div>
           </div>
-          <button onClick={handleLogout} className="btn-sair-claro">
-            Sair
-          </button>
+          <button onClick={handleLogout} className="btn-sair-claro">Sair</button>
         </div>
       </header>
 
@@ -133,29 +134,35 @@ export default function PaginaAdmin() {
           <button className="sidebar-btn-claro" onClick={() => handleEmBreve('Historico / Relatorios')}>
             Historico / Relatorios
           </button>
-          <button 
-  className={abaAtiva === 'servicos' ? 'sidebar-btn-claro ativo' : 'sidebar-btn-claro'}
-  onClick={() => setAbaAtiva('servicos')}
->
-  Servicos e Valores
-</button>
-          <button 
-            className={abaAtiva === 'funcionarios' ? 'sidebar-btn-claro ativo' : 'sidebar-btn-claro'}
-            onClick={() => setAbaAtiva('funcionarios')}
-          >
-            Funcionarios (Comissoes)
-          </button>
 
-          <div className="nav-titulo-claro separator">CONFIGURACOES ADM</div>
-          <button className="sidebar-btn-claro" onClick={() => handleEmBreve('Painel de Controle')}>
-            Painel de Controle
-          </button>
+          {/* TRAVA 1: Menus restritos ao Administrador */}
+          {perfilUsuario === 'administrador' && (
+            <>
+              <button 
+                className={abaAtiva === 'servicos' ? 'sidebar-btn-claro ativo' : 'sidebar-btn-claro'}
+                onClick={() => setAbaAtiva('servicos')}
+              >
+                Servicos e Valores
+              </button>
+              <button 
+                className={abaAtiva === 'funcionarios' ? 'sidebar-btn-claro ativo' : 'sidebar-btn-claro'}
+                onClick={() => setAbaAtiva('funcionarios')}
+              >
+                Funcionarios (Comissoes)
+              </button>
+
+              <div className="nav-titulo-claro separator">CONFIGURACOES ADM</div>
+              <button className="sidebar-btn-claro" onClick={() => handleEmBreve('Painel de Controle')}>
+                Painel de Controle
+              </button>
+            </>
+          )}
         </aside>
 
         {/* Conteudo Principal Claro */}
         <main className="main-claro">
           
-          {/* Sub-menu de Abas Superiores (Visivel tambem no Mobile) */}
+          {/* Sub-menu de Abas Superiores (Mobile) */}
           <div className="subnav-tabs-claro">
             <button 
               className={abaAtiva === 'inicio' ? 'subtab-btn-claro ativo' : 'subtab-btn-claro'}
@@ -166,27 +173,29 @@ export default function PaginaAdmin() {
             <button className="subtab-btn-claro" onClick={() => handleEmBreve('Clientes')}>
               Clientes
             </button>
-            <button className="subtab-btn-claro" onClick={() => handleEmBreve('Historico')}>
-              Historico
-            </button>
-            <button 
-              className={abaAtiva === 'funcionarios' ? 'subtab-btn-claro ativo' : 'subtab-btn-claro'}
-              onClick={() => setAbaAtiva('funcionarios')}
-            >
-              Comissoes
-            </button>
-            <button className="subtab-btn-claro" onClick={() => handleEmBreve('Painel ADM')}>
-              Painel ADM
-            </button>
+            
+            {/* TRAVA 2: Submenus Mobile restritos */}
+            {perfilUsuario === 'administrador' && (
+              <>
+                <button 
+                  className={abaAtiva === 'funcionarios' ? 'subtab-btn-claro ativo' : 'subtab-btn-claro'}
+                  onClick={() => setAbaAtiva('funcionarios')}
+                >
+                  Comissoes
+                </button>
+                <button className="subtab-btn-claro" onClick={() => handleEmBreve('Painel ADM')}>
+                  Painel ADM
+                </button>
+              </>
+            )}
           </div>
 
           {/* ABA 1: VISAO GERAL / INICIO */}
           {abaAtiva === 'inicio' && (
             <>
-              {/* Cards de Metricas Dinamicos */}
               <div className="cards-metrica-grid-claro">
                 
-                {/* Card 1: Veiculos do Dia */}
+                {/* Card 1: Veiculos do Dia (Visível para todos) */}
                 <div className="card-m-item-claro">
                   <div className="card-m-header-claro">
                     <div>
@@ -213,23 +222,25 @@ export default function PaginaAdmin() {
                   </div>
                 </div>
 
-                {/* Card 2: Faturamento Hoje */}
-                <div className="card-m-item-claro">
-                  <div className="card-m-header-claro">
-                    <div>
-                      <span className="card-m-title-claro">FATURAMENTO HOJE</span>
-                      <h2 className="card-m-number-claro text-green-claro">
-                        {metricas.faturamentoHoje.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                      </h2>
+                {/* TRAVA 3: Card Faturamento Hoje (Apenas ADM) */}
+                {perfilUsuario === 'administrador' && (
+                  <div className="card-m-item-claro">
+                    <div className="card-m-header-claro">
+                      <div>
+                        <span className="card-m-title-claro">FATURAMENTO HOJE</span>
+                        <h2 className="card-m-number-claro text-green-claro">
+                          {metricas.faturamentoHoje.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </h2>
+                      </div>
+                      <div className="card-icon-green-claro">R$</div>
                     </div>
-                    <div className="card-icon-green-claro">R$</div>
+                    <div className="card-footer-info-claro">
+                      <span className="tag-meta-claro">Metas</span> Soma de servicos ativos e concluidos.
+                    </div>
                   </div>
-                  <div className="card-footer-info-claro">
-                    <span className="tag-meta-claro">Metas</span> Soma de servicos ativos e concluidos.
-                  </div>
-                </div>
+                )}
 
-                {/* Card 3: Status do Patio & Leva e Traz */}
+                {/* Card 3: Status do Patio (Visível para todos) */}
                 <div className="card-m-item-claro">
                   <div className="card-m-header-claro">
                     <div>
@@ -252,7 +263,6 @@ export default function PaginaAdmin() {
 
               </div>
 
-              {/* Gestao do Fluxo de Patio com Leva e Traz */}
               <div className="secao-patio-box-claro">
                 <div className="secao-patio-header-claro">
                   <div>
@@ -295,9 +305,7 @@ export default function PaginaAdmin() {
                                 <div className="placa-sub-claro">{item.placa}</div>
                                 <div className="hora-sub-claro">Entrada: {item.entrada}</div>
                               </td>
-                              <td>
-                                <span className="badge-porte-claro">{item.porte}</span>
-                              </td>
+                              <td><span className="badge-porte-claro">{item.porte}</span></td>
                               <td>
                                 <strong>{item.cliente}</strong>
                                 <div className="tel-sub-claro">{item.telefone}</div>
@@ -318,15 +326,16 @@ export default function PaginaAdmin() {
                                 <strong>{item.servico}</strong>
                                 <div className="valor-sub-claro">Total: {item.valor}</div>
                               </td>
-                              <td>
-                                <span className="status-pill-claro andamento">{item.status}</span>
-                              </td>
+                              <td><span className="status-pill-claro andamento">{item.status}</span></td>
                               <td>
                                 <div className="acoes-btns-claro">
                                   <button className="btn-concluir-claro" onClick={() => handleConcluirServico(item.id)}>
                                     Concluir
                                   </button>
-                                  <button className="btn-lixeira-claro" onClick={() => alert(`Excluir item ${item.id}`)}>Excluir</button>
+                                  {/* TRAVA 4: Botão de Excluir apenas para ADM */}
+                                  {perfilUsuario === 'administrador' && (
+                                    <button className="btn-lixeira-claro" onClick={() => alert(`Excluir item ${item.id}`)}>Excluir</button>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -340,12 +349,9 @@ export default function PaginaAdmin() {
             </>
           )}
 
-          {/* ABA 2: GESTAO DE FUNCIONARIOS E COMISSOES */}
-          {abaAtiva === 'funcionarios' && (
-            <GestaoFuncionarios />
-          )}
-
-          {abaAtiva === 'servicos' && <GestaoServicos />}
+          {/* Páginas restritas também ganham trava, caso usuário force o clique via console */}
+          {abaAtiva === 'funcionarios' && perfilUsuario === 'administrador' && <GestaoFuncionarios />}
+          {abaAtiva === 'servicos' && perfilUsuario === 'administrador' && <GestaoServicos />}
 
           {/* Botao Flutuante Inferior Direito */}
           <button className="btn-nova-lavagem-flutuante-claro" onClick={() => handleEmBreve('Nova Lavagem')}>

@@ -41,15 +41,12 @@ export default function LoginGestao() {
       // Alerta de login bem-sucedido com o nome do usuário
       alert(`Login bem-sucedido! Bem-vindo(a), ${resultado.usuario.nome}.`);
 
-      // Salva o token no navegador
+      // Salva o token e o PERFIL no navegador (Essencial para os bloqueios na tela do Painel)
       localStorage.setItem('token_flexwash', resultado.token);
+      localStorage.setItem('perfil_flexwash', resultado.usuario.perfil);
 
-      // Redireciona com base no perfil validado
-      if (resultado.usuario.perfil === 'administrador') {
-        navigate('/admin');
-      } else {
-        navigate('/funcionario/painel');
-      }
+      // Redireciona TODO MUNDO para a rota unificada
+      navigate('/painel');
 
     } catch (err) {
       setErro(err.message);
@@ -72,14 +69,14 @@ export default function LoginGestao() {
               className={`perfil-btn ${perfilSelecionado === 'administrador' ? 'ativo' : ''}`}
               onClick={() => setPerfilSelecionado('administrador')}
             >
-              👤 Administrador
+              Administrador
             </button>
             <button
               type="button"
               className={`perfil-btn ${perfilSelecionado === 'funcionario' ? 'ativo' : ''}`}
               onClick={() => setPerfilSelecionado('funcionario')}
             >
-              👤 Funcionário
+              Funcionário
             </button>
           </div>
 
