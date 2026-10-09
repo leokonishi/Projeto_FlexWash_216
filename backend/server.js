@@ -8,6 +8,7 @@ require('dotenv').config();
 const execucoesRoutes = require('./endpoints/execucoes');
 const comissoesFuncionarioRoutes = require('./endpoints/comissoesFuncionario');
 const tarefasFuncionarioRoutes = require('./endpoints/tarefasFuncionario');
+const comissoesAdminRoutes = require('./endpoints/comissoesAdmin');
 const verificarToken = require('./middleware/auth');
 
 // 1. INICIALIZA O APP PRIMEIRO
@@ -23,6 +24,7 @@ app.use('/api', funcionariosRoutes);
 app.use('/api', servicosRoutes); // <- Agora sim, funciona perfeitamente!
 app.use('/api', execucoesRoutes);
 app.use('/api', comissoesFuncionarioRoutes);
+app.use('/api', comissoesAdminRoutes);
 app.use('/api', tarefasFuncionarioRoutes);
 app.use('/api', loginGestao);
 
