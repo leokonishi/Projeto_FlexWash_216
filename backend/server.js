@@ -5,6 +5,9 @@ const loginGestao = require('./endpoints/loginGestao');
 const funcionariosRoutes = require('./endpoints/funcionarios');
 const servicosRoutes = require('./endpoints/servicos'); // Importa os serviços
 require('dotenv').config();
+const execucoesRoutes = require('./endpoints/execucoes');
+const comissoesFuncionarioRoutes = require('./endpoints/comissoesFuncionario');
+const tarefasFuncionarioRoutes = require('./endpoints/tarefasFuncionario');
 const verificarToken = require('./middleware/auth');
 
 // 1. INICIALIZA O APP PRIMEIRO
@@ -18,6 +21,9 @@ app.use('/api', cadastroCliente);
 app.use('/api', require('./endpoints/loginCliente'));
 app.use('/api', funcionariosRoutes);
 app.use('/api', servicosRoutes); // <- Agora sim, funciona perfeitamente!
+app.use('/api', execucoesRoutes);
+app.use('/api', comissoesFuncionarioRoutes);
+app.use('/api', tarefasFuncionarioRoutes);
 app.use('/api', loginGestao);
 
 // Rota protegida de teste
