@@ -8,7 +8,7 @@ export default function PaginaAdmin() {
   const navigate = useNavigate();
   const [abaAtiva, setAbaAtiva] = useState('inicio');
 
-  // Resgata o perfil do usuário logado para aplicar os bloqueios
+  // Resgata o perfil do utilizador logado para aplicar os bloqueios
   const perfilUsuario = localStorage.getItem('perfil_flexwash') || 'funcionario';
 
   const [metricas, setMetricas] = useState({
@@ -80,7 +80,7 @@ export default function PaginaAdmin() {
   };
 
   const handleEmBreve = (nomeMenu) => {
-    alert(`A secao "${nomeMenu}" esta em desenvolvimento e estara disponivel em breve!`);
+    alert(`A secção "${nomeMenu}" está em desenvolvimento e estará disponível em breve!`);
   };
 
   const handleConcluirServico = async (idServico) => {
@@ -94,9 +94,9 @@ export default function PaginaAdmin() {
 
       if (!resposta.ok) throw new Error('Erro ao concluir no servidor');
 
-      alert(`Servico ${idServico} concluido com sucesso!`);
+      alert(`Serviço ${idServico} concluído com sucesso!`);
     } catch (erro) {
-      alert("Erro ao concluir o servico.");
+      alert("Erro ao concluir o serviço.");
     }
   };
 
@@ -109,7 +109,6 @@ export default function PaginaAdmin() {
           <div className="user-profile-claro">
             <div className="user-text-claro">
               <strong>Equipe Flex</strong>
-              {/* Dinamiza a etiqueta de cargo */}
               <small>{perfilUsuario === 'administrador' ? 'ADMINISTRADOR' : 'OPERADOR DE PÁTIO'}</small>
             </div>
             <div className="user-avatar-claro">{perfilUsuario === 'administrador' ? 'ADM' : 'OP'}</div>
@@ -121,39 +120,37 @@ export default function PaginaAdmin() {
       <div className="corpo-dashboard-claro">
         {/* Sidebar Esquerda Branca */}
         <aside className="sidebar-claro">
-          <div className="nav-titulo-claro">NAVEGACAO</div>
+          <div className="nav-titulo-claro">NAVEGAÇÃO</div>
           <button 
             className={abaAtiva === 'inicio' ? 'sidebar-btn-claro ativo' : 'sidebar-btn-claro'}
             onClick={() => setAbaAtiva('inicio')}
           >
-            Inicio
+            Início
           </button>
           <button className="sidebar-btn-claro" onClick={() => handleEmBreve('Clientes')}>
             Clientes
           </button>
           <button className="sidebar-btn-claro" onClick={() => handleEmBreve('Historico / Relatorios')}>
-            Historico / Relatorios
+            Histórico / Relatórios
           </button>
 
           {/* TRAVA 1: Menus restritos ao Administrador */}
           {perfilUsuario === 'administrador' && (
             <>
+              <div className="nav-titulo-claro separator">PAINEL DE CONTROLE</div>
+              
               <button 
                 className={abaAtiva === 'servicos' ? 'sidebar-btn-claro ativo' : 'sidebar-btn-claro'}
                 onClick={() => setAbaAtiva('servicos')}
               >
-                Servicos e Valores
+                Serviços e Valores
               </button>
+              
               <button 
                 className={abaAtiva === 'funcionarios' ? 'sidebar-btn-claro ativo' : 'sidebar-btn-claro'}
                 onClick={() => setAbaAtiva('funcionarios')}
               >
-                Funcionarios (Comissoes)
-              </button>
-
-              <div className="nav-titulo-claro separator">CONFIGURACOES ADM</div>
-              <button className="sidebar-btn-claro" onClick={() => handleEmBreve('Painel de Controle')}>
-                Painel de Controle
+                Funcionários (Comissões)
               </button>
             </>
           )}
@@ -168,7 +165,7 @@ export default function PaginaAdmin() {
               className={abaAtiva === 'inicio' ? 'subtab-btn-claro ativo' : 'subtab-btn-claro'}
               onClick={() => setAbaAtiva('inicio')}
             >
-              Inicio
+              Início
             </button>
             <button className="subtab-btn-claro" onClick={() => handleEmBreve('Clientes')}>
               Clientes
@@ -181,25 +178,28 @@ export default function PaginaAdmin() {
                   className={abaAtiva === 'funcionarios' ? 'subtab-btn-claro ativo' : 'subtab-btn-claro'}
                   onClick={() => setAbaAtiva('funcionarios')}
                 >
-                  Comissoes
+                  Comissões
                 </button>
-                <button className="subtab-btn-claro" onClick={() => handleEmBreve('Painel ADM')}>
-                  Painel ADM
+                <button 
+                  className={abaAtiva === 'servicos' ? 'subtab-btn-claro ativo' : 'subtab-btn-claro'}
+                  onClick={() => setAbaAtiva('servicos')}
+                >
+                  Serviços
                 </button>
               </>
             )}
           </div>
 
-          {/* ABA 1: VISAO GERAL / INICIO */}
+          {/* ABA 1: VISÃO GERAL / INÍCIO */}
           {abaAtiva === 'inicio' && (
             <>
               <div className="cards-metrica-grid-claro">
                 
-                {/* Card 1: Veiculos do Dia (Visível para todos) */}
+                {/* Card 1: Veículos do Dia (Visível para todos) */}
                 <div className="card-m-item-claro">
                   <div className="card-m-header-claro">
                     <div>
-                      <span className="card-m-title-claro">VEICULOS DO DIA</span>
+                      <span className="card-m-title-claro">VEÍCULOS DO DIA</span>
                       <h2 className="card-m-number-claro">{metricas.veiculosDoDia}</h2>
                     </div>
                     <div className="card-icon-blue-claro">Carros</div>
@@ -211,7 +211,7 @@ export default function PaginaAdmin() {
                     <div className="progress-bar-bg-claro"><div className="progress-fill-claro" style={{width: '33%'}}></div></div>
                     
                     <div className="progress-row-claro mt-2">
-                      <span>Medio Porte</span> <strong>{metricas.portes.medio}</strong>
+                      <span>Médio Porte</span> <strong>{metricas.portes.medio}</strong>
                     </div>
                     <div className="progress-bar-bg-claro"><div className="progress-fill-claro" style={{width: '33%'}}></div></div>
 
@@ -235,16 +235,16 @@ export default function PaginaAdmin() {
                       <div className="card-icon-green-claro">R$</div>
                     </div>
                     <div className="card-footer-info-claro">
-                      <span className="tag-meta-claro">Metas</span> Soma de servicos ativos e concluidos.
+                      <span className="tag-meta-claro">Metas</span> Soma de serviços ativos e concluídos.
                     </div>
                   </div>
                 )}
 
-                {/* Card 3: Status do Patio (Visível para todos) */}
+                {/* Card 3: Status do Pátio (Visível para todos) */}
                 <div className="card-m-item-claro">
                   <div className="card-m-header-claro">
                     <div>
-                      <span className="card-m-title-claro">STATUS DO PATIO</span>
+                      <span className="card-m-title-claro">STATUS DO PÁTIO</span>
                       <h2 className="card-m-number-claro">{metricas.veiculosDoDia} Carro{metricas.veiculosDoDia !== 1 ? 's' : ''}</h2>
                     </div>
                     <div className="card-icon-yellow-claro">Tempo</div>
@@ -266,8 +266,8 @@ export default function PaginaAdmin() {
               <div className="secao-patio-box-claro">
                 <div className="secao-patio-header-claro">
                   <div>
-                    <h3>Gestao do Fluxo de Patio</h3>
-                    <p>Acompanhe e mude os status das lavagens e o servico de Leva e Traz.</p>
+                    <h3>Gestão do Fluxo de Pátio</h3>
+                    <p>Acompanhe e mude os status das lavagens e o serviço de Leva e Traz.</p>
                   </div>
                   <button className="btn-painel-operacional-claro" onClick={() => handleEmBreve('Painel Operacional')}>
                     PAINEL OPERACIONAL
@@ -276,25 +276,25 @@ export default function PaginaAdmin() {
 
                 <div className="tabela-claro-container">
                   {carregando ? (
-                    <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Carregando dados do servidor...</div>
+                    <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>A carregar dados do servidor...</div>
                   ) : (
                     <table className="tabela-claro">
                       <thead>
                         <tr>
-                          <th>VEICULO / PLACA</th>
+                          <th>VEÍCULO / PLACA</th>
                           <th>PORTE</th>
                           <th>CLIENTE ASSOCIADO</th>
                           <th>LEVA E TRAZ</th>
-                          <th>SERVICO & EXTRAS</th>
+                          <th>SERVIÇO & EXTRAS</th>
                           <th>STATUS</th>
-                          <th>ACOES</th>
+                          <th>AÇÕES</th>
                         </tr>
                       </thead>
                       <tbody>
                         {listaPatio.length === 0 ? (
                           <tr>
                             <td colSpan="7" style={{ textAlign: 'center', padding: '1.5rem', color: '#64748b' }}>
-                              Nenhum veiculo no patio no momento.
+                              Nenhum veículo no pátio no momento.
                             </td>
                           </tr>
                         ) : (
@@ -319,7 +319,7 @@ export default function PaginaAdmin() {
                                     </div>
                                   </div>
                                 ) : (
-                                  <span className="badge-leva-traz-nao">Nao</span>
+                                  <span className="badge-leva-traz-nao">Não</span>
                                 )}
                               </td>
                               <td>
@@ -349,11 +349,11 @@ export default function PaginaAdmin() {
             </>
           )}
 
-          {/* Páginas restritas também ganham trava, caso usuário force o clique via console */}
+          {/* Páginas restritas também ganham trava, caso o utilizador force o clique via consola */}
           {abaAtiva === 'funcionarios' && perfilUsuario === 'administrador' && <GestaoFuncionarios />}
           {abaAtiva === 'servicos' && perfilUsuario === 'administrador' && <GestaoServicos />}
 
-          {/* Botao Flutuante Inferior Direito */}
+          {/* Botão Flutuante Inferior Direito */}
           <button className="btn-nova-lavagem-flutuante-claro" onClick={() => handleEmBreve('Nova Lavagem')}>
             + Nova Lavagem
           </button>
