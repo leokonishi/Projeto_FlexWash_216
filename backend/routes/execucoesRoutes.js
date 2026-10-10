@@ -118,4 +118,28 @@ router.get('/execucoes/historico', async (req, res) => {
     }
 });
 
+// 6. BUSCAR SERVIÇOS DE UM CLIENTE ESPECÍFICO (GET)
+router.get('/execucoes/cliente/:cliente_id', async (req, res) => {
+    const { cliente_id } = req.params;
+    try {
+        const query = `
+            SELECT 
+                e.id, e.status, e.valor_total, e.criado_em, 
+                v.marca, v.modelo, v.placa,
+                p.nome as pacote_nome,
+                (SELECT GROUP_CONCAT(ex.nome SEPARATOR ', ') FROM execucao_extras eex JOIN servicos_extras ex ON eex.extra_id = ex.id WHERE eex.execucao_id = e.id) as servicos_extras
+            FROM execucoes e
+            JOIN veiculos v ON e.veiculo_id = v.id
+            LEFT JOIN pacotes p ON e.pacote_id = p.id
+            WHERE e.cliente_id = ?
+            ORDER BY e.id DESC
+        `;
+        const [servicos] = await db.execute(query, [cliente_id]);
+        res.status(200).json(servicos);
+    } catch (erro) {
+        console.error('Erro ao buscar serviços do cliente:', erro);
+        res.status(500).json({ erro: 'Erro ao buscar os serviços.' });
+    }
+});
+
 module.exports = router;

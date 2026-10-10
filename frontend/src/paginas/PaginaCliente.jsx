@@ -5,72 +5,67 @@ import '../paginas_css/home_cliente.css';
 export default function PaginaCliente() {
   const navigate = useNavigate();
   
-  const [statusVeiculo, setStatusVeiculo] = useState('em_andamento');
+  const [statusVeiculo, setStatusVeiculo] = useState('concluido');
   const [etapaAvaliacaoAberta, setEtapaAvaliacaoAberta] = useState(false);
   const [ultimosAgendamentos, setUltimosAgendamentos] = useState([]);
   const [carregando, setCarregando] = useState(true);
 
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
   useEffect(() => {
     async function buscarDadosClienteBackend() {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-
       try {
-        const resposta = await fetch(`${API_URL}/api/cliente/painel`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` }
-        });
-
-        if (!resposta.ok) {
-          throw new Error('Erro ao buscar dados do painel do cliente');
+        const token = localStorage.getItem('token_flexwash');
+        if (!token) {
+          navigate('/login');
+          return;
         }
 
-        setTimeout(() => {
-          setStatusVeiculo('em_andamento');
-          setUltimosAgendamentos([
-            { id: 1, servico: 'Lavagem Completa + Cera', data: '10/06/2026', valor: 'R$ 80,00', status: 'Concluido' },
-            { id: 2, servico: 'Ducha Simples', data: '25/05/2026', valor: 'R$ 40,00', status: 'Concluido' }
-          ]);
-          setCarregando(false);
-        }, 500);
+        // Lê o ID do cliente diretamente do token JWT
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const clienteId = payload.id;
 
+        // Busca o histórico real de serviços deste cliente
+        const resposta = await fetch(`${API_URL}/api/execucoes/cliente/${clienteId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (resposta.ok) {
+          const dados = await resposta.json();
+          setUltimosAgendamentos(dados);
+
+          // Atualiza o card de "Status Atual" com base no serviço mais recente
+          if (dados.length > 0) {
+            const statusMaisRecente = dados[0].status;
+            if (statusMaisRecente === 'Aguardando') {
+              setStatusVeiculo('no_patio');
+            } else if (statusMaisRecente === 'Em Andamento') {
+              setStatusVeiculo('em_andamento');
+            } else {
+              setStatusVeiculo('concluido');
+            }
+          }
+        }
       } catch (erro) {
-        console.error("Erro ao conectar com o backend:", erro);
-        setUltimosAgendamentos([
-          { id: 1, servico: 'Lavagem Completa + Cera', data: '10/06/2026', valor: 'R$ 80,00', status: 'Concluido' }
-        ]);
+        console.error("Erro ao buscar dados do painel do cliente:", erro);
+      } finally {
         setCarregando(false);
       }
     }
 
     buscarDadosClienteBackend();
-  }, []);
+  }, [navigate, API_URL]);
 
   const lidarComAvaliacao = async (acao) => {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-
+    // Aqui você integrará futuramente com uma rota de avaliação, se desejar.
     try {
-      await fetch(`${API_URL}/api/cliente/avaliacao`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` 
-        },
-        body: JSON.stringify({ acao })
-      });
-
       if (acao === 'concluir') {
-        alert('Obrigado pela avaliacao! Servico concluido com sucesso.');
-        setStatusVeiculo('concluido');
+        alert('Obrigado pela avaliação! Serviço concluído com sucesso.');
       } else {
-        alert('Sua contestacao foi registrada. Nossa equipe entrara em contato.');
+        alert('Sua contestação foi registrada. Nossa equipe entrará em contato.');
       }
     } catch (erro) {
-      console.error("Erro ao enviar avaliacao:", erro);
-      if (acao === 'concluir') {
-        alert('Obrigado pela avaliacao! Servico concluido com sucesso.');
-        setStatusVeiculo('concluido');
-      } else {
-        alert('Sua contestacao foi registrada. Nossa equipe entrara em contato.');
-      }
+      console.error("Erro ao enviar avaliação:", erro);
     } finally {
       setEtapaAvaliacaoAberta(false);
     }
@@ -81,10 +76,21 @@ export default function PaginaCliente() {
     navigate('/login');
   };
 
+  // Função auxiliar para pintar o status dinamicamente na tabela
+  const renderStatusBadge = (status) => {
+    if (status === 'Aguardando') {
+      return <span style={{ background: '#fef08a', color: '#854d0e', padding: '4px 12px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.75rem' }}>Aguardando</span>;
+    } else if (status === 'Em Andamento') {
+      return <span style={{ background: '#bfdbfe', color: '#1e3a8a', padding: '4px 12px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.75rem' }}>Em Andamento</span>;
+    } else {
+      return <span style={{ background: '#bbf7d0', color: '#166534', padding: '4px 12px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.75rem' }}>Concluído</span>;
+    }
+  };
+
   return (
     <div className="home-cliente-pagina-completa">
       
-      {/* Navbar Superior (Padrao Admin) */}
+      {/* Navbar Superior (Padrão Admin) */}
       <header className="navbar-superior">
         <div className="navbar-conteudo">
           <h2 className="navbar-logo">FLEX WASH</h2>
@@ -92,7 +98,7 @@ export default function PaginaCliente() {
           <div className="navbar-usuario-area">
             <div className="navbar-info-texto">
               <span className="navbar-nome-usuario">Cliente FlexWash</span>
-              <span className="navbar-perfil-usuario">AREA DO CLIENTE</span>
+              <span className="navbar-perfil-usuario">ÁREA DO CLIENTE</span>
             </div>
             <div className="navbar-avatar">CF</div>
             <button onClick={lidarComLogout} className="btn-sair-navbar">
@@ -102,30 +108,30 @@ export default function PaginaCliente() {
         </div>
       </header>
 
-      {/* Conteudo Principal */}
+      {/* Conteúdo Principal */}
       <main className="home-cliente-container">
         
         {/* 1. Card de Boas-Vindas */}
         <div className="home-cliente-banner">
           <h1>Bem-vindo ao Flex Wash</h1>
-          <p>Gestao inteligente e estetica automotiva de alto padrao para o seu veiculo.</p>
+          <p>Gestão inteligente e estética automotiva de alto padrão para o seu veículo.</p>
         </div>
 
-        {/* Grid de Secoes */}
+        {/* Grid de Seções */}
         <div className="home-cliente-grid">
           
-          {/* 2. Status do Servico Atual */}
+          {/* 2. Status do Serviço Atual */}
           <div className="home-cliente-card">
-            <h3>Status Atual do Veiculo</h3>
+            <h3>Status Atual do Veículo</h3>
             
             <div className="home-cliente-status-box">
-              <p><strong>Situacao atual:</strong> 
+              <p><strong>Situação atual:</strong> 
                 <span className="badge-status">
-                  {statusVeiculo === 'indo_buscar' && 'Veiculo indo buscar'}
-                  {statusVeiculo === 'no_patio' && 'Veiculo no patio'}
-                  {statusVeiculo === 'em_andamento' && 'Servico em andamento'}
-                  {statusVeiculo === 'indo_entrega' && 'Indo fazer a entrega do veiculo'}
-                  {statusVeiculo === 'concluido' && 'Servico Finalizado'}
+                  {statusVeiculo === 'indo_buscar' && 'Veículo indo buscar'}
+                  {statusVeiculo === 'no_patio' && 'Veículo no pátio (Aguardando)'}
+                  {statusVeiculo === 'em_andamento' && 'Serviço em andamento'}
+                  {statusVeiculo === 'indo_entrega' && 'Indo fazer a entrega do veículo'}
+                  {statusVeiculo === 'concluido' && 'Nenhum serviço em andamento'}
                 </span>
               </p>
             </div>
@@ -135,13 +141,13 @@ export default function PaginaCliente() {
                 onClick={() => setEtapaAvaliacaoAberta(true)}
                 className="btn-sucesso"
               >
-                Avaliar Servico & Pagamento
+                Avaliar Serviço & Pagamento
               </button>
             )}
 
             {etapaAvaliacaoAberta && (
               <div className="box-avaliacao-interna">
-                <p>O servico foi entregue do jeito esperado? Escolha uma opcao:</p>
+                <p>O serviço foi entregue do jeito esperado? Escolha uma opção:</p>
                 <div className="grupo-botoes-avaliacao">
                   <button 
                     onClick={() => lidarComAvaliacao('concluir')}
@@ -164,7 +170,7 @@ export default function PaginaCliente() {
           <div className="home-cliente-card flex-between">
             <div>
               <h3>Novo Agendamento</h3>
-              <p className="texto-descricao-card">Precisa deixar seu carro brilhando de novo? Agende um horario com nossa equipe em poucos cliques.</p>
+              <p className="texto-descricao-card">Precisa deixar seu carro brilhando de novo? Agende um horário com nossa equipe em poucos cliques.</p>
             </div>
             <button 
               onClick={() => alert('Abrir fluxo de novo agendamento')}
@@ -176,37 +182,53 @@ export default function PaginaCliente() {
 
         </div>
 
-        {/* 4. Informacoes sobre os Ultimos Agendamentos */}
+        {/* 4. Informações sobre os Últimos Agendamentos */}
         <div className="home-cliente-card secao-tabela">
-          <h3>Ultimos Agendamentos</h3>
+          <h3>Últimos Agendamentos</h3>
           
           {carregando ? (
-            <p className="texto-carregando">Carregando historico...</p>
+            <p className="texto-carregando">A carregar o seu histórico...</p>
           ) : (
             <div className="table-responsive">
               <table className="tabela-historico">
                 <thead>
                   <tr>
-                    <th>Servico</th>
-                    <th>Data</th>
-                    <th>Valor</th>
-                    <th>Status</th>
+                    <th style={{ textAlign: 'left', padding: '12px' }}>Veículo</th>
+                    <th style={{ textAlign: 'left', padding: '12px' }}>Serviço</th>
+                    <th style={{ textAlign: 'left', padding: '12px' }}>Data</th>
+                    <th style={{ textAlign: 'left', padding: '12px' }}>Valor Total</th>
+                    <th style={{ textAlign: 'left', padding: '12px' }}>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {ultimosAgendamentos.length === 0 ? (
                     <tr>
-                      <td colSpan="4" className="tabela-vazia">
-                        Nenhum agendamento recente encontrado.
+                      <td colSpan="5" className="tabela-vazia" style={{ textAlign: 'center', padding: '2rem' }}>
+                        Nenhum serviço registrado até ao momento.
                       </td>
                     </tr>
                   ) : (
                     ultimosAgendamentos.map((item) => (
-                      <tr key={item.id}>
-                        <td>{item.servico}</td>
-                        <td>{item.data}</td>
-                        <td>{item.valor}</td>
-                        <td className="status-concluido">{item.status}</td>
+                      <tr key={item.id} style={{ borderBottom: '1px solid #1e293b' }}>
+                        <td style={{ padding: '12px' }}>
+                          <strong>{item.marca} {item.modelo}</strong>
+                          <span style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8' }}>Placa: {item.placa}</span>
+                        </td>
+                        <td style={{ padding: '12px' }}>
+                          {item.pacote_nome || 'Serviço Avulso'}
+                          {item.servicos_extras && (
+                            <span style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8' }}>+ {item.servicos_extras}</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '12px' }}>
+                          {new Date(item.criado_em).toLocaleDateString('pt-BR')}
+                        </td>
+                        <td style={{ padding: '12px' }}>
+                          R$ {Number(item.valor_total).toFixed(2)}
+                        </td>
+                        <td style={{ padding: '12px' }}>
+                          {renderStatusBadge(item.status)}
+                        </td>
                       </tr>
                     ))
                   )}

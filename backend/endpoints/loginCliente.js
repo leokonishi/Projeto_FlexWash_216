@@ -26,11 +26,12 @@ router.post('/login/cliente', async (req, res) => {
         }
 
         // Gera o token JWT para o cliente
-        const token = jwt.sign(
-            { id: cliente.id, email: cliente.email, perfil: 'cliente' },
-            process.env.JWT_SECRET || 'segredo_flexwash',
-            { expiresIn: '1d' }
-        );
+      // Certifique-se de que está assim no loginCliente.js:
+const token = jwt.sign(
+    { id: cliente.id, email: cliente.email, perfil: 'cliente' }, // <-- O 'id: cliente.id' é OBRIGATÓRIO AQUI
+    process.env.JWT_SECRET || 'segredo_flexwash',
+    { expiresIn: '1d' }
+);
 
         res.status(200).json({
             sucesso: true,

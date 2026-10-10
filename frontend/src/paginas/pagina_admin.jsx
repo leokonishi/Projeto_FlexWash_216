@@ -65,8 +65,8 @@ export default function PaginaAdmin() {
           {perfilUsuario === 'administrador' && (
             <>
               <div className="nav-titulo-claro separator">PAINEL DE CONTROLE</div>
-              <button className={abaAtiva === 'servicos' ? 'sidebar-btn-claro ativo' : 'sidebar-btn-claro'} onClick={() => setAbaAtiva('servicos')}>Serviços e Valores</button>
-              <button className={abaAtiva === 'funcionarios' ? 'sidebar-btn-claro ativo' : 'sidebar-btn-claro'} onClick={() => setAbaAtiva('funcionarios')}>Funcionários (Comissões)</button>
+              <button className={abaAtiva === 'servicos' ? 'sidebar-btn-claro ativo' : 'sidebar-btn-claro'} onClick={() => setAbaAtiva('servicos')}>Serviços</button>
+              <button className={abaAtiva === 'funcionarios' ? 'sidebar-btn-claro ativo' : 'sidebar-btn-claro'} onClick={() => setAbaAtiva('funcionarios')}>Funcionários</button>
             </>
           )}
         </aside>
