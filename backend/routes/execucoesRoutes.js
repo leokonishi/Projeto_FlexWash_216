@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../bd');
 
-// 1. REGISTRAR NOVA ENTRADA DE VEÍCULOS (POST)
+// 1. REGISTRAR NOVA ENTRADA (POST)
 router.post('/execucoes', async (req, res) => {
     const { cliente_id, veiculos } = req.body;
 
@@ -11,10 +11,9 @@ router.post('/execucoes', async (req, res) => {
     }
 
     try {
-        // Percorre cada veículo selecionado na tela de Nova Lavagem
         for (const veiculo of veiculos) {
-            
-            // A. Insere a Execução Principal
+            const pacoteIdFinal = veiculo.pacote_id ? veiculo.pacote_id : null;
+
             const queryExecucao = `
                 INSERT INTO execucoes (cliente_id, veiculo_id, pacote_id, valor_total) 
                 VALUES (?, ?, ?, ?)
@@ -22,13 +21,12 @@ router.post('/execucoes', async (req, res) => {
             const [result] = await db.execute(queryExecucao, [
                 cliente_id, 
                 veiculo.veiculo_id, 
-                veiculo.pacote_id || null, 
-                veiculo.valor_total
+                pacoteIdFinal, 
+                veiculo.valor_total || 0
             ]);
             
             const execucaoId = result.insertId;
 
-            // B. Associa os Extras selecionados
             if (veiculo.extras && veiculo.extras.length > 0) {
                 const queryExtra = 'INSERT INTO execucao_extras (execucao_id, extra_id) VALUES (?, ?)';
                 for (const extraId of veiculo.extras) {
@@ -36,7 +34,6 @@ router.post('/execucoes', async (req, res) => {
                 }
             }
 
-            // C. Associa os Funcionários selecionados
             if (veiculo.funcionarios && veiculo.funcionarios.length > 0) {
                 const queryFunc = 'INSERT INTO execucao_funcionarios (execucao_id, funcionario_id) VALUES (?, ?)';
                 for (const funcId of veiculo.funcionarios) {
@@ -44,7 +41,6 @@ router.post('/execucoes', async (req, res) => {
                 }
             }
         }
-
         res.status(201).json({ mensagem: 'Serviços registrados com sucesso no pátio!' });
     } catch (erro) {
         console.error('Erro ao registrar execução:', erro);
@@ -52,31 +48,16 @@ router.post('/execucoes', async (req, res) => {
     }
 });
 
-// 2. LISTAR VEÍCULOS NO PÁTIO (GET)
-// Esta rota usa GROUP_CONCAT para agrupar os nomes dos funcionários e extras na mesma linha do carro
+// 2. LISTAR PÁTIO (GET)
 router.get('/execucoes/patio', async (req, res) => {
     try {
         const query = `
             SELECT 
-                e.id, 
-                e.status, 
-                e.valor_total,
-                e.criado_em as data_entrada,
-                c.nome as cliente_nome,
-                v.marca, v.modelo, v.placa, v.porte,
+                e.id, e.status, e.valor_total, e.criado_em as data_entrada,
+                c.nome as cliente_nome, v.marca, v.modelo, v.placa, v.porte,
                 p.nome as pacote_nome,
-                (
-                    SELECT GROUP_CONCAT(f.nome SEPARATOR ', ') 
-                    FROM execucao_funcionarios ef 
-                    JOIN funcionarios f ON ef.funcionario_id = f.id 
-                    WHERE ef.execucao_id = e.id
-                ) as responsaveis,
-                (
-                    SELECT GROUP_CONCAT(ex.nome SEPARATOR ', ') 
-                    FROM execucao_extras eex 
-                    JOIN servicos_extras ex ON eex.extra_id = ex.id 
-                    WHERE eex.execucao_id = e.id
-                ) as servicos_extras
+                (SELECT GROUP_CONCAT(f.nome SEPARATOR ', ') FROM execucao_funcionarios ef JOIN funcionarios f ON ef.funcionario_id = f.id WHERE ef.execucao_id = e.id) as responsaveis,
+                (SELECT GROUP_CONCAT(ex.nome SEPARATOR ', ') FROM execucao_extras eex JOIN servicos_extras ex ON eex.extra_id = ex.id WHERE eex.execucao_id = e.id) as servicos_extras
             FROM execucoes e
             JOIN clientes c ON e.cliente_id = c.id
             JOIN veiculos v ON e.veiculo_id = v.id
@@ -87,23 +68,54 @@ router.get('/execucoes/patio', async (req, res) => {
         const [patio] = await db.execute(query);
         res.status(200).json(patio);
     } catch (erro) {
-        console.error('Erro ao listar pátio:', erro);
         res.status(500).json({ erro: 'Erro ao buscar o fluxo do pátio.' });
     }
 });
 
-// 3. AVANÇAR STATUS DO SERVIÇO (PUT) - Ex: Aguardando -> Em Andamento -> Finalizado
+// 3. AVANÇAR STATUS (PUT)
 router.put('/execucoes/:id/status', async (req, res) => {
     const { id } = req.params;
-    const { novoStatus } = req.body; // 'Em Andamento' ou 'Finalizado'
-
+    const { novoStatus } = req.body;
     try {
         await db.execute('UPDATE execucoes SET status = ? WHERE id = ?', [novoStatus, id]);
-        res.status(200).json({ mensagem: 'Status atualizado com sucesso!' });
+        res.status(200).json({ mensagem: 'Status atualizado!' });
     } catch (erro) {
-        console.error('Erro ao atualizar status:', erro);
-        res.status(500).json({ erro: 'Erro ao atualizar o status do serviço.' });
+        res.status(500).json({ erro: 'Erro ao atualizar o status.' });
     }
 });
 
-module.exports = router;''
+// 4. EXCLUIR SERVIÇO DO PÁTIO (DELETE) - Apenas Administrador
+router.delete('/execucoes/:id', async (req, res) => {
+    try {
+        await db.execute('DELETE FROM execucoes WHERE id = ?', [req.params.id]);
+        res.status(200).json({ mensagem: 'Serviço removido do pátio!' });
+    } catch (erro) {
+        res.status(500).json({ erro: 'Erro ao remover serviço.' });
+    }
+});
+
+router.get('/execucoes/historico', async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                e.id, e.status, e.valor_total, e.criado_em as data_entrada, 
+                c.nome as cliente_nome, v.marca, v.modelo, v.placa, v.porte,
+                p.nome as pacote_nome,
+                (SELECT GROUP_CONCAT(f.nome SEPARATOR ', ') FROM execucao_funcionarios ef JOIN funcionarios f ON ef.funcionario_id = f.id WHERE ef.execucao_id = e.id) as responsaveis,
+                (SELECT GROUP_CONCAT(ex.nome SEPARATOR ', ') FROM execucao_extras eex JOIN servicos_extras ex ON eex.extra_id = ex.id WHERE eex.execucao_id = e.id) as servicos_extras
+            FROM execucoes e
+            JOIN clientes c ON e.cliente_id = c.id
+            JOIN veiculos v ON e.veiculo_id = v.id
+            LEFT JOIN pacotes p ON e.pacote_id = p.id
+            WHERE e.status = 'Finalizado'
+            ORDER BY e.id DESC
+        `;
+        const [historico] = await db.execute(query);
+        res.status(200).json(historico);
+    } catch (erro) {
+        console.error('Erro ao buscar histórico:', erro);
+        res.status(500).json({ erro: 'Erro ao buscar o histórico.' });
+    }
+});
+
+module.exports = router;

@@ -1,24 +1,34 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../paginas_css/Cadastro_Cliente.css';
+import { aplicarMascaraCPF, aplicarMascaraTelefone } from '../utils/mascaras'; // Importando as máscaras reutilizáveis!
 
 export default function CadastroCliente() {
   const navigate = useNavigate();
+  
+  // 1. Atualizamos o estado para incluir CPF e Endereço
   const [formulario, setFormulario] = useState({
+    cpf: '',
     nome: '',
     email: '',
     senha: '',
-    telefone: ''
+    telefone: '',
+    endereco: ''
   });
 
+  // 2. Intercetamos a digitação para aplicar as máscaras em tempo real
   const aoMudarCampo = (e) => {
-    setFormulario({ ...formulario, [e.target.name]: e.target.value });
+    let { name, value } = e.target;
+    
+    if (name === 'cpf') value = aplicarMascaraCPF(value);
+    if (name === 'telefone') value = aplicarMascaraTelefone(value);
+    
+    setFormulario({ ...formulario, [name]: value });
   };
 
   const aoEnviarFormulario = async (e) => {
     e.preventDefault();
 
-    // Define a URL base da API (pega da Vercel em produção ou usa o localhost para testes)
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
     try {
@@ -36,7 +46,8 @@ export default function CadastroCliente() {
         alert(resultado.mensagem || 'Cliente cadastrado com sucesso!');
         navigate('/Login');
       } else {
-        alert(resultado.mensagem || 'Erro ao realizar cadastro.');
+        // Agora, se o cliente tentar usar um e-mail ou CPF já existente, ele verá o alerta formatado do backend!
+        alert(resultado.erro || 'Erro ao realizar cadastro.');
       }
     } catch (erro) {
       console.error('Erro na conexão com o servidor:', erro);
@@ -51,6 +62,20 @@ export default function CadastroCliente() {
         <p className="subtitulo-cadastro-cliente">Gestão Inteligente de Estética Automotiva</p>
 
         <form onSubmit={aoEnviarFormulario}>
+          
+          {/* NOVO CAMPO: CPF */}
+          <div className="grupo-campo">
+            <label>CPF</label>
+            <input
+              type="text"
+              name="cpf"
+              required
+              value={formulario.cpf}
+              onChange={aoMudarCampo}
+              placeholder="000.000.000-00"
+            />
+          </div>
+
           <div className="grupo-campo">
             <label>Nome Completo</label>
             <input
@@ -80,9 +105,22 @@ export default function CadastroCliente() {
             <input
               type="text"
               name="telefone"
+              required
               value={formulario.telefone}
               onChange={aoMudarCampo}
               placeholder="(11) 99999-9999"
+            />
+          </div>
+
+          {/* NOVO CAMPO: Endereço (Para o Leva e Traz) */}
+          <div className="grupo-campo">
+            <label>Endereço Completo</label>
+            <input
+              type="text"
+              name="endereco"
+              value={formulario.endereco}
+              onChange={aoMudarCampo}
+              placeholder="Ex: Av. Paulista, 1000 - SP"
             />
           </div>
 

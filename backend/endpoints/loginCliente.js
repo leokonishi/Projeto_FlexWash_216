@@ -1,63 +1,47 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken'); // Importa o JWT
+const jwt = require('jsonwebtoken');
 const db = require('../bd');
 
-// Defina uma chave secreta para assinar os tokens
-const JWT_SECRET = 'flexwash_chave_secreta_super_segura';
+router.post('/login/cliente', async (req, res) => {
+    const { email, senha } = req.body;
 
-router.post('/login', (req, res) => {
-  const { email, senha } = req.body;
-
-  if (!email || !senha) {
-    return res.status(400).json({ sucesso: false, mensagem: 'Informe o e-mail e a senha.' });
-  }
-
-  const sql = 'SELECT * FROM clientes WHERE email = ?';
-
-  db.query(sql, [email], async (err, resultados) => {
-    if (err) {
-      console.error('Erro no servidor ao buscar usuário:', err.message);
-      return res.status(500).json({ sucesso: false, mensagem: 'Erro interno no servidor.' });
+    if (!email || !senha) {
+        return res.status(400).json({ sucesso: false, mensagem: 'Informe o e-mail e a senha.' });
     }
-
-    if (resultados.length === 0) {
-      return res.status(401).json({ sucesso: false, mensagem: 'E-mail ou senha inválidos.' });
-    }
-
-    const cliente = resultados[0];
 
     try {
-      const senhaCorreta = await bcrypt.compare(senha, cliente.senha);
-
-      if (!senhaCorreta) {
-        return res.status(401).json({ sucesso: false, mensagem: 'E-mail ou senha inválidos.' });
-      }
-
-      // Gera o Token JWT válido por 2 horas
-      const token = jwt.sign(
-        { id: cliente.id, email: cliente.email, perfil: cliente.perfil }, // permite que somente o cliente acesse a pagina de cliente 
-        JWT_SECRET,
-        { expiresIn: '2h' }
-      );
-
-      // Retorna o token junto com a mensagem de sucesso
-      return res.status(200).json({
-        sucesso: true,
-        mensagem: 'Login realizado com sucesso!',
-        token,
-        usuario: {
-          id: cliente.id,
-          nome: cliente.nome,
-          email: cliente.email
+        const [rows] = await db.execute('SELECT * FROM clientes WHERE email = ? LIMIT 1', [email]);
+        
+        if (rows.length === 0) {
+            return res.status(401).json({ sucesso: false, mensagem: 'E-mail ou senha inválidos.' });
         }
-      });
+
+        const cliente = rows[0];
+        const senhaCorreta = await bcrypt.compare(senha, cliente.senha);
+
+        if (!senhaCorreta) {
+            return res.status(401).json({ sucesso: false, mensagem: 'E-mail ou senha inválidos.' });
+        }
+
+        // Gera o token JWT para o cliente
+        const token = jwt.sign(
+            { id: cliente.id, email: cliente.email, perfil: 'cliente' },
+            process.env.JWT_SECRET || 'segredo_flexwash',
+            { expiresIn: '1d' }
+        );
+
+        res.status(200).json({
+            sucesso: true,
+            token,
+            perfil: 'cliente',
+            usuario: { id: cliente.id, nome: cliente.nome, email: cliente.email }
+        });
     } catch (erro) {
-      console.error('Erro ao verificar senha:', erro);
-      return res.status(500).json({ sucesso: false, mensagem: 'Erro ao processar autenticação.' });
+        console.error('Erro no login do cliente:', erro);
+        res.status(500).json({ sucesso: false, mensagem: 'Erro interno no servidor.' });
     }
-  });
 });
 
 module.exports = router;

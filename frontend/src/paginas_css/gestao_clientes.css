@@ -1,0 +1,222 @@
+/* Layout da Gestão de Clientes */
+.clientes-layout {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background-color: #f8fafc;
+  height: 100%;
+}
+
+.clientes-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.clientes-card-titulo {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.5rem 0;
+}
+
+.clientes-card-subtitulo {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0 0 1.5rem 0;
+}
+
+/* Formulário de Cadastro */
+.form-cliente-grupo {
+  margin-bottom: 1rem;
+}
+
+.form-cliente-grupo label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #94a3b8;
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+}
+
+.form-cliente-grupo input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #1e293b;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-cliente-grupo input:focus {
+  border-color: #3b82f6;
+}
+
+.btn-confirmar-cadastro {
+  width: 100%;
+  padding: 0.85rem;
+  background: #0f172a;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: background 0.2s;
+}
+
+.btn-confirmar-cadastro:hover {
+  background: #1e293b;
+}
+
+/* Área de Busca e Tabela */
+.busca-filtros {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.input-busca-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.input-busca-wrapper label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.input-busca-wrapper input {
+  padding: 0.75rem 0.75rem 0.75rem 2.2rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.icone-busca {
+  position: absolute;
+  left: 0.75rem;
+  bottom: 0.8rem;
+  color: #94a3b8;
+}
+
+/* Tabela de Clientes */
+.tabela-clientes-wrapper {
+  overflow-x: auto;
+}
+
+.tabela-clientes {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.tabela-clientes th {
+  padding: 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+}
+
+.tabela-clientes td {
+  padding: 1rem;
+  font-size: 0.85rem;
+  color: #1e293b;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: middle;
+}
+
+.tabela-clientes tr:hover {
+  background-color: #f8fafc;
+}
+
+.sub-texto {
+  display: block;
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.2rem;
+}
+
+.btn-frota {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #eff6ff;
+  color: #3b82f6;
+  border: 1px solid #bfdbfe;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-frota:hover {
+  background: #dbeafe;
+}
+
+.acoes-td {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Estilo quando a frota está VAZIA (0 veículos) */
+.btn-frota {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: #f8fafc;
+  color: #94a3b8;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-frota:hover {
+  background-color: #f1f5f9;
+  color: #64748b;
+}
+
+/* Estilo ATIVO quando tem 1 ou mais veículos */
+.btn-frota.ativa {
+  background-color: #eff6ff;
+  color: #2563eb;
+  border-color: #bfdbfe;
+}
+
+.btn-frota.ativa:hover {
+  background-color: #dbeafe;
+}
+
+/* A bolinha (badge) do contador */
+.badge-contador {
+  background-color: #2563eb;
+  color: white;
+  padding: 2px 7px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-left: 2px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}

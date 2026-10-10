@@ -3,51 +3,46 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const db = require('../bd');
 
-// 1. CAMADA DE DADOS (Alinhada com a tabela unificada 'funcionarios')
+// 1. CAMADA DE DADOS COM PROMISES (Compatível com mysql2/promise)
 const FuncionarioDB = {
-  listarApenasFuncionarios: () => {
-    return new Promise((resolve, reject) => {
-      const sql = `
-        SELECT id, nome, cpf, email, telefone, funcoes, perfil, criado_em 
-        FROM funcionarios 
-        WHERE perfil = 'funcionario'
-        ORDER BY nome ASC
-      `;
-      db.query(sql, (err, resultados) => (err ? reject(err) : resolve(resultados)));
-    });
+  listarApenasFuncionarios: async () => {
+    const sql = `
+      SELECT id, nome, cpf, email, telefone, funcoes, perfil, criado_em 
+      FROM funcionarios 
+      WHERE perfil = 'funcionario'
+      ORDER BY nome ASC
+    `;
+    const [resultados] = await db.execute(sql);
+    return resultados;
   },
 
-  verificarDuplicidade: (cpf, email) => {
-    return new Promise((resolve, reject) => {
-      const sql = 'SELECT id FROM funcionarios WHERE cpf = ? OR email = ? LIMIT 1';
-      db.query(sql, [cpf, email], (err, resultados) => (err ? reject(err) : resolve(resultados[0])));
-    });
+  verificarDuplicidade: async (cpf, email) => {
+    const sql = 'SELECT id FROM funcionarios WHERE cpf = ? OR email = ? LIMIT 1';
+    const [resultados] = await db.execute(sql, [cpf, email]);
+    return resultados[0];
   },
 
-  inserir: (dados) => {
-    return new Promise((resolve, reject) => {
-      const sql = `
-        INSERT INTO funcionarios (nome, cpf, email, telefone, funcoes, senha, perfil)
-        VALUES (?, ?, ?, ?, ?, ?, 'funcionario')
-      `;
-      const valores = [
-        dados.nome,
-        dados.cpf,
-        dados.email,
-        dados.telefone,
-        dados.funcoesFormatadas,
-        dados.senhaHash
-      ];
-      db.query(sql, valores, (err, res) => (err ? reject(err) : resolve({ id: res.insertId, ...dados })));
-    });
+  inserir: async (dados) => {
+    const sql = `
+      INSERT INTO funcionarios (nome, cpf, email, telefone, funcoes, senha, perfil)
+      VALUES (?, ?, ?, ?, ?, ?, 'funcionario')
+    `;
+    const valores = [
+      dados.nome,
+      dados.cpf,
+      dados.email,
+      dados.telefone,
+      dados.funcoesFormatadas,
+      dados.senhaHash
+    ];
+    const [res] = await db.execute(sql, valores);
+    return { id: res.insertId, ...dados };
   },
 
-  removerPorId: (id) => {
-    return new Promise((resolve, reject) => {
-      // Trava de seguranca: garante que nunca excluira um 'administrador'
-      const sql = "DELETE FROM funcionarios WHERE id = ? AND perfil = 'funcionario'";
-      db.query(sql, [id], (err, res) => (err ? reject(err) : resolve(res)));
-    });
+  removerPorId: async (id) => {
+    const sql = "DELETE FROM funcionarios WHERE id = ? AND perfil = 'funcionario'";
+    const [res] = await db.execute(sql, [id]);
+    return res;
   }
 };
 

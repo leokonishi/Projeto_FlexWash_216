@@ -23,4 +23,4 @@ conexao.connect((err) => {
   console.log('Conectado ao MySQL com sucesso!');
 });
 
-module.exports = conexao;
+module.exports = conexao.promise();

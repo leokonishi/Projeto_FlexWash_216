@@ -1,41 +1,56 @@
-const express = require('express');
-const router = express.Router();
-const bcrypt = require('bcrypt'); // Importa a biblioteca de criptografia
-const db = require('../bd'); 
+const bcrypt = require('bcrypt');
+const db = require('../bd');
 
-router.post('/clientes', async (req, res) => {
-  const { nome, email, telefone, senha } = req.body;
+const cadastrar = async (req, res) => {
+    const { nome, cpf, email, telefone, endereco, senha } = req.body;
 
-  if (!nome || !email || !senha) {
-    return res.status(400).json({ sucesso: false, mensagem: 'Preencha todos os campos obrigatórios.' });
-  }
+    // Se o Admin cadastrou pelo painel, a senha pode vir vazia. Definimos uma padrão se necessário.
+    const senhaParaUsar = senha ? senha : '123'; 
 
-  try {
-    // Criptografa a senha antes de salvar no banco
-    const saltRounds = 10;
-    const senhaCriptografada = await bcrypt.hash(senha, saltRounds);
+    if (!nome || !cpf) {
+        return res.status(400).json({ sucesso: false, mensagem: 'Nome e CPF são obrigatórios.' });
+    }
 
-    const sql = 'INSERT INTO clientes (nome, email, telefone, senha) VALUES (?, ?, ?, ?)';
-    
-    db.query(sql, [nome, email, telefone || '', senhaCriptografada], (err, resultado) => {
-      if (err) {
-        console.error('Erro ao inserir cliente:', err.message);
-        if (err.code === 'ER_DUP_ENTRY') {
-          return res.status(400).json({ sucesso: false, mensagem: 'Este e-mail já está cadastrado.' });
-        }
-        return res.status(500).json({ sucesso: false, mensagem: 'Erro no servidor ao cadastrar cliente.' });
-      }
+    try {
+        const senhaHash = await bcrypt.hash(senhaParaUsar, 10);
+        const query = `
+            INSERT INTO clientes (nome, cpf, email, telefone, endereco, senha) 
+            VALUES (?, ?, ?, ?, ?, ?)
+        `;
+        await db.execute(query, [
+            nome, 
+            cpf, 
+            email || '', 
+            telefone || '', 
+            endereco || '', 
+            senhaHash
+        ]);
+        
+        return res.status(201).json({ sucesso: true, mensagem: 'Cliente cadastrado com sucesso!' });
+    } catch (erro) {
+        console.error('Erro ao cadastrar cliente:', erro);
+        return res.status(400).json({ 
+            sucesso: false, 
+            mensagem: 'Erro ao cadastrar. Verifique se o CPF ou E-mail já estão registados.' 
+        });
+    }
+};
 
-      return res.status(201).json({
-        sucesso: true,
-        mensagem: 'Cliente cadastrado com sucesso!',
-        idUsuario: resultado.insertId
-      });
-    });
-  } catch (erro) {
-    console.error('Erro ao criptografar senha:', erro);
-    return res.status(500).json({ sucesso: false, mensagem: 'Erro interno no processamento da senha.' });
-  }
-});
-
-module.exports = router;
+const listarClientes = async (req, res) => {
+    try {
+        // A MÁGICA ESTÁ AQUI: O sub-select (SELECT COUNT(*)...) conta os veículos do cliente!
+        const query = `
+            SELECT 
+                c.id, c.nome, c.cpf, c.telefone, c.endereco, c.email,
+                (SELECT COUNT(*) FROM veiculos v WHERE v.cliente_id = c.id) AS frota
+            FROM clientes c 
+            ORDER BY c.nome ASC
+        `;
+        const [clientes] = await db.execute(query);
+        return res.status(200).json(clientes);
+    } catch (erro) {
+        console.error('Erro ao listar clientes:', erro);
+        return res.status(500).json({ erro: 'Erro ao listar clientes.' });
+    }
+};
+module.exports = { cadastrar, listarClientes };

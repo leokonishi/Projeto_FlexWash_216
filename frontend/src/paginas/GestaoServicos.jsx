@@ -3,7 +3,6 @@ import '../paginas_css/painel_controle.css';
 
 // Importando os nossos componentes
 import ModalConfirmacao from "../componentes/ModalConfirmacao";
-import SecaoMarcas from '../componentes/ConfiguracoesAdm/SecaoMarcas';
 import SecaoPacotes from '../componentes/ConfiguracoesAdm/SecaoPacotes';
 import SecaoExtras from '../componentes/ConfiguracoesAdm/SecaoExtras';
 
@@ -37,27 +36,26 @@ export default function GestaoServicos() {
 
   return (
     <>
-      {/* Cabeçalho padrão da página dentro do Painel Admin */}
+      {/* Cabeçalho atualizado sem mencionar "marcas" */}
       <div style={{ marginBottom: '1.5rem', padding: '0 1.5rem' }}>
         <h2 style={{ fontSize: '1.5rem', color: '#0f172a', margin: '0 0 0.5rem 0' }}>
-          Painel Geral do Administrador
+          Painel de Serviços e Valores
         </h2>
         <p style={{ color: '#64748b', margin: 0, fontSize: '0.95rem' }}>
-          Cadastre, edite e remova marcas de carros, pacotes de lavagem e serviços adicionais.
+          Cadastre, edite e remova pacotes de lavagem e serviços adicionais do seu lava-rápido.
         </p>
       </div>
 
-      {/* Grid de 2 Colunas */}
+      {/* Grid de 2 Colunas Equilibrado */}
       <div className="painel-controle-layout">
-        
-        {/* Coluna Esquerda (300px) */}
+   
+        {/* Coluna Esquerda */}
         <aside>
-          <SecaoMarcas abrirAlerta={abrirAlerta} />
+          <SecaoPacotes abrirAlerta={abrirAlerta} />
         </aside>
 
-        {/* Coluna Direita (Ocupa o resto do espaço) */}
+        {/* Coluna Direita */}
         <main>
-          <SecaoPacotes abrirAlerta={abrirAlerta} />
           <SecaoExtras abrirAlerta={abrirAlerta} />
         </main>
 
