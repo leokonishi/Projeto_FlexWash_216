@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../utils/api';
 
 export function useGestaoPatio(abrirAlerta) {
   const [metricas, setMetricas] = useState({
@@ -18,7 +19,7 @@ export function useGestaoPatio(abrirAlerta) {
   const buscarDadosDoPatio = async () => {
     try {
       setCarregando(true);
-      const resposta = await fetch(`${API_URL}/api/execucoes/patio`, {
+      const resposta = await apiFetch(`${API_URL}/api/execucoes/patio`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` }
       });
       
@@ -62,7 +63,7 @@ export function useGestaoPatio(abrirAlerta) {
   const avancarStatusServico = async (idServico, statusAtual) => {
     const novoStatus = statusAtual === 'Aguardando' ? 'Em Andamento' : 'Finalizado';
     try {
-      const res = await fetch(`${API_URL}/api/execucoes/${idServico}/status`, {
+      const res = await apiFetch(`${API_URL}/api/execucoes/${idServico}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ novoStatus })
@@ -79,7 +80,7 @@ export function useGestaoPatio(abrirAlerta) {
   const excluirServico = (idServico) => {
     alertar('Excluir Serviço', 'Tem a certeza que deseja remover este veículo do pátio?', async () => {
       try {
-        const res = await fetch(`${API_URL}/api/execucoes/${idServico}`, { method: 'DELETE' });
+        const res = await apiFetch(`${API_URL}/api/execucoes/${idServico}`, { method: 'DELETE' });
         if (res.ok) buscarDadosDoPatio();
       } catch (erro) {
         console.error(erro);

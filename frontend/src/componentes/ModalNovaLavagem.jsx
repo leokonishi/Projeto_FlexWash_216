@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import ConfiguracaoVeiculo from './ConfiguracaoVeiculo';
+import { apiFetch } from '../utils/api';
 
 export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPatio }) {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -22,17 +23,19 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
     const buscarDadosIniciais = async () => {
       try {
         const [resClientes, resPacotes, resExtras, resFunc] = await Promise.all([
-          fetch(`${API_URL}/api/clientes`),
-          fetch(`${API_URL}/api/pacotes`),
-          fetch(`${API_URL}/api/extras`),
-          fetch(`${API_URL}/api/funcionarios`)
+          apiFetch(`${API_URL}/api/clientes`),
+          apiFetch(`${API_URL}/api/pacotes`),
+          apiFetch(`${API_URL}/api/extras`),
+          apiFetch(`${API_URL}/api/funcionarios`)
         ]);
 
         if (resClientes.ok) setClientes(await resClientes.json());
         if (resPacotes.ok) setPacotes(await resPacotes.json());
         if (resExtras.ok) setExtras(await resExtras.json());
         if (resFunc.ok) {
-          const todosFunc = await resFunc.json();
+          // /api/funcionarios responde { sucesso, dados: [...] }
+          const jsonFunc = await resFunc.json();
+          const todosFunc = Array.isArray(jsonFunc) ? jsonFunc : (jsonFunc.dados || []);
           setFuncionarios(todosFunc.filter(f => f.perfil === 'funcionario' || f.perfil === 'Funcionário'));
         }
       } catch (error) {
@@ -53,7 +56,7 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
 
     const buscarVeiculos = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/clientes/${clienteId}/veiculos`);
+        const res = await apiFetch(`${API_URL}/api/clientes/${clienteId}/veiculos`);
         if (res.ok) setVeiculosDoCliente(await res.json());
       } catch (error) {
         console.error(error);
@@ -112,7 +115,7 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
     console.log("Enviando para o Banco:", payload); // Para você acompanhar no F12
 
     try {
-      const res = await fetch(`${API_URL}/api/execucoes`, {
+      const res = await apiFetch(`${API_URL}/api/execucoes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

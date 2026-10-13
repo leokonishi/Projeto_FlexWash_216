@@ -1,27 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const jwt = require('jsonwebtoken');
 const db = require('../bd');
 
-const JWT_SECRET = 'flexwash_chave_secreta_super_segura';
+const verificarToken = require('../middleware/auth');
+const verificarPerfil = require('../middleware/perfil');
 
-// Middleware para garantir que apenas o Administrador acesse os relatórios financeiros
-const verificarAdmin = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ sucesso: false, mensagem: 'Token nao fornecido.' });
-
-  const token = authHeader.split(' ')[1];
-  try {
-    const decodificado = jwt.verify(token, JWT_SECRET);
-    if (decodificado.perfil !== 'administrador') {
-      return res.status(403).json({ sucesso: false, mensagem: 'Acesso negado. Relatorio exclusivo para administradores.' });
-    }
-    req.usuarioLogado = decodificado;
-    next();
-  } catch (erro) {
-    return res.status(401).json({ sucesso: false, mensagem: 'Token invalido ou expirado.' });
-  }
-};
+// Apenas administrador (token válido + perfil 'administrador')
+const verificarAdmin = [verificarToken, verificarPerfil([])];
 
 // 1. CAMADA DE DADOS
 const AdminComissoesDB = {

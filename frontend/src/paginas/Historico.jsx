@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, FileSpreadsheet, FileText } from 'lucide-react';
+import { apiFetch } from '../utils/api';
+import { obterPerfil } from '../utils/sessao';
 import '../paginas_css/gestao_clientes.css'; // Usando o mesmo CSS da tabela de clientes para manter o padrão
 
 export default function Historico({ abrirAlerta }) {
@@ -7,12 +9,12 @@ export default function Historico({ abrirAlerta }) {
   const [carregando, setCarregando] = useState(true);
   
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-  const perfilUsuario = localStorage.getItem('perfil_flexwash') || 'funcionario';
+  const perfilUsuario = obterPerfil() || 'funcionario'; // lido do token
 
   const buscarHistorico = async () => {
     try {
       setCarregando(true);
-      const resposta = await fetch(`${API_URL}/api/execucoes/historico`, {
+      const resposta = await apiFetch(`${API_URL}/api/execucoes/historico`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` }
       });
       
@@ -39,7 +41,7 @@ export default function Historico({ abrirAlerta }) {
         `Tem certeza que deseja apagar este histórico (#${id})? Esta ação não pode ser desfeita.`,
         async () => {
           try {
-            const resposta = await fetch(`${API_URL}/api/execucoes/${id}`, { method: 'DELETE' });
+            const resposta = await apiFetch(`${API_URL}/api/execucoes/${id}`, { method: 'DELETE' });
             if (resposta.ok) {
               setHistorico(historico.filter(item => item.id !== id));
             }

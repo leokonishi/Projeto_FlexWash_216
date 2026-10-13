@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const db = require('../bd');
+const { JWT_SECRET } = require('../config/jwt');
 
 router.post('/login/cliente', async (req, res) => {
     const { email, senha } = req.body;
@@ -25,13 +26,12 @@ router.post('/login/cliente', async (req, res) => {
             return res.status(401).json({ sucesso: false, mensagem: 'E-mail ou senha inválidos.' });
         }
 
-        // Gera o token JWT para o cliente
-      // Certifique-se de que está assim no loginCliente.js:
-const token = jwt.sign(
-    { id: cliente.id, email: cliente.email, perfil: 'cliente' }, // <-- O 'id: cliente.id' é OBRIGATÓRIO AQUI
-    process.env.JWT_SECRET || 'segredo_flexwash',
-    { expiresIn: '1d' }
-);
+        // Gera o token JWT para o cliente (o 'id' é usado para restringir o acesso aos próprios dados)
+        const token = jwt.sign(
+            { id: cliente.id, email: cliente.email, perfil: 'cliente' },
+            JWT_SECRET,
+            { expiresIn: '1d' }
+        );
 
         res.status(200).json({
             sucesso: true,
