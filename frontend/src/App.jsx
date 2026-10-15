@@ -20,19 +20,32 @@ export default function App() {
 
         <Route path="/login" element={<Login />} />
         <Route path="/cadastro" element={<CadastroCliente />} />
-        <Route path="/PaginaCliente" element={<PaginaCliente />} />
-        <Route path="/historico" element={<Historico />} />
-    
+        <Route
+          path="/PaginaCliente"
+          element={
+            <RotaProtegida perfisPermitidos={['cliente']}>
+              <PaginaCliente />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/historico"
+          element={
+            <RotaProtegida perfisPermitidos={['administrador', 'funcionario']}>
+              <Historico />
+            </RotaProtegida>
+          }
+        />
+
         <Route path="/gestao/LoginGestao" element={<LoginGestao />} />
 
-    
-        <Route 
-          path="/painel" 
+        <Route
+          path="/painel"
           element={
-            <RotaProtegida>
+            <RotaProtegida perfisPermitidos={['administrador', 'funcionario']}>
               <EsqueletoAdmin />
             </RotaProtegida>
-          } 
+          }
         />
       </Routes>
     </BrowserRouter>

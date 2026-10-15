@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../utils/api';
 import '../paginas_css/gestao_funcionarios.css';
 
 const FUNCOES_DISPONIVEIS = [
@@ -11,8 +12,8 @@ const FUNCOES_DISPONIVEIS = [
 ];
 
 export default function GestaoFuncionarios() {
-  // Aponta para a porta 3000, exatamente como configurado no seu backend/server.js
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  // Mesma porta padrão do backend/server.js (8080) usada nas demais telas
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
   const [funcionarios, setFuncionarios] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -33,7 +34,7 @@ export default function GestaoFuncionarios() {
   useEffect(() => {
     async function buscarFuncionarios() {
       try {
-        const resposta = await fetch(`${API_URL}/api/funcionarios`, {
+        const resposta = await apiFetch(`${API_URL}/api/funcionarios`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` }
         });
 
@@ -83,7 +84,7 @@ export default function GestaoFuncionarios() {
     setEnviando(true);
 
     try {
-      const resposta = await fetch(`${API_URL}/api/funcionarios`, {
+      const resposta = await apiFetch(`${API_URL}/api/funcionarios`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -123,7 +124,7 @@ export default function GestaoFuncionarios() {
     if (!window.confirm(`Deseja remover o funcionario ${nome}?`)) return;
 
     try {
-      const resposta = await fetch(`${API_URL}/api/funcionarios/${id}`, {
+      const resposta = await apiFetch(`${API_URL}/api/funcionarios/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` }
       });

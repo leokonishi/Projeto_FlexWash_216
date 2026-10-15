@@ -1,14 +1,19 @@
 import { Navigate } from 'react-router-dom';
+import { obterSessao, encerrarSessao } from './utils/sessao';
 
-export default function RotaProtegida({ children }) {
-  const estaAutenticado = localStorage.getItem('token_flexwash');
+// Uso: <RotaProtegida perfisPermitidos={['administrador', 'funcionario']}>...</RotaProtegida>
+// Sem token (ou token expirado) -> login. Perfil não permitido -> a "home" do próprio perfil.
+export default function RotaProtegida({ children, perfisPermitidos }) {
+  const sessao = obterSessao();
 
-  if (!estaAutenticado) {
-    // Dispara o alerta informando a restrição de acesso
-    alert("Acesso negado! Por favor, faça login para acessar esta página.");
-    
-    // Redireciona para o login
-    return <Navigate to="/login" replace />;
+  if (!sessao) {
+    encerrarSessao(); // limpa token expirado/corrompido
+    const soCliente = perfisPermitidos?.length === 1 && perfisPermitidos[0] === 'cliente';
+    return <Navigate to={soCliente ? '/login' : '/gestao/LoginGestao'} replace />;
+  }
+
+  if (perfisPermitidos && !perfisPermitidos.includes(sessao.perfil)) {
+    return <Navigate to={sessao.perfil === 'cliente' ? '/PaginaCliente' : '/painel'} replace />;
   }
 
   return children;

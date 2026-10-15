@@ -9,11 +9,12 @@ import GestaoFuncionarios from './GestaoFuncionarios';
 import GestaoServicos from './GestaoServicos';
 import Historico from './Historico'; // 1. IMPORTAÇÃO DO HISTÓRICO ADICIONADA AQUI
 import ModalConfirmacao from '../componentes/ModalConfirmacao';
+import { obterPerfil, encerrarSessao } from '../utils/sessao';
 
 export default function PaginaAdmin() {
   const navigate = useNavigate();
   const [abaAtiva, setAbaAtiva] = useState('inicio');
-  const perfilUsuario = localStorage.getItem('perfil_flexwash') || 'funcionario';
+  const perfilUsuario = obterPerfil() || 'funcionario'; // lido do token, não do localStorage editável
 
   // --- CONTROLO GLOBAL DO MODAL DE ALERTA ---
   const [alerta, setAlerta] = useState({ isOpen: false, titulo: '', mensagem: '', onConfirm: null, tipo: 'aviso' });
@@ -25,9 +26,8 @@ export default function PaginaAdmin() {
   // ------------------------------------------
 
   const handleLogout = () => {
-    localStorage.removeItem('token_flexwash');
-    localStorage.removeItem('perfil_flexwash');
-    navigate('/login');
+    encerrarSessao();
+    navigate('/gestao/LoginGestao');
   };
 
   const handleEmBreve = (nomeMenu) => {

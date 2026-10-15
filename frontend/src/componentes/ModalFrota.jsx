@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Edit, Repeat, Trash2, Car } from 'lucide-react';
 import { aplicarMascaraPlaca } from '../utils/mascaras';
+import { apiFetch } from '../utils/api';
 
 // Adicionámos a prop 'atualizarClientes' aqui em cima
 export default function ModalFrota({ cliente, fecharModal, abrirAlerta, atualizarClientes }) {
@@ -24,11 +25,11 @@ export default function ModalFrota({ cliente, fecharModal, abrirAlerta, atualiza
         setCarregando(true);
 
         // 1. Busca os veículos deste cliente no NOSSO banco de dados
-        const resVeiculos = await fetch(`${API_URL}/api/clientes/${cliente.id}/veiculos`);
+        const resVeiculos = await apiFetch(`${API_URL}/api/clientes/${cliente.id}/veiculos`);
         if (resVeiculos.ok) setVeiculos(await resVeiculos.json());
 
         // 2. Busca as Marcas diretamente da API pública da Tabela FIPE
-        const resMarcas = await fetch('https://parallelum.com.br/fipe/api/v1/carros/marcas');
+        const resMarcas = await apiFetch('https://parallelum.com.br/fipe/api/v1/carros/marcas');
         if (resMarcas.ok) {
           const marcasFipe = await resMarcas.json();
           if (marcasFipe.length > 0) {
@@ -55,7 +56,7 @@ export default function ModalFrota({ cliente, fecharModal, abrirAlerta, atualiza
     const novoVeiculo = { marca, modelo, placa: placaInput, cor, porte };
 
     try {
-      const resposta = await fetch(`${API_URL}/api/clientes/${cliente.id}/veiculos`, {
+      const resposta = await apiFetch(`${API_URL}/api/clientes/${cliente.id}/veiculos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(novoVeiculo)
@@ -84,7 +85,7 @@ export default function ModalFrota({ cliente, fecharModal, abrirAlerta, atualiza
       `Tem certeza que deseja remover o ${veiculo.modelo} (${veiculo.placa})?`,
       async () => {
         try {
-          const resposta = await fetch(`${API_URL}/api/veiculos/${veiculo.id}`, { method: 'DELETE' });
+          const resposta = await apiFetch(`${API_URL}/api/veiculos/${veiculo.id}`, { method: 'DELETE' });
           if (resposta.ok) {
             setVeiculos(veiculos.filter(v => v.id !== veiculo.id));
             

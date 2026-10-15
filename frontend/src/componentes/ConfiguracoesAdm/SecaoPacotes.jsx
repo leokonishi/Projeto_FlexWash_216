@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PlusCircle, Edit2, Trash2, Droplets } from 'lucide-react';
+import { apiFetch } from '../../utils/api';
 
 export default function SecaoPacotes({ abrirAlerta }) {
   const [pacotes, setPacotes] = useState([]);
@@ -20,7 +21,7 @@ export default function SecaoPacotes({ abrirAlerta }) {
   const buscarPacotes = async () => {
     try {
       setCarregando(true);
-      const res = await fetch(`${API_URL}/api/pacotes`);
+      const res = await apiFetch(`${API_URL}/api/pacotes`);
       if (res.ok) setPacotes(await res.json());
     } catch (erro) {
       console.error("Erro ao buscar pacotes:", erro);
@@ -51,7 +52,7 @@ export default function SecaoPacotes({ abrirAlerta }) {
     };
 
     try {
-      const res = await fetch(`${API_URL}/api/pacotes`, {
+      const res = await apiFetch(`${API_URL}/api/pacotes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(novoPacote)
@@ -75,7 +76,7 @@ export default function SecaoPacotes({ abrirAlerta }) {
       `Deseja excluir "${nomeItem}"? Isso removerá a opção das novas lavagens.`,
       async () => {
         try {
-          const res = await fetch(`${API_URL}/api/pacotes/${id}`, { method: 'DELETE' });
+          const res = await apiFetch(`${API_URL}/api/pacotes/${id}`, { method: 'DELETE' });
           if (res.ok) buscarPacotes();
         } catch (erro) {
           console.error(erro);

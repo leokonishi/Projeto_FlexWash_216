@@ -3,8 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const db = require('../bd'); // Agora usa Promises!
-
-const JWT_SECRET = 'flexwash_chave_secreta_super_segura';
+const { JWT_SECRET } = require('../config/jwt');
 
 // Função assíncrona (async)
 router.post('/login-gestao', async (req, res) => {

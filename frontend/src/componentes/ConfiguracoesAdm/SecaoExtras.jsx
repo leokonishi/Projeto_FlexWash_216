@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PlusCircle, Edit2, Trash2, Tag } from 'lucide-react';
+import { apiFetch } from '../../utils/api';
 
 export default function SecaoExtras({ abrirAlerta }) {
   const [extras, setExtras] = useState([]);
@@ -20,7 +21,7 @@ export default function SecaoExtras({ abrirAlerta }) {
   const buscarExtras = async () => {
     try {
       setCarregando(true);
-      const res = await fetch(`${API_URL}/api/extras`);
+      const res = await apiFetch(`${API_URL}/api/extras`);
       if (res.ok) setExtras(await res.json());
     } catch (erro) {
       console.error("Erro ao buscar extras:", erro);
@@ -51,7 +52,7 @@ export default function SecaoExtras({ abrirAlerta }) {
     };
 
     try {
-      const res = await fetch(`${API_URL}/api/extras`, {
+      const res = await apiFetch(`${API_URL}/api/extras`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(novoExtra)
@@ -75,7 +76,7 @@ export default function SecaoExtras({ abrirAlerta }) {
       `Deseja excluir "${nomeItem}"? Isso removerá a opção das novas lavagens.`,
       async () => {
         try {
-          const res = await fetch(`${API_URL}/api/extras/${id}`, { method: 'DELETE' });
+          const res = await apiFetch(`${API_URL}/api/extras/${id}`, { method: 'DELETE' });
           if (res.ok) buscarExtras();
         } catch (erro) {
           console.error(erro);

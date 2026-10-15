@@ -121,6 +121,14 @@ router.get('/execucoes/historico', async (req, res) => {
 // 6. BUSCAR SERVIÇOS DE UM CLIENTE ESPECÍFICO (GET)
 router.get('/execucoes/cliente/:cliente_id', async (req, res) => {
     const { cliente_id } = req.params;
+
+    // Cliente só enxerga os próprios serviços (o id vem do token, não da URL).
+    // Funcionário e administrador podem consultar qualquer cliente.
+    const { perfil, id: usuarioId } = req.usuarioLogado || {};
+    if (perfil === 'cliente' && String(usuarioId) !== String(cliente_id)) {
+        return res.status(403).json({ erro: 'Acesso negado. Você só pode consultar os seus próprios serviços.' });
+    }
+
     try {
         const query = `
             SELECT 

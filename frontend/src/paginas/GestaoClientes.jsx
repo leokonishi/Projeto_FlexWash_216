@@ -3,9 +3,11 @@ import { Search, Edit2, Trash2, Car } from 'lucide-react';
 import '../paginas_css/gestao_clientes.css';
 import { aplicarMascaraCPF, aplicarMascaraTelefone, aplicarMascaraPlaca } from '../utils/mascaras';
 import ModalFrota from '../componentes/ModalFrota';
+import { apiFetch } from '../utils/api';
+import { obterPerfil } from '../utils/sessao';
 
 export default function GestaoClientes({ abrirAlerta }) {
-  const perfilUsuario = localStorage.getItem('perfil_flexwash') || 'funcionario';
+  const perfilUsuario = obterPerfil() || 'funcionario'; // lido do token
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
   // Estados dos inputs
@@ -27,7 +29,7 @@ export default function GestaoClientes({ abrirAlerta }) {
   const buscarClientes = async () => {
     try {
       setCarregando(true);
-      const resposta = await fetch(`${API_URL}/api/clientes`, {
+      const resposta = await apiFetch(`${API_URL}/api/clientes`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` }
       });
       if (resposta.ok) {
@@ -54,7 +56,7 @@ export default function GestaoClientes({ abrirAlerta }) {
     const novoCliente = { cpf, nome, email, telefone, endereco };
 
     try {
-      const resposta = await fetch(`${API_URL}/api/clientes`, {
+      const resposta = await apiFetch(`${API_URL}/api/clientes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -87,7 +89,7 @@ export default function GestaoClientes({ abrirAlerta }) {
       'Desativar Cliente',
       `Tem certeza que deseja desativar o cadastro de ${cliente.nome}?`,
       () => {
-        // Futuramente colocaremos um fetch(DELETE) aqui.
+        // Futuramente colocaremos um apiFetch(DELETE) aqui.
         alert("Chamada para exclusão no banco em breve.");
       },
       'perigo'
