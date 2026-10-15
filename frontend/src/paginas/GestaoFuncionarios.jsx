@@ -34,9 +34,7 @@ export default function GestaoFuncionarios() {
   useEffect(() => {
     async function buscarFuncionarios() {
       try {
-        const resposta = await apiFetch(`${API_URL}/api/funcionarios`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` }
-        });
+        const resposta = await apiFetch(`${API_URL}/api/funcionarios`);
 
         const contentType = resposta.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
@@ -86,17 +84,14 @@ export default function GestaoFuncionarios() {
     try {
       const resposta = await apiFetch(`${API_URL}/api/funcionarios`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formulario)
       });
 
       const contentType = resposta.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         throw new Error(
-          `Erro ${resposta.status}: O servidor nao respondeu em JSON. Verifique se o backend na porta 3000 foi reiniciado.`
+          `Erro ${resposta.status}: O servidor nao respondeu em JSON. Verifique se o backend esta rodando e foi reiniciado.`
         );
       }
 
@@ -125,8 +120,7 @@ export default function GestaoFuncionarios() {
 
     try {
       const resposta = await apiFetch(`${API_URL}/api/funcionarios/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` }
+        method: 'DELETE'
       });
 
       const json = await resposta.json();
