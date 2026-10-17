@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import '../paginas_css/Cadastro_Cliente.css';
+import '../paginas_css/cadastro_cliente.css';
 import { aplicarMascaraCPF, aplicarMascaraTelefone } from '../utils/mascaras'; // Importando as máscaras reutilizáveis!
 
 export default function CadastroCliente() {
