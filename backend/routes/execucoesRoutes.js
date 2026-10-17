@@ -1,50 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../bd');
+const { registrarEntrada } = require('../services/execucoesService');
+const { ErroNegocio } = require('../services/erros');
 
 // 1. REGISTRAR NOVA ENTRADA (POST)
+// Validação, cálculo do preço (pelo banco, nunca pelo valor enviado) e gravação em transação
+// ficam em services/execucoesService.js.
 router.post('/execucoes', async (req, res) => {
-    const { cliente_id, veiculos } = req.body;
-
-    if (!cliente_id || !veiculos || veiculos.length === 0) {
-        return res.status(400).json({ erro: 'Dados incompletos para iniciar o serviço.' });
-    }
-
     try {
-        for (const veiculo of veiculos) {
-            const pacoteIdFinal = veiculo.pacote_id ? veiculo.pacote_id : null;
-
-            const queryExecucao = `
-                INSERT INTO execucoes (cliente_id, veiculo_id, pacote_id, valor_total) 
-                VALUES (?, ?, ?, ?)
-            `;
-            const [result] = await db.execute(queryExecucao, [
-                cliente_id, 
-                veiculo.veiculo_id, 
-                pacoteIdFinal, 
-                veiculo.valor_total || 0
-            ]);
-            
-            const execucaoId = result.insertId;
-
-            if (veiculo.extras && veiculo.extras.length > 0) {
-                const queryExtra = 'INSERT INTO execucao_extras (execucao_id, extra_id) VALUES (?, ?)';
-                for (const extraId of veiculo.extras) {
-                    await db.execute(queryExtra, [execucaoId, extraId]);
-                }
-            }
-
-            if (veiculo.funcionarios && veiculo.funcionarios.length > 0) {
-                const queryFunc = 'INSERT INTO execucao_funcionarios (execucao_id, funcionario_id) VALUES (?, ?)';
-                for (const funcId of veiculo.funcionarios) {
-                    await db.execute(queryFunc, [execucaoId, funcId]);
-                }
-            }
-        }
-        res.status(201).json({ mensagem: 'Serviços registrados com sucesso no pátio!' });
+        const resultado = await registrarEntrada(db, req.body);
+        return res.status(201).json({ mensagem: 'Serviços registrados com sucesso no pátio!', ...resultado });
     } catch (erro) {
+        if (erro instanceof ErroNegocio) {
+            return res.status(erro.status).json({ erro: erro.message });
+        }
         console.error('Erro ao registrar execução:', erro);
-        res.status(500).json({ erro: 'Erro interno ao iniciar o serviço.' });
+        return res.status(500).json({ erro: 'Erro interno ao iniciar o serviço.' });
     }
 });
 

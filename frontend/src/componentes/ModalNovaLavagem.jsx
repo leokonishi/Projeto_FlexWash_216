@@ -97,7 +97,9 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
       return;
     }
 
-    // Monta o "Payload" extraindo dados de forma segura (impede crash se faltar info)
+    // Monta o "Payload" extraindo dados de forma segura (impede crash se faltar info).
+    // O valor NÃO é enviado: o servidor calcula o preço pelo pacote, extras e porte do veículo.
+    // O total mostrado na tela é só uma prévia.
     const payload = {
       cliente_id: clienteId,
       veiculos: veiculosSelecionados.map(vId => {
@@ -106,8 +108,7 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
           veiculo_id: vId,
           pacote_id: config.pacote_id || null,
           extras: config.extras || [],
-          funcionarios: config.funcionarios || [],
-          valor_total: config.valor_total || 0
+          funcionarios: config.funcionarios || []
         };
       })
     };
