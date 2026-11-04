@@ -26,7 +26,6 @@ exports.cadastrarCliente = async (req, res) => {
         return res.status(400).json({ erro: 'CPF, Nome, E-mail e Telefone são obrigatórios.' });
     }
 
-    // Tira os pontos e traços do CPF para usar como senha inicial provisória
     const senhaInicial = cpf.replace(/\D/g, ''); 
 
     try {
@@ -35,7 +34,6 @@ exports.cadastrarCliente = async (req, res) => {
             VALUES (?, ?, ?, ?, ?, ?)
         `;
         
-        // Passamos a senhaInicial para preencher o campo NOT NULL da sua tabela
         const [resultado] = await db.execute(query, [cpf, nome, email, telefone, endereco, senhaInicial]);
         
         res.status(201).json({ 
@@ -45,10 +43,29 @@ exports.cadastrarCliente = async (req, res) => {
     } catch (erro) {
         console.error('Erro ao cadastrar cliente:', erro);
         
-        // O código ER_DUP_ENTRY do MySQL avisa se o CPF ou E-mail já existirem
         if (erro.code === 'ER_DUP_ENTRY') {
             return res.status(409).json({ erro: 'Este CPF ou E-mail já está cadastrado no sistema.' });
         }
         res.status(500).json({ erro: 'Erro interno ao cadastrar cliente.' });
+    }
+};
+
+// 3. Atualizar o endereço do cliente
+exports.atualizarEndereco = async (req, res) => {
+    const { id } = req.params;
+    const { endereco } = req.body;
+
+    if (!endereco) {
+        return res.status(400).json({ erro: 'O campo endereço é obrigatório.' });
+    }
+
+    try {
+        const query = 'UPDATE clientes SET endereco = ? WHERE id = ?';
+        await db.execute(query, [endereco, id]);
+
+        res.status(200).json({ sucesso: true, mensagem: 'Endereço atualizado com sucesso!' });
+    } catch (erro) {
+        console.error('Erro ao atualizar endereço:', erro);
+        res.status(500).json({ erro: 'Erro interno ao atualizar endereço.' });
     }
 };
