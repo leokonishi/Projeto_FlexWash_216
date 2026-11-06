@@ -3,15 +3,15 @@ const db = require('../bd');
 exports.adicionarVeiculo = async (req, res) => {
     const { cliente_id } = req.params;
     const { marca, modelo, placa, cor, porte } = req.body;
-
+  
     if (!marca || !modelo || !placa || !cor || !porte) {
         return res.status(400).json({ erro: 'Todos os campos do veículo são obrigatórios.' });
     }
-
+  
     try {
         const query = 'INSERT INTO veiculos (cliente_id, marca, modelo, placa, cor, porte) VALUES (?, ?, ?, ?, ?, ?)';
         const [resultado] = await db.execute(query, [cliente_id, marca, modelo, placa, cor, porte]);
-        
+   
         res.status(201).json({ mensagem: 'Veículo atrelado com sucesso!', veiculoId: resultado.insertId });
     } catch (erro) {
         if (erro.code === 'ER_DUP_ENTRY') {

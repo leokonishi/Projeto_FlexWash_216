@@ -16,11 +16,15 @@ const comissoesFuncionarioRoutes = require('./endpoints/comissoesFuncionario');
 const tarefasFuncionarioRoutes = require('./endpoints/tarefasFuncionario');
 const faturamentoAdminRoutes = require('./endpoints/faturamentoAdmin');
 const comissoesAdminRoutes = require('./endpoints/comissoesAdmin');
+const clienteController = require('./controllers/clienteController');
 
 // IMPORTAÇÕES DA PASTA 'routes'
 const veiculoRoutes = require('./routes/veiculoRoutes');
 const servicosRoutes = require('./routes/ServicosRoutes');
 const execucoesRoutes = require('./routes/execucoesRoutes');
+
+// IMPORTAÇÃO DA PASTA 'endpoints' (Rota de serviços do cliente)
+const servicoClienteRoutes = require('./endpoints/servicos');
 
 // ==========================================
 // 2. INICIALIZAÇÃO DO APP
@@ -37,10 +41,15 @@ app.use(express.json());
 // equipe  = funcionário + administrador
 // soAdmin = apenas administrador
 // ==========================================
-app.use('/api/clientes', escolher((req) =>
-  req.method === 'POST' && req.path === '/' ? [] : equipe // cadastro público; o resto (lista, frota) é da equipe
-));
-app.use('/api/veiculos', ...equipe);
+app.use('/api/clientes', escolher((req) => {
+  if (req.method === 'POST' && req.path === '/') return []; // Cadastro público
+  if (req.method === 'GET' || req.method === 'PUT') return logado; // Permite consulta e alteração do próprio cliente
+  return equipe;
+}));
+
+app.use('/api/veiculos', escolher((req) => {
+    return logado; 
+}));
 app.use('/api/pacotes', porMetodo(logado, soAdmin));
 app.use('/api/extras', porMetodo(logado, soAdmin));
 app.use('/api/funcionarios', porMetodo(equipe, soAdmin));
@@ -57,11 +66,13 @@ app.use('/api/admin', ...soAdmin);      // relatórios financeiros
 // ==========================================
 app.post('/api/clientes', cadastroCliente.cadastrar);
 app.get('/api/clientes', cadastroCliente.listarClientes);
+app.put('/api/clientes/:id', clienteController.atualizarEndereco);
 
 app.use('/api', loginClienteRoutes);
 app.use('/api', loginGestao);
 app.use('/api', funcionariosRoutes);
 app.use('/api', servicosRoutes);
+app.use('/api', servicoClienteRoutes); // <--- Regista as rotas de serviços do cliente em /api/servicos
 app.use('/api', execucoesRoutes);
 app.use('/api', veiculoRoutes);
 app.use('/api', comissoesFuncionarioRoutes);
