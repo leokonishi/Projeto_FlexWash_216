@@ -85,13 +85,22 @@ async function buscarSugestao(conn, { data, horarioInicial, quantidade, agora })
 // Validação do pedido
 // ---------------------------------------------------------------------
 
-function normalizarPedido(corpo) {
-  const data = corpo?.data;
-  const horario = corpo?.horario;
-  const tipoLogistica = corpo?.tipo_logistica ?? 'cliente_leva';
-
+function validarDataHorario(data, horario) {
   if (!agenda.dataValida(data)) throw new ErroNegocio('Escolha uma data válida.');
   if (!agenda.HORARIOS.includes(horario)) throw new ErroNegocio('Escolha um dos horários de atendimento.');
+}
+
+// Dois modos:
+// - mesmo horário para todos: `data` e `horario` no corpo; os carros que não couberem
+//   ocupam os próximos horários do dia;
+// - horario_por_veiculo = true: cada carro traz o seu `data` e `horario`, e fica exatamente nele.
+function normalizarPedido(corpo) {
+  const horarioPorVeiculo = corpo?.horario_por_veiculo === true;
+  const data = horarioPorVeiculo ? null : corpo?.data;
+  const horario = horarioPorVeiculo ? null : corpo?.horario;
+  const tipoLogistica = corpo?.tipo_logistica ?? 'cliente_leva';
+
+  if (!horarioPorVeiculo) validarDataHorario(data, horario);
   if (!TIPOS_LOGISTICA.includes(tipoLogistica)) throw new ErroNegocio('Modalidade de atendimento inválida.');
 
   const veiculos = corpo?.veiculos;
@@ -112,10 +121,40 @@ function normalizarPedido(corpo) {
     const pacoteId = inteiroPositivo(v?.pacote_id);
     if (pacoteId === null) throw new ErroNegocio('Escolha o serviço de cada veículo.');
 
-    return { veiculoId, pacoteId, extraIds: listaDeIds(v.extras, 'extras') };
+    const item = { veiculoId, pacoteId, extraIds: listaDeIds(v.extras, 'extras') };
+    if (horarioPorVeiculo) {
+      validarDataHorario(v.data, v.horario);
+      item.data = v.data;
+      item.horario = v.horario;
+    }
+    return item;
   });
 
-  return { data, horario, tipoLogistica, itens };
+  return { horarioPorVeiculo, data, horario, tipoLogistica, itens };
+}
+
+// Modo "horário por veículo": confere se cada horário escolhido ainda tem vaga,
+// contando os outros carros do mesmo pedido que escolheram o mesmo horário.
+async function conferirHorariosIndividuais(conn, itens, veiculos) {
+  const ocupacaoPorDia = new Map();
+  for (const item of itens) {
+    if (!ocupacaoPorDia.has(item.data)) ocupacaoPorDia.set(item.data, await ocupacaoDoDia(conn, item.data));
+  }
+
+  return itens.map((item) => {
+    const ocupacao = ocupacaoPorDia.get(item.data);
+    const usados = ocupacao.get(item.horario) || 0;
+    if (usados >= agenda.CAPACIDADE_POR_HORARIO) {
+      const v = veiculos.get(item.veiculoId);
+      const [ano, mes, dia] = item.data.split('-');
+      throw new ErroNegocio(
+        `Não há vaga para o ${v.marca} ${v.modelo} em ${dia}/${mes}/${ano} às ${item.horario}. Escolha outro horário para ele.`,
+        409
+      );
+    }
+    ocupacao.set(item.horario, usados + 1);
+    return { data: item.data, horario: item.horario };
+  });
 }
 
 // ---------------------------------------------------------------------
@@ -123,17 +162,20 @@ function normalizarPedido(corpo) {
 // ---------------------------------------------------------------------
 
 // Registra o agendamento de 1..N carros do cliente logado.
-// - Cada carro ocupa o primeiro horário a partir do escolhido que ainda tenha vaga
-//   (CAPACIDADE_POR_HORARIO por horário). Se não couber até o fim do dia, recusa com
-//   409 e devolve em `sugestao` o próximo dia/horário em que todos cabem.
+// - Mesmo horário para todos: cada carro ocupa o primeiro horário a partir do escolhido
+//   que ainda tenha vaga (CAPACIDADE_POR_HORARIO por horário). Se não couber até o fim do
+//   dia, recusa com 409 e devolve em `sugestao` o próximo dia/horário em que todos cabem.
+// - Horário por veículo: cada carro fica no horário que o cliente escolheu para ele; se
+//   algum estiver lotado, recusa com 409 dizendo qual.
 // - O preço de cada carro sai do banco (pacote + extras pelo porte, mais a taxa do
 //   leva e traz por carro), nunca do navegador.
 // - Tudo é gravado numa transação, com a agenda travada enquanto isso.
 async function registrarAgendamento(db, clienteId, corpo) {
-  const { data, horario, tipoLogistica, itens } = normalizarPedido(corpo);
+  const { horarioPorVeiculo, data, horario, tipoLogistica, itens } = normalizarPedido(corpo);
 
   const agora = agenda.agoraLocal();
-  if (agenda.horarioPassou(data, horario, agora)) {
+  const pedidos = horarioPorVeiculo ? itens : [{ data, horario }];
+  if (pedidos.some((p) => agenda.horarioPassou(p.data, p.horario, agora))) {
     throw new ErroNegocio('Esse horário já passou. Escolha um horário futuro.');
   }
 
@@ -152,7 +194,7 @@ async function registrarAgendamento(db, clienteId, corpo) {
 
     const veiculos = await buscarPorIds(
       conn,
-      'SELECT id, porte FROM veiculos WHERE cliente_id = ? AND id IN (#)',
+      'SELECT id, porte, marca, modelo FROM veiculos WHERE cliente_id = ? AND id IN (#)',
       veiculoIds,
       [clienteId]
     );
@@ -185,13 +227,19 @@ async function registrarAgendamento(db, clienteId, corpo) {
       if (!enderecoBusca) throw new ErroNegocio('Cadastre o endereço de busca para usar o leva e traz.');
     }
 
-    // Horário de cada carro
-    const ocupacao = await ocupacaoDoDia(conn, data);
-    const horarios = agenda.distribuirNoDia({ data, horarioInicial: horario, quantidade: itens.length, ocupacao, agora });
-    if (!horarios) {
-      const sugestao = await buscarSugestao(conn, { data, horarioInicial: horario, quantidade: itens.length, agora });
-      const qtd = itens.length === 1 ? 'o veículo' : `os ${itens.length} veículos`;
-      throw new ErroNegocio(`Não há vagas para ${qtd} a partir desse horário nesse dia.`, 409, { sugestao });
+    // Data e horário de cada carro: [{ data, horario }], na ordem de `itens`
+    let vagas;
+    if (horarioPorVeiculo) {
+      vagas = await conferirHorariosIndividuais(conn, itens, veiculos);
+    } else {
+      const ocupacao = await ocupacaoDoDia(conn, data);
+      const horarios = agenda.distribuirNoDia({ data, horarioInicial: horario, quantidade: itens.length, ocupacao, agora });
+      if (!horarios) {
+        const sugestao = await buscarSugestao(conn, { data, horarioInicial: horario, quantidade: itens.length, agora });
+        const qtd = itens.length === 1 ? 'o veículo' : `os ${itens.length} veículos`;
+        throw new ErroNegocio(`Não há vagas para ${qtd} a partir desse horário nesse dia.`, 409, { sugestao });
+      }
+      vagas = horarios.map((h) => ({ data, horario: h }));
     }
 
     const [resAgendamento] = await conn.execute(
@@ -220,7 +268,7 @@ async function registrarAgendamento(db, clienteId, corpo) {
           item.veiculoId,
           item.pacoteId,
           agendamentoId,
-          agenda.paraDatetime(data, horarios[indice]),
+          agenda.paraDatetime(vagas[indice].data, vagas[indice].horario),
           centavosParaDecimal(totalItem),
           centavosParaDecimal(taxaCentavos)
         ]
@@ -236,8 +284,8 @@ async function registrarAgendamento(db, clienteId, corpo) {
       criados.push({
         execucao_id: resExecucao.insertId,
         veiculo_id: item.veiculoId,
-        data,
-        horario: horarios[indice],
+        data: vagas[indice].data,
+        horario: vagas[indice].horario,
         valor_lavagem: centavosParaDecimal(lavagemCentavos),
         valor_logistica: centavosParaDecimal(taxaCentavos),
         valor_total: centavosParaDecimal(totalItem)
