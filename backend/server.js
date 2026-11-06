@@ -3,7 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const verificarToken = require('./middleware/auth');
-const { logado, equipe, soAdmin, escolher, porMetodo } = require('./middleware/acesso');
+const { logado, equipe, soAdmin, soCliente, escolher, porMetodo } = require('./middleware/acesso');
 
 // ==========================================
 // 1. IMPORTAÇÃO DOS ENDPOINTS E ROTAS
@@ -16,12 +16,13 @@ const comissoesFuncionarioRoutes = require('./endpoints/comissoesFuncionario');
 const tarefasFuncionarioRoutes = require('./endpoints/tarefasFuncionario');
 const faturamentoAdminRoutes = require('./endpoints/faturamentoAdmin');
 const comissoesAdminRoutes = require('./endpoints/comissoesAdmin');
-const clienteController = require('./controllers/clienteController');
 
 // IMPORTAÇÕES DA PASTA 'routes'
 const veiculoRoutes = require('./routes/veiculoRoutes');
 const servicosRoutes = require('./routes/ServicosRoutes');
 const execucoesRoutes = require('./routes/execucoesRoutes');
+const meRoutes = require('./routes/meRoutes');
+const agendamentosRoutes = require('./routes/agendamentosRoutes');
 
 // IMPORTAÇÃO DA PASTA 'endpoints' (Rota de serviços do cliente)
 const servicoClienteRoutes = require('./endpoints/servicos');
@@ -40,16 +41,14 @@ app.use(express.json());
 // logado  = qualquer perfil autenticado
 // equipe  = funcionário + administrador
 // soAdmin = apenas administrador
+// soCliente = apenas cliente (rotas que usam o id do token como id do cliente)
 // ==========================================
-app.use('/api/clientes', escolher((req) => {
-  if (req.method === 'POST' && req.path === '/') return []; // Cadastro público
-  if (req.method === 'GET' || req.method === 'PUT') return logado; // Permite consulta e alteração do próprio cliente
-  return equipe;
-}));
-
-app.use('/api/veiculos', escolher((req) => {
-    return logado; 
-}));
+app.use('/api/clientes', escolher((req) =>
+  req.method === 'POST' && req.path === '/' ? [] : equipe // cadastro público; o resto (lista, frota) é da equipe
+));
+app.use('/api/veiculos', ...equipe);
+app.use('/api/me', ...soCliente);           // dados, endereço e veículos do próprio cliente (id vem do token)
+app.use('/api/agendamentos', ...soCliente); // agendamento feito pelo cliente
 app.use('/api/pacotes', porMetodo(logado, soAdmin));
 app.use('/api/extras', porMetodo(logado, soAdmin));
 app.use('/api/funcionarios', porMetodo(equipe, soAdmin));
@@ -66,7 +65,6 @@ app.use('/api/admin', ...soAdmin);      // relatórios financeiros
 // ==========================================
 app.post('/api/clientes', cadastroCliente.cadastrar);
 app.get('/api/clientes', cadastroCliente.listarClientes);
-app.put('/api/clientes/:id', clienteController.atualizarEndereco);
 
 app.use('/api', loginClienteRoutes);
 app.use('/api', loginGestao);
@@ -74,6 +72,8 @@ app.use('/api', funcionariosRoutes);
 app.use('/api', servicosRoutes);
 app.use('/api', servicoClienteRoutes); // <--- Regista as rotas de serviços do cliente em /api/servicos
 app.use('/api', execucoesRoutes);
+app.use('/api', meRoutes);
+app.use('/api', agendamentosRoutes);
 app.use('/api', veiculoRoutes);
 app.use('/api', comissoesFuncionarioRoutes);
 app.use('/api', comissoesAdminRoutes);

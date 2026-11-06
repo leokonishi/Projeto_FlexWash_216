@@ -5,6 +5,10 @@ import EscolhaServicoCliente from '../componentes/configCliente/EscolhaServicoCl
 import EscolhaVeiculoCliente from '../componentes/configCliente/EscolhaVeiculoCliente';
 import EscolhaLevaTrasCliente from '../componentes/configCliente/EscolhaLevaTrasCliente';
 import EscolhaHorarioCliente from '../componentes/configCliente/EscolhaHorarioCliente';
+import { apiFetch } from '../utils/api';
+import { obterSessao, encerrarSessao } from '../utils/sessao';
+
+const AGENDAMENTO_VAZIO = { veiculos: [], selecoes: {}, resumo: [], levaTras: null };
 
 export default function PaginaCliente() {
   const navigate = useNavigate();
@@ -14,50 +18,37 @@ export default function PaginaCliente() {
   const [ultimosAgendamentos, setUltimosAgendamentos] = useState([]);
   const [carregando, setCarregando] = useState(true);
 
-  // CONTROLE DOS MODAIS DO FLUXO DE AGENDAMENTO
-  const [modalServicoAberto, setModalServicoAberto] = useState(false);
-  const [modalVeiculoAberto, setModalVeiculoAberto] = useState(false);
-  const [modalLevaTrasAberto, setModalLevaTrasAberto] = useState(false); // Passo 3
-  const [modalDataHoraAberto, setModalDataHoraAberto] = useState(false); // Passo 4
-  
-  const [dadosAgendamento, setDadosAgendamento] = useState({
-      servico: null,
-      veiculo: null,
-      levaTras: null, // Guardará 'cliente_leva' ou 'leva_tras'
-      dataHora: null
-  });
+  // FLUXO DE AGENDAMENTO: 1 veículos -> 2 serviços -> 3 modalidade -> 4 data e horário
+  // passoAgendamento: null (fechado) | 'veiculos' | 'servicos' | 'modalidade' | 'horario'
+  const [passoAgendamento, setPassoAgendamento] = useState(null);
+  const [dadosAgendamento, setDadosAgendamento] = useState(AGENDAMENTO_VAZIO);
+  const [configAgendamento, setConfigAgendamento] = useState(null); // horários, vagas e taxa do leva e traz
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
   useEffect(() => {
     async function buscarDadosClienteBackend() {
       try {
-        const token = localStorage.getItem('token_flexwash');
-        if (!token) {
+        const sessao = obterSessao();
+        if (!sessao) {
           navigate('/login');
           return;
         }
 
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const clienteId = payload.id;
-
-        const resposta = await fetch(`${API_URL}/api/execucoes/cliente/${clienteId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const resposta = await apiFetch(`${API_URL}/api/execucoes/cliente/${sessao.id}`);
 
         if (resposta.ok) {
           const dados = await resposta.json();
           setUltimosAgendamentos(dados);
 
-          if (dados.length > 0) {
-            const statusMaisRecente = dados[0].status;
-            if (statusMaisRecente === 'Aguardando') {
-              setStatusVeiculo('no_patio');
-            } else if (statusMaisRecente === 'Em Andamento') {
-              setStatusVeiculo('em_andamento');
-            } else {
-              setStatusVeiculo('concluido');
-            }
+          // O card de status olha só o que está no pátio (agendados e cancelados não contam)
+          const noPatio = dados.find(item => item.status === 'Aguardando' || item.status === 'Em Andamento');
+          if (noPatio?.status === 'Aguardando') {
+            setStatusVeiculo('no_patio');
+          } else if (noPatio?.status === 'Em Andamento') {
+            setStatusVeiculo('em_andamento');
+          } else {
+            setStatusVeiculo('concluido');
           }
         }
       } catch (erro) {
@@ -71,8 +62,18 @@ export default function PaginaCliente() {
   }, [navigate, API_URL]);
 
   const lidarComLogout = () => {
-    localStorage.removeItem('token_flexwash');
+    encerrarSessao();
     navigate('/login');
+  };
+
+  // Agendado: data e hora marcadas ('AAAA-MM-DD HH:MM'); senão, a data de entrada
+  const formatarDataTabela = (item) => {
+    if (item.data_agendamento) {
+      const [dia, hora] = item.data_agendamento.split(' ');
+      const [ano, mes, d] = dia.split('-');
+      return `${d}/${mes}/${ano} às ${hora}`;
+    }
+    return new Date(item.criado_em).toLocaleDateString('pt-BR');
   };
 
   const renderStatusBadge = (status) => {
@@ -80,60 +81,56 @@ export default function PaginaCliente() {
       return <span style={{ background: '#fef08a', color: '#854d0e', padding: '4px 12px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.75rem' }}>Aguardando</span>;
     } else if (status === 'Em Andamento') {
       return <span style={{ background: '#bfdbfe', color: '#1e3a8a', padding: '4px 12px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.75rem' }}>Em Andamento</span>;
+    } else if (status === 'Agendado') {
+      return <span style={{ background: '#e9d5ff', color: '#581c87', padding: '4px 12px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.75rem' }}>Agendado</span>;
+    } else if (status === 'Cancelado') {
+      return <span style={{ background: '#e2e8f0', color: '#475569', padding: '4px 12px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.75rem' }}>Cancelado</span>;
     } else {
       return <span style={{ background: '#bbf7d0', color: '#166534', padding: '4px 12px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.75rem' }}>Concluído</span>;
     }
   };
 
   // FLUXO DE AGENDAMENTO
-  const iniciarAgendamento = () => {
-      setModalServicoAberto(true);
+  const iniciarAgendamento = async () => {
+      setDadosAgendamento(AGENDAMENTO_VAZIO);
+      setPassoAgendamento('veiculos');
+      try {
+          const resposta = await apiFetch(`${API_URL}/api/agendamentos/config`);
+          if (resposta.ok) setConfigAgendamento(await resposta.json());
+      } catch (erro) {
+          console.error('Erro ao carregar opções de agendamento:', erro);
+      }
   };
 
   const cancelarAgendamento = () => {
-      setModalServicoAberto(false);
-      setModalVeiculoAberto(false);
-      setModalLevaTrasAberto(false);
-      setModalDataHoraAberto(false);
-      setDadosAgendamento({ servico: null, veiculo: null, levaTras: null, dataHora: null });
+      setPassoAgendamento(null);
+      setDadosAgendamento(AGENDAMENTO_VAZIO);
   };
 
-  const avancarParaVeiculo = (servicoEscolhido) => {
-      setDadosAgendamento(prev => ({ ...prev, servico: servicoEscolhido }));
-      setModalServicoAberto(false);
-      setModalVeiculoAberto(true); // Abre o Passo 2
+  // Passo 1 -> 2: guarda os carros e descarta escolhas de carros que saíram da seleção
+  const avancarParaServicos = (veiculos) => {
+      setDadosAgendamento(prev => {
+          const selecoes = {};
+          veiculos.forEach(v => { if (prev.selecoes[v.id]) selecoes[v.id] = prev.selecoes[v.id]; });
+          return { ...prev, veiculos, selecoes };
+      });
+      setPassoAgendamento('servicos');
   };
 
-  const voltarParaServico = () => {
-      setModalVeiculoAberto(false);
-      setModalServicoAberto(true); // Retorna ao Passo 1
+  // Passo 2 -> 3
+  const avancarParaModalidade = (selecoes, resumo) => {
+      setDadosAgendamento(prev => ({ ...prev, selecoes, resumo }));
+      setPassoAgendamento('modalidade');
   };
 
-  const avancarParaLevaTras = (veiculoEscolhido) => {
-      setDadosAgendamento(prev => ({ ...prev, veiculo: veiculoEscolhido }));
-      setModalVeiculoAberto(false);
-      setModalLevaTrasAberto(true); // Abre o Passo 3 (Leva e Trás)
-  };
-
-  const voltarParaVeiculo = () => {
-      setModalLevaTrasAberto(false);
-      setModalVeiculoAberto(true); // Retorna ao Passo 2
-  };
-
-  const avancarParaDataHora = (tipoLogistica) => {
+  // Passo 3 -> 4
+  const avancarParaHorario = (tipoLogistica) => {
       setDadosAgendamento(prev => ({ ...prev, levaTras: tipoLogistica }));
-      setModalLevaTrasAberto(false);
-      setModalDataHoraAberto(true); // Abre o Passo 4 (Horário)
-  };
-
-  const voltarParaLevaTras = () => {
-      setModalDataHoraAberto(false);
-      setModalLevaTrasAberto(true); // Retorna ao Passo 3
+      setPassoAgendamento('horario');
   };
 
   const concluirAgendamentoComSucesso = () => {
-      setModalDataHoraAberto(false);
-      alert('Agendamento realizado com sucesso! O veículo já consta no pátio.');
+      cancelarAgendamento();
       window.location.reload(); // Recarrega a página para atualizar a tabela de histórico
   };
 
@@ -219,7 +216,7 @@ export default function PaginaCliente() {
                       <tr key={item.id} style={{ borderBottom: '1px solid #1e293b' }}>
                           <td style={{ padding: '12px' }}><strong>{item.marca} {item.modelo}</strong></td>
                           <td style={{ padding: '12px' }}>{item.pacote_nome || 'Serviço Avulso'}</td>
-                          <td style={{ padding: '12px' }}>{new Date(item.criado_em).toLocaleDateString('pt-BR')}</td>
+                          <td style={{ padding: '12px' }}>{formatarDataTabela(item)}</td>
                           <td style={{ padding: '12px' }}>R$ {Number(item.valor_total).toFixed(2)}</td>
                           <td style={{ padding: '12px' }}>{renderStatusBadge(item.status)}</td>
                       </tr>
@@ -233,48 +230,44 @@ export default function PaginaCliente() {
       </main>
 
       {/* ========================================== */}
-      {/* MODAL PASSO 1: ESCOLHA DE SERVIÇO */}
+      {/* AGENDAMENTO: 1 VEÍCULOS -> 2 SERVIÇOS -> 3 MODALIDADE -> 4 HORÁRIO */}
       {/* ========================================== */}
-      {modalServicoAberto && (
-          <EscolhaServicoCliente 
-              aoAvancar={avancarParaVeiculo} 
-              aoCancelar={cancelarAgendamento} 
-          />
-      )}
-
-      {/* ========================================== */}
-      {/* MODAL PASSO 2: SELEÇÃO DE VEÍCULO         */}
-      {/* ========================================== */}
-      {modalVeiculoAberto && (
-          <EscolhaVeiculoCliente 
-              servicoSelecionado={dadosAgendamento.servico}
-              aoAvancar={avancarParaLevaTras}
-              aoVoltar={voltarParaServico}
+      {passoAgendamento === 'veiculos' && (
+          <EscolhaVeiculoCliente
+              veiculosIniciais={dadosAgendamento.veiculos}
+              aoAvancar={avancarParaServicos}
               aoCancelar={cancelarAgendamento}
           />
       )}
 
-      {/* ========================================== */}
-      {/* MODAL PASSO 3: MODALIDADE LEVA E TRÁS     */}
-      {/* ========================================== */}
-      {modalLevaTrasAberto && (
-          <EscolhaLevaTrasCliente 
-              servicoSelecionado={dadosAgendamento.servico}
-              veiculoSelecionado={dadosAgendamento.veiculo}
-              aoAvancar={avancarParaDataHora}
-              aoVoltar={voltarParaVeiculo}
+      {passoAgendamento === 'servicos' && (
+          <EscolhaServicoCliente
+              veiculos={dadosAgendamento.veiculos}
+              selecoesIniciais={dadosAgendamento.selecoes}
+              aoAvancar={avancarParaModalidade}
+              aoVoltar={() => setPassoAgendamento('veiculos')}
               aoCancelar={cancelarAgendamento}
           />
       )}
 
-      {/* ========================================== */}
-      {/* MODAL PASSO 4: DATA E HORÁRIO             */}
-      {/* ========================================== */}
-      {modalDataHoraAberto && (
-          <EscolhaHorarioCliente 
-              dadosAgendamento={dadosAgendamento}
+      {passoAgendamento === 'modalidade' && (
+          <EscolhaLevaTrasCliente
+              resumo={dadosAgendamento.resumo}
+              levaTras={configAgendamento?.leva_tras}
+              tipoInicial={dadosAgendamento.levaTras}
+              aoAvancar={avancarParaHorario}
+              aoVoltar={() => setPassoAgendamento('servicos')}
+              aoCancelar={cancelarAgendamento}
+          />
+      )}
+
+      {passoAgendamento === 'horario' && (
+          <EscolhaHorarioCliente
+              resumo={dadosAgendamento.resumo}
+              tipoLogistica={dadosAgendamento.levaTras}
+              levaTras={configAgendamento?.leva_tras}
               aoConcluir={concluirAgendamentoComSucesso}
-              aoVoltar={voltarParaLevaTras}
+              aoVoltar={() => setPassoAgendamento('modalidade')}
               aoCancelar={cancelarAgendamento}
           />
       )}

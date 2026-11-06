@@ -1,0 +1,275 @@
+const { ErroNegocio } = require('./erros');
+const { calcularValorCentavos, centavosParaDecimal } = require('./precoExecucao');
+const { inteiroPositivo, listaDeIds, buscarPorIds, exigirTodos } = require('./execucoesService');
+const agenda = require('./agenda');
+
+const MAX_VEICULOS_POR_AGENDAMENTO = 10;
+const TIPOS_LOGISTICA = ['cliente_leva', 'leva_tras'];
+
+// Trava única da agenda: dois clientes confirmando ao mesmo tempo não pegam a mesma vaga.
+const NOME_TRAVA = 'flexwash_agenda';
+const ESPERA_TRAVA_SEGUNDOS = 10;
+
+// ---------------------------------------------------------------------
+// Leitura
+// ---------------------------------------------------------------------
+
+// Carros já marcados em cada horário de um dia: Map 'HH:MM' -> quantidade
+async function ocupacaoDoDia(conn, data) {
+  const [linhas] = await conn.execute(
+    `SELECT TIME_FORMAT(data_agendamento, '%H:%i') AS horario, COUNT(*) AS total
+       FROM execucoes
+      WHERE data_agendamento >= ? AND data_agendamento < ?
+        AND status <> 'Cancelado'
+      GROUP BY horario`,
+    [`${data} 00:00:00`, `${agenda.somarDias(data, 1)} 00:00:00`]
+  );
+  return new Map(linhas.map((l) => [l.horario, Number(l.total)]));
+}
+
+// Configuração do leva e traz em vigor (ou null se não houver nenhuma ativa)
+async function configLogistica(conn) {
+  const [linhas] = await conn.execute(
+    'SELECT taxa_por_veiculo FROM config_logistica WHERE ativo = TRUE ORDER BY id DESC LIMIT 1'
+  );
+  if (linhas.length === 0) return null;
+  const centavos = Math.round(Number(linhas[0].taxa_por_veiculo) * 100);
+  return Number.isFinite(centavos) && centavos >= 0 ? { taxaCentavos: centavos } : null;
+}
+
+// O que a tela do cliente precisa saber antes de montar o agendamento
+async function obterConfiguracao(db) {
+  const logistica = await configLogistica(db);
+  return {
+    horarios: agenda.HORARIOS,
+    capacidade_por_horario: agenda.CAPACIDADE_POR_HORARIO,
+    max_veiculos: MAX_VEICULOS_POR_AGENDAMENTO,
+    leva_tras: {
+      disponivel: logistica !== null,
+      taxa_por_veiculo: logistica ? centavosParaDecimal(logistica.taxaCentavos) : null
+    }
+  };
+}
+
+// Vagas de cada horário de um dia
+async function horariosDoDia(db, data) {
+  if (!agenda.dataValida(data)) throw new ErroNegocio('Data inválida. Use o formato AAAA-MM-DD.');
+
+  const agora = agenda.agoraLocal();
+  const ocupacao = await ocupacaoDoDia(db, data);
+  return agenda.HORARIOS.map((horario) => {
+    const passado = agenda.horarioPassou(data, horario, agora);
+    const vagas = passado ? 0 : Math.max(0, agenda.CAPACIDADE_POR_HORARIO - (ocupacao.get(horario) || 0));
+    return { horario, vagas, passado };
+  });
+}
+
+// Primeiro dia/horário (a partir de `data`) em que cabem `quantidade` carros
+async function buscarSugestao(conn, { data, horarioInicial, quantidade, agora }) {
+  for (let i = 0; i <= agenda.DIAS_BUSCA_SUGESTAO; i++) {
+    const dia = agenda.somarDias(data, i);
+    const ocupacao = await ocupacaoDoDia(conn, dia);
+    const alocados = agenda.distribuirNoDia({
+      data: dia,
+      horarioInicial: i === 0 ? horarioInicial : agenda.HORARIOS[0],
+      quantidade,
+      ocupacao,
+      agora
+    });
+    if (alocados) return { data: dia, horario: alocados[0] };
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------
+// Validação do pedido
+// ---------------------------------------------------------------------
+
+function normalizarPedido(corpo) {
+  const data = corpo?.data;
+  const horario = corpo?.horario;
+  const tipoLogistica = corpo?.tipo_logistica ?? 'cliente_leva';
+
+  if (!agenda.dataValida(data)) throw new ErroNegocio('Escolha uma data válida.');
+  if (!agenda.HORARIOS.includes(horario)) throw new ErroNegocio('Escolha um dos horários de atendimento.');
+  if (!TIPOS_LOGISTICA.includes(tipoLogistica)) throw new ErroNegocio('Modalidade de atendimento inválida.');
+
+  const veiculos = corpo?.veiculos;
+  if (!Array.isArray(veiculos) || veiculos.length === 0) {
+    throw new ErroNegocio('Selecione pelo menos um veículo.');
+  }
+  if (veiculos.length > MAX_VEICULOS_POR_AGENDAMENTO) {
+    throw new ErroNegocio(`Máximo de ${MAX_VEICULOS_POR_AGENDAMENTO} veículos por agendamento.`);
+  }
+
+  const vistos = new Set();
+  const itens = veiculos.map((v) => {
+    const veiculoId = inteiroPositivo(v?.veiculo_id);
+    if (veiculoId === null) throw new ErroNegocio('Veículo inválido no agendamento.');
+    if (vistos.has(veiculoId)) throw new ErroNegocio('O mesmo veículo foi enviado mais de uma vez.');
+    vistos.add(veiculoId);
+
+    const pacoteId = inteiroPositivo(v?.pacote_id);
+    if (pacoteId === null) throw new ErroNegocio('Escolha o serviço de cada veículo.');
+
+    return { veiculoId, pacoteId, extraIds: listaDeIds(v.extras, 'extras') };
+  });
+
+  return { data, horario, tipoLogistica, itens };
+}
+
+// ---------------------------------------------------------------------
+// Gravação
+// ---------------------------------------------------------------------
+
+// Registra o agendamento de 1..N carros do cliente logado.
+// - Cada carro ocupa o primeiro horário a partir do escolhido que ainda tenha vaga
+//   (CAPACIDADE_POR_HORARIO por horário). Se não couber até o fim do dia, recusa com
+//   409 e devolve em `sugestao` o próximo dia/horário em que todos cabem.
+// - O preço de cada carro sai do banco (pacote + extras pelo porte, mais a taxa do
+//   leva e traz por carro), nunca do navegador.
+// - Tudo é gravado numa transação, com a agenda travada enquanto isso.
+async function registrarAgendamento(db, clienteId, corpo) {
+  const { data, horario, tipoLogistica, itens } = normalizarPedido(corpo);
+
+  const agora = agenda.agoraLocal();
+  if (agenda.horarioPassou(data, horario, agora)) {
+    throw new ErroNegocio('Esse horário já passou. Escolha um horário futuro.');
+  }
+
+  const conn = await db.getConnection();
+  let travou = false;
+  try {
+    const [[trava]] = await conn.query('SELECT GET_LOCK(?, ?) AS ok', [NOME_TRAVA, ESPERA_TRAVA_SEGUNDOS]);
+    travou = Number(trava.ok) === 1;
+    if (!travou) throw new ErroNegocio('A agenda está ocupada agora. Tente de novo em instantes.', 503);
+
+    await conn.beginTransaction();
+
+    const veiculoIds = itens.map((i) => i.veiculoId);
+    const pacoteIds = [...new Set(itens.map((i) => i.pacoteId))];
+    const extraIds = [...new Set(itens.flatMap((i) => i.extraIds))];
+
+    const veiculos = await buscarPorIds(
+      conn,
+      'SELECT id, porte FROM veiculos WHERE cliente_id = ? AND id IN (#)',
+      veiculoIds,
+      [clienteId]
+    );
+    exigirTodos(veiculos, veiculoIds, 404, 'Veículo(s) não encontrado(s) na sua conta');
+
+    const pacotes = await buscarPorIds(
+      conn,
+      'SELECT id, nome, preco_pequeno, preco_medio, preco_grande FROM pacotes WHERE id IN (#)',
+      pacoteIds
+    );
+    exigirTodos(pacotes, pacoteIds, 404, 'Serviço(s) não encontrado(s)');
+
+    const extras = await buscarPorIds(
+      conn,
+      'SELECT id, nome, preco_pequeno, preco_medio, preco_grande FROM servicos_extras WHERE id IN (#)',
+      extraIds
+    );
+    exigirTodos(extras, extraIds, 404, 'Serviço(s) extra(s) não encontrado(s)');
+
+    // Leva e traz: precisa de configuração ativa e de endereço cadastrado
+    let taxaCentavos = 0;
+    let enderecoBusca = null;
+    if (tipoLogistica === 'leva_tras') {
+      const logistica = await configLogistica(conn);
+      if (!logistica) throw new ErroNegocio('O leva e traz não está disponível no momento.', 409);
+      taxaCentavos = logistica.taxaCentavos;
+
+      const [[cliente]] = await conn.execute('SELECT endereco FROM clientes WHERE id = ?', [clienteId]);
+      enderecoBusca = (cliente?.endereco || '').trim();
+      if (!enderecoBusca) throw new ErroNegocio('Cadastre o endereço de busca para usar o leva e traz.');
+    }
+
+    // Horário de cada carro
+    const ocupacao = await ocupacaoDoDia(conn, data);
+    const horarios = agenda.distribuirNoDia({ data, horarioInicial: horario, quantidade: itens.length, ocupacao, agora });
+    if (!horarios) {
+      const sugestao = await buscarSugestao(conn, { data, horarioInicial: horario, quantidade: itens.length, agora });
+      const qtd = itens.length === 1 ? 'o veículo' : `os ${itens.length} veículos`;
+      throw new ErroNegocio(`Não há vagas para ${qtd} a partir desse horário nesse dia.`, 409, { sugestao });
+    }
+
+    const [resAgendamento] = await conn.execute(
+      'INSERT INTO agendamentos (cliente_id, tipo_logistica, endereco_busca) VALUES (?, ?, ?)',
+      [clienteId, tipoLogistica, enderecoBusca]
+    );
+    const agendamentoId = resAgendamento.insertId;
+
+    const criados = [];
+    let totalCentavos = 0;
+    for (const [indice, item] of itens.entries()) {
+      const lavagemCentavos = calcularValorCentavos({
+        porte: veiculos.get(item.veiculoId).porte,
+        pacote: pacotes.get(item.pacoteId),
+        extras: item.extraIds.map((id) => extras.get(id))
+      });
+      const totalItem = lavagemCentavos + taxaCentavos;
+      totalCentavos += totalItem;
+
+      const [resExecucao] = await conn.execute(
+        `INSERT INTO execucoes
+           (cliente_id, veiculo_id, pacote_id, agendamento_id, data_agendamento, valor_total, valor_logistica, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'Agendado')`,
+        [
+          clienteId,
+          item.veiculoId,
+          item.pacoteId,
+          agendamentoId,
+          agenda.paraDatetime(data, horarios[indice]),
+          centavosParaDecimal(totalItem),
+          centavosParaDecimal(taxaCentavos)
+        ]
+      );
+
+      for (const extraId of item.extraIds) {
+        await conn.execute('INSERT INTO execucao_extras (execucao_id, extra_id) VALUES (?, ?)', [
+          resExecucao.insertId,
+          extraId
+        ]);
+      }
+
+      criados.push({
+        execucao_id: resExecucao.insertId,
+        veiculo_id: item.veiculoId,
+        data,
+        horario: horarios[indice],
+        valor_lavagem: centavosParaDecimal(lavagemCentavos),
+        valor_logistica: centavosParaDecimal(taxaCentavos),
+        valor_total: centavosParaDecimal(totalItem)
+      });
+    }
+
+    await conn.commit();
+    return {
+      agendamento_id: agendamentoId,
+      tipo_logistica: tipoLogistica,
+      valor_total: centavosParaDecimal(totalCentavos),
+      veiculos: criados
+    };
+  } catch (erro) {
+    try {
+      await conn.rollback();
+    } catch (erroRollback) {
+      console.error('Falha ao desfazer a transação do agendamento:', erroRollback.message);
+    }
+    throw erro;
+  } finally {
+    if (travou) {
+      await conn.query('SELECT RELEASE_LOCK(?)', [NOME_TRAVA]).catch(() => {});
+    }
+    conn.release();
+  }
+}
+
+module.exports = {
+  registrarAgendamento,
+  horariosDoDia,
+  obterConfiguracao,
+  normalizarPedido,
+  MAX_VEICULOS_POR_AGENDAMENTO
+};

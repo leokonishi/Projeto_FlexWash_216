@@ -104,7 +104,8 @@ router.get('/execucoes/cliente/:cliente_id', async (req, res) => {
     try {
         const query = `
             SELECT 
-                e.id, e.status, e.valor_total, e.criado_em, 
+                e.id, e.status, e.valor_total, e.valor_logistica, e.criado_em,
+                DATE_FORMAT(e.data_agendamento, '%Y-%m-%d %H:%i') AS data_agendamento, -- texto, sem conversão de fuso
                 v.marca, v.modelo, v.placa,
                 p.nome as pacote_nome,
                 (SELECT GROUP_CONCAT(ex.nome SEPARATOR ', ') FROM execucao_extras eex JOIN servicos_extras ex ON eex.extra_id = ex.id WHERE eex.execucao_id = e.id) as servicos_extras

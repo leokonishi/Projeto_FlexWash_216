@@ -1,12 +1,21 @@
 import React, { useState } from 'react';
 import { Truck, MapPin } from 'lucide-react';
+import { formatarMoeda } from '../../utils/precos';
 
-export default function EscolhaLevaTrasCliente({ servicoSelecionado, veiculoSelecionado, aoAvancar, aoVoltar, aoCancelar }) {
+// Passo 3 do agendamento: o cliente leva o carro ou usa o leva e traz.
+// `levaTras` vem de GET /api/agendamentos/config: { disponivel, taxa_por_veiculo }
+export default function EscolhaLevaTrasCliente({ resumo, levaTras, tipoInicial, aoAvancar, aoVoltar, aoCancelar }) {
     // Estado para a opção escolhida: 'leva_tras' ou 'cliente_leva'
-    const [tipoLogistica, setTipoLogistica] = useState('cliente_leva');
+    const [tipoLogistica, setTipoLogistica] = useState(tipoInicial || 'cliente_leva');
+
+    const qtdVeiculos = resumo.length;
+    const lavagemCentavos = resumo.reduce((acc, item) => acc + item.subtotalCentavos, 0);
+    const levaTrasDisponivel = Boolean(levaTras?.disponivel);
+    const taxaCentavos = levaTrasDisponivel ? Math.round(Number(levaTras.taxa_por_veiculo) * 100) : 0;
+    const totalCentavos = lavagemCentavos + (tipoLogistica === 'leva_tras' ? taxaCentavos * qtdVeiculos : 0);
 
     return (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', padding: '1rem' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', padding: '1rem' }}>
             
             <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', maxWidth: '600px', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 
@@ -17,7 +26,7 @@ export default function EscolhaLevaTrasCliente({ servicoSelecionado, veiculoSele
                             Modalidade de Atendimento
                         </h2>
                         <span style={{ fontSize: '0.8rem', color: '#2563eb', fontWeight: '600' }}>
-                            {servicoSelecionado?.nome} • {veiculoSelecionado?.marca} {veiculoSelecionado?.modelo}
+                            Passo 3 de 4 • {qtdVeiculos} veículo(s) • lavagem {formatarMoeda(lavagemCentavos)}
                         </span>
                     </div>
                     <button 
@@ -81,14 +90,15 @@ export default function EscolhaLevaTrasCliente({ servicoSelecionado, veiculoSele
 
                     {/* Opção 2: Leva e Trás */}
                     <div 
-                        onClick={() => setTipoLogistica('leva_tras')}
+                        onClick={() => levaTrasDisponivel && setTipoLogistica('leva_tras')}
                         style={{ 
                             display: 'flex', 
                             alignItems: 'center', 
                             gap: '1rem', 
                             padding: '1.25rem', 
                             borderRadius: '12px', 
-                            cursor: 'pointer', 
+                            cursor: levaTrasDisponivel ? 'pointer' : 'not-allowed', 
+                            opacity: levaTrasDisponivel ? 1 : 0.55, 
                             border: '1px solid',
                             backgroundColor: tipoLogistica === 'leva_tras' ? '#eff6ff' : '#ffffff',
                             borderColor: tipoLogistica === 'leva_tras' ? '#3b82f6' : '#e2e8f0',
@@ -104,6 +114,11 @@ export default function EscolhaLevaTrasCliente({ servicoSelecionado, veiculoSele
                             </h4>
                             <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>
                                 A nossa equipe busca e entrega o seu veículo no endereço cadastrado.
+                            </p>
+                            <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.8rem', fontWeight: '700', color: levaTrasDisponivel ? '#15803d' : '#b91c1c' }}>
+                                {levaTrasDisponivel
+                                    ? `+ ${formatarMoeda(taxaCentavos)} por veículo` + (qtdVeiculos > 1 ? ` (${formatarMoeda(taxaCentavos * qtdVeiculos)} no total)` : '')
+                                    : 'Indisponível no momento'}
                             </p>
                         </div>
                         <div style={{ 
@@ -135,7 +150,11 @@ export default function EscolhaLevaTrasCliente({ servicoSelecionado, veiculoSele
                         Voltar
                     </button>
                     
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Total</div>
+                            <div style={{ fontSize: '1.05rem', fontWeight: '800', color: '#0f172a' }}>{formatarMoeda(totalCentavos)}</div>
+                        </div>
                         <button 
                             onClick={aoCancelar}
                             style={{ padding: '0.75rem 1rem', borderRadius: '8px', fontWeight: '600', color: '#64748b', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}

@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { apiFetch, API_URL } from "../../utils/api";
 import { PlusCircle, Car, Trash2 } from 'lucide-react';
 
-export default function EscolhaVeiculoCliente({ servicoSelecionado, aoAvancar, aoVoltar, aoCancelar }) {
+// Passo 1 do agendamento: o cliente escolhe UM OU MAIS veículos (o preço depende do porte de cada um)
+export default function EscolhaVeiculoCliente({ veiculosIniciais = [], aoAvancar, aoCancelar }) {
     const [veiculos, setVeiculos] = useState([]);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState(null);
-    const [veiculoSelecionado, setVeiculoSelecionado] = useState(null);
+    const [idsSelecionados, setIdsSelecionados] = useState(veiculosIniciais.map((v) => v.id));
 
     // Controle para alternar entre a lista e o formulário de cadastro
     const [modoCadastro, setModoCadastro] = useState(false);
@@ -20,36 +21,32 @@ export default function EscolhaVeiculoCliente({ servicoSelecionado, aoAvancar, a
         modelo: '',
         placa: '',
         cor: '',
-        porte: 'medio'
+        porte: 'Médio'
     });
     const [salvando, setSalvando] = useState(false);
     const [erroCadastro, setErroCadastro] = useState(null);
 
-    const carregarDadosIniciais = async () => {
+    // Veículos do cliente logado (o backend usa o id do token)
+    const carregarVeiculos = async () => {
         setCarregando(true);
         try {
-            const token = localStorage.getItem('token_flexwash');
-            if (!token) {
-                setErro('Sessão expirada. Faça login novamente.');
-                return;
-            }
-
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            const clienteId = payload.id;
-
-            // 1. Busca os veículos do cliente
-            const respostaVeiculos = await fetch(`${API_URL}/api/clientes/${clienteId}/veiculos`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            
+            const respostaVeiculos = await apiFetch(`${API_URL}/api/me/veiculos`);
             if (respostaVeiculos.ok) {
-                const dados = await respostaVeiculos.json();
-                setVeiculos(dados);
+                setVeiculos(await respostaVeiculos.json());
             } else {
                 setErro('Erro ao carregar a sua frota de veículos.');
             }
+        } catch {
+            setErro('Falha de conexão com o servidor.');
+        } finally {
+            setCarregando(false);
+        }
+    };
 
-            // 2. Busca as Marcas diretamente da API pública da Tabela FIPE
+    // Marcas da Tabela FIPE (API pública). Se ela estiver fora do ar, o formulário
+    // usa a lista fixa de marcas e o resto da tela continua funcionando.
+    const carregarMarcasFipe = async () => {
+        try {
             const respostaMarcas = await fetch('https://parallelum.com.br/fipe/api/v1/carros/marcas');
             if (respostaMarcas.ok) {
                 const marcasFipe = await respostaMarcas.json();
@@ -58,15 +55,14 @@ export default function EscolhaVeiculoCliente({ servicoSelecionado, aoAvancar, a
                     setNovoVeiculo(prev => ({ ...prev, marca: marcasFipe[0].nome }));
                 }
             }
-        } catch (e) {
-            setErro('Falha de conexão com o servidor.');
-        } finally {
-            setCarregando(false);
+        } catch (erroFipe) {
+            console.warn('Tabela FIPE indisponível, usando a lista fixa de marcas.', erroFipe);
         }
     };
 
     useEffect(() => {
-        carregarDadosIniciais();
+        carregarVeiculos();
+        carregarMarcasFipe();
     }, []);
 
     const lidarComCadastroVeiculo = async (e) => {
@@ -75,14 +71,7 @@ export default function EscolhaVeiculoCliente({ servicoSelecionado, aoAvancar, a
         setSalvando(true);
 
         try {
-            const token = localStorage.getItem('token_flexwash');
-            const resposta = await apiFetch(`${API_URL}/api/clientes/veiculos`, { method: 'POST' }); // Mantém compatibilidade com a rota existente
-            
-            // Usando a rota correta de cadastro por ID de cliente
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            const clienteId = payload.id;
-
-            const resPost = await apiFetch(`${API_URL}/api/clientes/${clienteId}/veiculos`, {
+            const resPost = await apiFetch(`${API_URL}/api/me/veiculos`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(novoVeiculo)
@@ -93,7 +82,9 @@ export default function EscolhaVeiculoCliente({ servicoSelecionado, aoAvancar, a
             if (resPost.ok) {
                 setModoCadastro(false);
                 setNovoVeiculo(prev => ({ ...prev, modelo: '', placa: '', cor: '' }));
-                await carregarDadosIniciais();
+                await carregarVeiculos();
+                // Já deixa o carro recém-cadastrado selecionado
+                setIdsSelecionados(prev => [...prev, json.veiculo.id]);
             } else {
                 setErroCadastro(json.erro || 'Erro ao cadastrar veículo.');
             }
@@ -113,21 +104,15 @@ export default function EscolhaVeiculoCliente({ servicoSelecionado, aoAvancar, a
         }
 
         try {
-            const token = localStorage.getItem('token_flexwash');
-            const resposta = await fetch(`${API_URL}/api/veiculos/${veiculoId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const resposta = await apiFetch(`${API_URL}/api/me/veiculos/${veiculoId}`, { method: 'DELETE' });
 
             if (resposta.ok) {
-                // Se o carro excluído era o selecionado, limpa a seleção
-                if (veiculoSelecionado?.id === veiculoId) {
-                    setVeiculoSelecionado(null);
-                }
-                // Atualiza a lista localmente
+                // Tira o carro excluído da seleção e da lista
+                setIdsSelecionados(prev => prev.filter(id => id !== veiculoId));
                 setVeiculos(prev => prev.filter(v => v.id !== veiculoId));
             } else {
-                alert('Erro ao remover o veículo.');
+                const json = await resposta.json().catch(() => ({}));
+                alert(json.erro || 'Erro ao remover o veículo.');
             }
         } catch (erro) {
             console.error('Erro ao excluir veículo:', erro);
@@ -135,8 +120,18 @@ export default function EscolhaVeiculoCliente({ servicoSelecionado, aoAvancar, a
         }
     };
 
+    const alternarSelecao = (veiculoId) => {
+        setIdsSelecionados(prev =>
+            prev.includes(veiculoId) ? prev.filter(id => id !== veiculoId) : [...prev, veiculoId]
+        );
+    };
+
+    // Mantém a ordem da lista na tela
+    const veiculosSelecionados = veiculos.filter(v => idsSelecionados.includes(v.id));
+    const podeAvancar = veiculosSelecionados.length > 0;
+
     return (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', padding: '1rem' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', padding: '1rem' }}>
             
             <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', maxWidth: '650px', width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 
@@ -144,9 +139,11 @@ export default function EscolhaVeiculoCliente({ servicoSelecionado, aoAvancar, a
                 <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc' }}>
                     <div>
                         <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '800', color: '#0f172a' }}>
-                            {modoCadastro ? 'Cadastrar Novo Veículo' : 'Selecione o Veículo'}
+                            {modoCadastro ? 'Cadastrar Novo Veículo' : 'Quais veículos vamos lavar?'}
                         </h2>
-                        <span style={{ fontSize: '0.8rem', color: '#2563eb', fontWeight: '600' }}>Serviço: {servicoSelecionado?.nome}</span>
+                        <span style={{ fontSize: '0.8rem', color: '#2563eb', fontWeight: '600' }}>
+                            Passo 1 de 4 • Pode escolher mais de um veículo
+                        </span>
                     </div>
                     <button 
                         onClick={aoCancelar}
@@ -183,12 +180,12 @@ export default function EscolhaVeiculoCliente({ servicoSelecionado, aoAvancar, a
                                     ) : (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.25rem' }}>
                                             {veiculos.map((veiculo) => {
-                                                const isSelecionado = veiculoSelecionado?.id === veiculo.id;
-                                                
+                                                const isSelecionado = idsSelecionados.includes(veiculo.id);
+
                                                 return (
                                                     <div 
                                                         key={veiculo.id}
-                                                        onClick={() => setVeiculoSelecionado(veiculo)}
+                                                        onClick={() => alternarSelecao(veiculo.id)}
                                                         style={{ 
                                                             display: 'flex', 
                                                             justifyContent: 'space-between', 
@@ -231,7 +228,7 @@ export default function EscolhaVeiculoCliente({ servicoSelecionado, aoAvancar, a
                                                             <div style={{ 
                                                                 width: '24px', 
                                                                 height: '24px', 
-                                                                borderRadius: '50%', 
+                                                                borderRadius: '6px', 
                                                                 border: '2px solid', 
                                                                 borderColor: isSelecionado ? '#2563eb' : '#cbd5e1',
                                                                 backgroundColor: isSelecionado ? '#2563eb' : 'transparent',
@@ -354,9 +351,9 @@ export default function EscolhaVeiculoCliente({ servicoSelecionado, aoAvancar, a
                                     onChange={(e) => setNovoVeiculo({...novoVeiculo, porte: e.target.value})}
                                     style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', backgroundColor: '#f8fafc', cursor: 'pointer', boxSizing: 'border-box' }}
                                 >
-                                    <option value="pequeno">Pequeno</option>
-                                    <option value="medio">Médio</option>
-                                    <option value="grande">Grande</option>
+                                    <option value="Pequeno">Pequeno (hatch, compacto)</option>
+                                    <option value="Médio">Médio (sedã, SUV compacto)</option>
+                                    <option value="Grande">Grande (SUV, picape, van)</option>
                                 </select>
                             </div>
 
@@ -384,12 +381,11 @@ export default function EscolhaVeiculoCliente({ servicoSelecionado, aoAvancar, a
                 {/* Rodapé padrão */}
                 {!modoCadastro && (
                     <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e2e8f0', backgroundColor: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <button 
-                            onClick={aoVoltar}
-                            style={{ padding: '0.75rem 1.25rem', borderRadius: '8px', fontWeight: '600', color: '#475569', backgroundColor: 'transparent', border: '1px solid #cbd5e1', cursor: 'pointer', fontSize: '0.85rem' }}
-                        >
-                            Voltar
-                        </button>
+                        <span style={{ fontSize: '0.85rem', color: '#475569', fontWeight: '600' }}>
+                            {veiculosSelecionados.length === 0
+                                ? 'Nenhum veículo selecionado'
+                                : `${veiculosSelecionados.length} veículo(s) selecionado(s)`}
+                        </span>
                         
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                             <button 
@@ -399,15 +395,15 @@ export default function EscolhaVeiculoCliente({ servicoSelecionado, aoAvancar, a
                                 Cancelar
                             </button>
                             <button 
-                                disabled={!veiculoSelecionado}
-                                onClick={() => aoAvancar(veiculoSelecionado)}
+                                disabled={!podeAvancar}
+                                onClick={() => aoAvancar(veiculosSelecionados)}
                                 style={{ 
                                     padding: '0.75rem 1.5rem', 
                                     borderRadius: '8px', 
                                     fontWeight: '700', 
                                     color: '#ffffff', 
-                                    backgroundColor: veiculoSelecionado ? '#0f172a' : '#cbd5e1', 
-                                    cursor: veiculoSelecionado ? 'pointer' : 'not-allowed', 
+                                    backgroundColor: podeAvancar ? '#0f172a' : '#cbd5e1', 
+                                    cursor: podeAvancar ? 'pointer' : 'not-allowed', 
                                     border: 'none',
                                     fontSize: '0.85rem',
                                     transition: 'background 0.2s'
