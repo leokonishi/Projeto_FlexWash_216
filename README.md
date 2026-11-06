@@ -54,3 +54,28 @@ O sistema segue a arquitetura cliente-servidor, separando o Front-end do Back-en
 - Gestão de Serviços: Funcionalidade para concluir ordens de serviço via API, atualizando o status do veículo e as métricas.
 
 - Integração na Nuvem: API configurada com CORS tolerante e preflight requests (OPTIONS) para comunicação contínua e sem bloqueios na Vercel.
+
+## 📍 Configuração de Serviços e Chaves de API (Módulo de Logística / Leva e Trás)
+
+O sistema **FlexWash** possui um módulo de logística opcional ("Leva e Trás") que permite gerir endereços de recolha e entrega dos clientes. Para o correto funcionamento das rotas ou futuras integrações com APIs de mapas e cálculo de distância (como Google Maps Distance Matrix API ou serviços equivalentes), siga as instruções abaixo:
+
+### 1. Configuração de Variáveis de Ambiente (`.env`)
+
+No diretório do **backend**, certifique-se de configurar as seguintes variáveis no seu arquivo `.env`:
+
+```env
+# Porta do Servidor Backend
+PORT=8080
+
+# Configuração da Base de Dados MySQL
+DB_HOST=localhost
+DB_USER=seu_usuario
+DB_PASSWORD=sua_senha
+DB_DATABASE=flexwash_db
+
+# Chave secreta para autenticação JWT
+JWT_SECRET=sua_chave_secreta_jwt
+
+# Chave da API de Mapas / Distância (Ex: Google Maps / Geocoding / OSRM)
+# Deixe em branco caso utilize o sistema de endereços estáticos por cadastro de cliente.
+MAPS_API_KEY=sua_chave_api_aqui
