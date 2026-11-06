@@ -1,0 +1,117 @@
+/* Formulário de endereço com CEP (componentes/FormEnderecoCep.jsx) */
+
+.fe-form {
+  --fe-texto: #0f172a;
+  --fe-rotulo: #334155;
+  --fe-borda: #cbd5e1;
+  --fe-fundo: #ffffff;
+  --fe-suave: #94a3b8;
+  --fe-azul: #2563eb;
+
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.fe-form *,
+.fe-form *::before,
+.fe-form *::after {
+  box-sizing: border-box;
+}
+
+.fe-tema-escuro {
+  --fe-texto: #f8fafc;
+  --fe-rotulo: #cbd5e1;
+  --fe-borda: #334155;
+  --fe-fundo: #0f172a;
+  --fe-suave: #64748b;
+  --fe-azul: #3b82f6;
+}
+
+.fe-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.fe-cep,
+.fe-rua,
+.fe-bairro { grid-column: span 6; }
+.fe-numero { grid-column: span 2; }
+.fe-complemento { grid-column: span 4; }
+.fe-cidade { grid-column: span 4; }
+.fe-uf { grid-column: span 2; }
+
+.fe-campo label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fe-rotulo);
+}
+
+.fe-campo input {
+  width: 100%;
+  height: 40px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--fe-borda);
+  border-radius: 8px;
+  background: var(--fe-fundo);
+  color: var(--fe-texto);
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.fe-campo input::placeholder { color: var(--fe-suave); }
+
+.fe-campo input:focus {
+  outline: none;
+  border-color: var(--fe-azul);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+.fe-campo input:disabled { opacity: 0.6; }
+
+.fe-cep-linha {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.fe-cep-linha input { flex: 1; }
+
+.fe-cep-linha button {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 8px;
+  background: var(--fe-azul);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.fe-cep-linha button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.fe-ajuda { font-size: 0.74rem; color: var(--fe-suave); }
+.fe-ajuda a { color: var(--fe-azul); font-weight: 600; text-decoration: none; }
+.fe-ajuda a:hover { text-decoration: underline; }
+.fe-erro { font-size: 0.74rem; color: #dc2626; }
+.fe-tema-escuro .fe-erro { color: #f87171; }
+
+.fe-girando { animation: fe-girar 0.9s linear infinite; }
+@keyframes fe-girar { to { transform: rotate(360deg); } }
+
+/* Versão compacta (dentro do modal de agendamento) */
+.fe-compacto { gap: 0.6rem; }
+.fe-compacto .fe-campo input { height: 36px; font-size: 0.85rem; }
+.fe-compacto .fe-cep-linha button { width: 36px; height: 36px; }
+
+@media (max-width: 420px) {
+  .fe-numero { grid-column: span 3; }
+  .fe-complemento { grid-column: span 3; }
+}

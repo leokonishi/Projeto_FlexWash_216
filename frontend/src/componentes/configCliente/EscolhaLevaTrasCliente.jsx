@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Truck, MapPin, Edit3, Check, Loader2 } from 'lucide-react';
 import { apiFetch, API_URL } from '../../utils/api';
 import { formatarMoeda } from '../../utils/precos';
+import FormEnderecoCep from '../FormEnderecoCep';
+import { ENDERECO_VAZIO, enderecoCompleto, montarEndereco, separarEndereco, partesParaApi } from '../../utils/endereco';
 
 const fmtKm = (km) => Number(km).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
 
@@ -20,7 +22,7 @@ export default function EscolhaLevaTrasCliente({ resumo, levaTras, tipoInicial, 
     const [verificando, setVerificando] = useState(false);
 
     const [editandoEndereco, setEditandoEndereco] = useState(false);
-    const [novoEndereco, setNovoEndereco] = useState('');
+    const [novoEndereco, setNovoEndereco] = useState(ENDERECO_VAZIO); // partes do formulário com CEP
     const [salvandoEndereco, setSalvandoEndereco] = useState(false);
     const [erroEndereco, setErroEndereco] = useState(null);
 
@@ -33,8 +35,12 @@ export default function EscolhaLevaTrasCliente({ resumo, levaTras, tipoInicial, 
                 ? json
                 : { disponivel: false, motivo: 'erro', mensagem: json.erro || 'Não foi possível verificar o leva e traz.' };
             setAvaliacao(resultado);
-            setNovoEndereco(resultado.endereco_cliente || '');
-            if (resultado.motivo === 'sem_endereco') setEditandoEndereco(true);
+            // Endereço antigo (texto livre) não se separa em partes: o cliente refaz pelo CEP
+            setNovoEndereco(separarEndereco(resultado.endereco_cliente) || ENDERECO_VAZIO);
+            // Sem endereço, ou endereço antigo em texto livre: pede o endereço pelo CEP
+            if (resultado.motivo === 'sem_endereco' || (resultado.endereco_cliente && !separarEndereco(resultado.endereco_cliente))) {
+                setEditandoEndereco(true);
+            }
             if (!resultado.disponivel) setTipoLogistica('cliente_leva');
         } catch {
             setAvaliacao({ disponivel: false, motivo: 'erro', mensagem: 'Falha de conexão ao verificar o leva e traz.' });
@@ -50,14 +56,18 @@ export default function EscolhaLevaTrasCliente({ resumo, levaTras, tipoInicial, 
     }, [servicoAtivo, verificar]);
 
     const salvarNovoEndereco = async () => {
-        if (!novoEndereco.trim() || salvandoEndereco) return;
+        if (salvandoEndereco) return;
+        if (!enderecoCompleto(novoEndereco)) {
+            setErroEndereco('Preencha CEP, rua, número, bairro, cidade e UF.');
+            return;
+        }
         setSalvandoEndereco(true);
         setErroEndereco(null);
         try {
             const resposta = await apiFetch(`${API_URL}/api/me/endereco`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ endereco: novoEndereco })
+                body: JSON.stringify({ endereco: montarEndereco(novoEndereco), endereco_partes: partesParaApi(novoEndereco) })
             });
             const json = await resposta.json().catch(() => ({}));
             if (resposta.ok) {
@@ -228,19 +238,24 @@ export default function EscolhaLevaTrasCliente({ resumo, levaTras, tipoInicial, 
                             </div>
 
                             {editandoEndereco ? (
-                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                    <input
-                                        type="text"
-                                        value={novoEndereco}
-                                        maxLength={255}
-                                        onChange={(e) => setNovoEndereco(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && salvarNovoEndereco()}
-                                        placeholder="Rua, número, bairro, cidade - UF, CEP"
-                                        style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem', outline: 'none' }}
-                                    />
-                                    <button onClick={salvarNovoEndereco} disabled={!novoEndereco.trim() || salvandoEndereco} style={{ backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', padding: '0 0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                                        {salvandoEndereco ? <Loader2 size={16} /> : <Check size={16} />}
-                                    </button>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    {avaliacao?.endereco_cliente && !separarEndereco(avaliacao.endereco_cliente) && (
+                                        <p style={{ margin: 0, fontSize: '0.8rem', color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '6px', padding: '0.5rem 0.6rem' }}>
+                                            Endereço atual: <strong>{avaliacao.endereco_cliente}</strong>. Confirme pelo CEP para calcularmos a distância.
+                                        </p>
+                                    )}
+                                    <FormEnderecoCep valor={novoEndereco} aoMudar={setNovoEndereco} compacto desabilitado={salvandoEndereco} />
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                        {avaliacao?.endereco_cliente && (
+                                            <button type="button" onClick={() => { setEditandoEndereco(false); setErroEndereco(null); }} style={{ padding: '0.5rem 0.9rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontWeight: '600', fontSize: '0.8rem', cursor: 'pointer' }}>
+                                                Cancelar
+                                            </button>
+                                        )}
+                                        <button type="button" onClick={salvarNovoEndereco} disabled={salvandoEndereco} style={{ padding: '0.5rem 0.9rem', borderRadius: '6px', border: 'none', backgroundColor: '#2563eb', color: '#ffffff', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                            {salvandoEndereco ? <Loader2 size={15} /> : <Check size={15} />}
+                                            {salvandoEndereco ? 'Verificando...' : 'Salvar e verificar'}
+                                        </button>
+                                    </div>
                                 </div>
                             ) : (
                                 <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', fontWeight: '500' }}>

@@ -5,6 +5,8 @@ const express = require('express');
 const router = express.Router();
 const db = require('../bd');
 const { normalizarPorte } = require('../services/precoExecucao');
+const { montarEndereco, validarPartes } = require('../services/mapa');
+const { ErroNegocio } = require('../services/erros');
 
 // Valores do enum veiculos.porte
 const PORTE_DO_BANCO = { pequeno: 'Pequeno', medio: 'Médio', grande: 'Grande' };
@@ -27,8 +29,19 @@ router.get('/me', async (req, res) => {
 });
 
 // 2. ATUALIZAR O ENDEREÇO (usado no leva e traz)
+// Formulário com CEP: o corpo traz `endereco_partes` ({ cep, rua, numero, complemento,
+// bairro, cidade, uf }) e o texto é montado aqui, no formato que o mapa sabe separar.
+// Sem as partes, aceita o texto livre antigo em `endereco`.
 router.put('/me/endereco', async (req, res) => {
-    const endereco = typeof req.body?.endereco === 'string' ? req.body.endereco.trim() : '';
+    let endereco;
+    try {
+        endereco = req.body?.endereco_partes
+            ? montarEndereco(validarPartes(req.body.endereco_partes))
+            : (typeof req.body?.endereco === 'string' ? req.body.endereco.trim() : '');
+    } catch (erro) {
+        if (erro instanceof ErroNegocio) return res.status(erro.status).json({ erro: erro.message });
+        throw erro;
+    }
 
     if (!endereco) return res.status(400).json({ erro: 'Informe o endereço.' });
     if (endereco.length > 255) return res.status(400).json({ erro: 'O endereço pode ter no máximo 255 caracteres.' });

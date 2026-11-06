@@ -169,6 +169,44 @@ async function geocodificar(endereco) {
   return resultado;
 }
 
+// Formato em que o sistema guarda os endereços preenchidos pelo CEP:
+//   "Rua X, 123, Apto 4 - Centro, Osasco - SP, 06010-000"
+// (mesmo formato de frontend/src/utils/endereco.js)
+function montarEndereco(p) {
+  const limpar = (v) => String(v ?? '').trim();
+  const cep = limpar(p.cep).replace(/\D/g, '');
+  const linha1 = [p.rua, p.numero, p.complemento].map(limpar).filter(Boolean).join(', ');
+  return `${linha1} - ${limpar(p.bairro)}, ${limpar(p.cidade)} - ${limpar(p.uf).toUpperCase()}, ${cep.slice(0, 5)}-${cep.slice(5)}`;
+}
+
+// Texto nesse formato -> partes; null para endereços antigos (texto livre)
+function separarEndereco(texto) {
+  const m = String(texto ?? '').match(/^(.+?), ([^,]+?)(?:, (.+?))? - (.+?), (.+?) - ([A-Za-z]{2}), (\d{5})-?(\d{3})$/);
+  if (!m) return null;
+  return { rua: m[1], numero: m[2], complemento: m[3] || '', bairro: m[4], cidade: m[5], uf: m[6].toUpperCase(), cep: `${m[7]}${m[8]}` };
+}
+
+// Confere as partes vindas do formulário com CEP. Lança ErroNegocio com a mensagem para a tela.
+function validarPartes(partes) {
+  const limpar = (v) => String(v ?? '').trim();
+  const p = {
+    cep: limpar(partes?.cep).replace(/\D/g, ''),
+    rua: limpar(partes?.rua),
+    numero: limpar(partes?.numero),
+    complemento: limpar(partes?.complemento),
+    bairro: limpar(partes?.bairro),
+    cidade: limpar(partes?.cidade),
+    uf: limpar(partes?.uf).toUpperCase()
+  };
+  if (!/^\d{8}$/.test(p.cep)) throw new ErroNegocio('Informe um CEP com 8 dígitos.');
+  if (!p.rua || !p.numero || !p.bairro || !p.cidade) throw new ErroNegocio('Preencha rua, número, bairro e cidade.');
+  if (!/^[A-Z]{2}$/.test(p.uf)) throw new ErroNegocio('Informe a UF com 2 letras, ex.: SP.');
+  if (p.rua.length > 150 || p.numero.length > 10 || p.complemento.length > 60 || p.bairro.length > 100 || p.cidade.length > 100) {
+    throw new ErroNegocio('Algum campo do endereço ficou longo demais.');
+  }
+  return p;
+}
+
 // Endereço em partes (vindo do formulário com CEP) -> { latitude, longitude, encontrado }.
 // Mais preciso que o texto livre: busca rua + número na cidade/UF do CEP; se o número
 // não existir no mapa, cai para a rua; por fim, para o texto completo.
@@ -251,6 +289,9 @@ async function distanciaKm(origem, destino) {
 module.exports = {
   geocodificar,
   geocodificarPartes,
+  montarEndereco,
+  separarEndereco,
+  validarPartes,
   distanciaKm,
   distanciaRetaKm,
   limparEndereco,

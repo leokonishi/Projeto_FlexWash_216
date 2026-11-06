@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../paginas_css/cadastro_cliente.css';
 import { aplicarMascaraCPF, aplicarMascaraTelefone } from '../utils/mascaras'; // Importando as máscaras reutilizáveis!
+import FormEnderecoCep from '../componentes/FormEnderecoCep';
+import { ENDERECO_VAZIO, enderecoCompleto, enderecoVazio, partesParaApi } from '../utils/endereco';
 
 export default function CadastroCliente() {
   const navigate = useNavigate();
@@ -12,9 +14,10 @@ export default function CadastroCliente() {
     nome: '',
     email: '',
     senha: '',
-    telefone: '',
-    endereco: ''
+    telefone: ''
   });
+  // Endereço (opcional no cadastro, usado no leva e traz), com busca pelo CEP
+  const [endereco, setEndereco] = useState(ENDERECO_VAZIO);
 
   // 2. Intercetamos a digitação para aplicar as máscaras em tempo real
   const aoMudarCampo = (e) => {
@@ -31,13 +34,20 @@ export default function CadastroCliente() {
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
+    // Endereço é opcional, mas se começou a preencher, precisa estar completo
+    if (!enderecoVazio(endereco) && !enderecoCompleto(endereco)) {
+      alert('Complete o endereço (CEP, rua, número, bairro, cidade e UF) ou deixe todos os campos em branco.');
+      return;
+    }
+    const dados = { ...formulario, ...(enderecoCompleto(endereco) ? { endereco_partes: partesParaApi(endereco) } : {}) };
+
     try {
       const resposta = await fetch(`${API_URL}/api/clientes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formulario),
+        body: JSON.stringify(dados),
       });
 
       const resultado = await resposta.json();
@@ -112,16 +122,10 @@ export default function CadastroCliente() {
             />
           </div>
 
-          {/* NOVO CAMPO: Endereço (Para o Leva e Traz) */}
+          {/* Endereço (para o leva e traz): opcional, com busca pelo CEP */}
           <div className="grupo-campo">
-            <label>Endereço Completo</label>
-            <input
-              type="text"
-              name="endereco"
-              value={formulario.endereco}
-              onChange={aoMudarCampo}
-              placeholder="Ex: Av. Paulista, 1000 - SP"
-            />
+            <label>Endereço <span style={{ textTransform: 'none', fontWeight: 500, color: '#64748b' }}>(opcional, para o leva e traz)</span></label>
+            <FormEnderecoCep valor={endereco} aoMudar={setEndereco} tema="escuro" />
           </div>
 
           <div className="grupo-campo">

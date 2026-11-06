@@ -1,8 +1,19 @@
 const bcrypt = require('bcrypt');
 const db = require('../bd');
+const { montarEndereco, validarPartes } = require('../services/mapa');
 
 const cadastrar = async (req, res) => {
-    const { nome, cpf, email, telefone, endereco, senha } = req.body;
+    const { nome, cpf, email, telefone, senha } = req.body;
+
+    // Endereço (opcional): pelo formulário com CEP vem em `endereco_partes`
+    let endereco = typeof req.body.endereco === 'string' ? req.body.endereco.trim() : '';
+    if (req.body.endereco_partes) {
+        try {
+            endereco = montarEndereco(validarPartes(req.body.endereco_partes));
+        } catch (erro) {
+            return res.status(400).json({ sucesso: false, mensagem: erro.message, erro: erro.message });
+        }
+    }
 
     // Se o Admin cadastrou pelo painel, a senha pode vir vazia. Definimos uma padrão se necessário.
     const senhaParaUsar = senha ? senha : '123'; 
