@@ -161,4 +161,13 @@ async function registrarEntrada(db, corpo) {
   }
 }
 
-module.exports = { registrarEntrada, normalizarEntrada, MAX_VEICULOS_POR_ENTRADA };
+module.exports = {
+  registrarEntrada,
+  normalizarEntrada,
+  MAX_VEICULOS_POR_ENTRADA,
+  // reaproveitados pelo agendamento do cliente (services/agendamentoService.js)
+  inteiroPositivo,
+  listaDeIds,
+  buscarPorIds,
+  exigirTodos
+};

@@ -7,6 +7,16 @@ const logado = [verificarToken];                                  // qualquer pe
 const equipe = [verificarToken, verificarPerfil(['funcionario'])]; // funcionário + administrador
 const soAdmin = [verificarToken, verificarPerfil([])];             // apenas administrador
 
+// Apenas cliente (o administrador NÃO passa: as rotas de cliente usam o id do token
+// como id do cliente, e o id de um administrador é de outra tabela).
+function apenasCliente(req, res, next) {
+  if (req.usuarioLogado?.perfil !== 'cliente') {
+    return res.status(403).json({ sucesso: false, mensagem: 'Acesso negado. Recurso exclusivo da área do cliente.' });
+  }
+  next();
+}
+const soCliente = [verificarToken, apenasCliente];
+
 // Escolhe a cadeia de middlewares a partir da requisição e a executa em ordem.
 function escolher(seletor) {
   return (req, res, next) => {
@@ -26,4 +36,4 @@ function porMetodo(regraLeitura, regraEscrita) {
   return escolher((req) => (req.method === 'GET' ? regraLeitura : regraEscrita));
 }
 
-module.exports = { logado, equipe, soAdmin, escolher, porMetodo };
+module.exports = { logado, equipe, soAdmin, soCliente, escolher, porMetodo };
