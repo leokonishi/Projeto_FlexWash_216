@@ -4,7 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../bd');
-const { ultimaConfig, salvarConfig } = require('../services/logistica');
+const { ultimaConfig, salvarConfig, localizar } = require('../services/logistica');
 const { ErroNegocio } = require('../services/erros');
 
 function responderErro(res, erro, mensagemPadrao) {
@@ -29,6 +29,15 @@ router.put('/admin/logistica', async (req, res) => {
         res.status(200).json({ mensagem: 'Configuração do leva e traz salva!', config });
     } catch (erro) {
         responderErro(res, erro, 'Erro ao salvar a configuração do leva e traz.');
+    }
+});
+
+// Prévia: acha o endereço no mapa (para o gerente conferir o ponto e o raio) sem salvar
+router.post('/admin/logistica/localizar', async (req, res) => {
+    try {
+        res.status(200).json(await localizar(req.body));
+    } catch (erro) {
+        responderErro(res, erro, 'Erro ao localizar o endereço no mapa.');
     }
 });
 

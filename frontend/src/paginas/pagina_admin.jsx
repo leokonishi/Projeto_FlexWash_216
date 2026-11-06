@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../paginas_css/pagina_admin.css';
 
@@ -7,7 +7,8 @@ import DashboardInicio from '../componentes/DashboardInicio';
 import GestaoClientes from './GestaoClientes';
 import GestaoFuncionarios from './GestaoFuncionarios';
 import GestaoServicos from './GestaoServicos';
-import GestaoLevaTras from './GestaoLevaTras';
+// Carregada só quando a aba é aberta: o mapa 3D (MapLibre) é pesado
+const GestaoLevaTras = lazy(() => import('./GestaoLevaTras'));
 import Historico from './Historico'; // 1. IMPORTAÇÃO DO HISTÓRICO ADICIONADA AQUI
 import ModalConfirmacao from '../componentes/ModalConfirmacao';
 import { obterPerfil, encerrarSessao } from '../utils/sessao';
@@ -103,7 +104,11 @@ export default function PaginaAdmin() {
           
           {abaAtiva === 'servicos' && perfilUsuario === 'administrador' && <GestaoServicos />}
 
-          {abaAtiva === 'levatras' && perfilUsuario === 'administrador' && <GestaoLevaTras />}
+          {abaAtiva === 'levatras' && perfilUsuario === 'administrador' && (
+            <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>A carregar o mapa...</div>}>
+              <GestaoLevaTras />
+            </Suspense>
+          )}
           {/* ---------------------------------------------- */}
 
           {/* Botão Flutuante Inferior Direito */}
