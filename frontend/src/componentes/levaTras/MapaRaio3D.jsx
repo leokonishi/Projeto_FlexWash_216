@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
+// O MapLibre 6 roda parte do trabalho num Web Worker; o Vite gera o arquivo dele no build
+import urlWorkerMapa from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Box, Map as MapaIcone, LocateFixed } from 'lucide-react';
 
@@ -8,6 +10,8 @@ import { Box, Map as MapaIcone, LocateFixed } from 'lucide-react';
 // - Mostra o lava-rápido (marcador que pode ser arrastado para ajustar o ponto) e a área
 //   atendida: um círculo com o raio em km, com uma "parede" em 3D na borda.
 // - Arraste para mover, Ctrl/botão direito para girar e inclinar, roda do mouse para zoom.
+maplibregl.setWorkerUrl(urlWorkerMapa);
+
 const ESTILO_MAPA = import.meta.env.VITE_MAPA_ESTILO_URL || 'https://tiles.openfreemap.org/styles/liberty';
 const CENTRO_PADRAO = [-46.6333, -23.5505]; // São Paulo, enquanto não há endereço
 const PONTOS_CIRCULO = 128;
