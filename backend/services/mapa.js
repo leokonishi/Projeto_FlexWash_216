@@ -169,6 +169,46 @@ async function geocodificar(endereco) {
   return resultado;
 }
 
+// Endereço em partes (vindo do formulário com CEP) -> { latitude, longitude, encontrado }.
+// Mais preciso que o texto livre: busca rua + número na cidade/UF do CEP; se o número
+// não existir no mapa, cai para a rua; por fim, para o texto completo.
+async function geocodificarPartes(partes) {
+  const limpar = (v) => String(v ?? '').trim();
+  const p = {
+    cep: limpar(partes?.cep).replace(/\D/g, ''),
+    rua: limpar(partes?.rua),
+    numero: limpar(partes?.numero),
+    bairro: limpar(partes?.bairro),
+    cidade: limpar(partes?.cidade),
+    uf: limpar(partes?.uf).toUpperCase()
+  };
+  if (!p.rua || !p.cidade || !p.uf) throw new ErroNegocio('Informe rua, cidade e UF do endereço.', 400);
+
+  const chave = `partes:${[p.rua, p.numero, p.bairro, p.cidade, p.uf, p.cep].join('|').toLowerCase()}`;
+  const guardado = cacheEnderecos.ler(chave);
+  if (guardado) return guardado;
+
+  const estruturada = (rua) => {
+    const parametros = new URLSearchParams({ street: rua, city: p.cidade, state: p.uf, country: 'Brasil', format: 'jsonv2', limit: '1' });
+    return pedirAoNominatim(`${NOMINATIM_URL}/search?${parametros}`).then(paraCoordenadas);
+  };
+
+  let resultado = null;
+  try {
+    if (p.numero) resultado = await estruturada(`${p.numero} ${p.rua}`);
+    if (!resultado) resultado = await estruturada(p.rua);
+    if (!resultado) resultado = await buscaLivre([p.rua, p.numero, p.bairro, p.cidade, p.uf].filter(Boolean).join(', '));
+    if (!resultado && p.bairro) resultado = await buscaLivre([p.bairro, p.cidade, p.uf].join(', '));
+  } catch (erro) {
+    console.error('[mapa] Falha na geocodificação:', erro.message);
+    throw new ErroNegocio('Não foi possível consultar o mapa agora. Tente de novo em instantes.', 503);
+  }
+
+  if (!resultado) throw new ErroNegocio('Não encontramos esse endereço no mapa. Confira o CEP e o número.', 422);
+  cacheEnderecos.gravar(chave, resultado);
+  return resultado;
+}
+
 // ---------------------------------------------------------------------
 // Distância
 // ---------------------------------------------------------------------
@@ -210,6 +250,7 @@ async function distanciaKm(origem, destino) {
 
 module.exports = {
   geocodificar,
+  geocodificarPartes,
   distanciaKm,
   distanciaRetaKm,
   limparEndereco,

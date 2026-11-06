@@ -63,26 +63,60 @@ function validarConfig(corpo) {
     throw new ErroNegocio('Informe um valor válido para o leva e traz (pode ser 0 para grátis).');
   }
 
+  // Partes do endereço (formulário com CEP): opcionais, deixam a busca no mapa mais precisa
+  const partes = corpo?.endereco_partes && typeof corpo.endereco_partes === 'object' ? corpo.endereco_partes : null;
+
+  // Ponto ajustado à mão no mapa (o gerente arrastou o marcador): opcional
+  let coordenadas = null;
+  if (corpo?.coordenadas) {
+    const latitude = lerNumero(corpo.coordenadas.latitude);
+    const longitude = lerNumero(corpo.coordenadas.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+      throw new ErroNegocio('Ponto do mapa inválido.');
+    }
+    coordenadas = { latitude, longitude, encontrado: null };
+  }
+
   return {
     endereco,
+    partes,
+    coordenadas,
     raio: Math.round(raio * 100) / 100,
     taxaCentavos: Math.round(taxa * 100),
     ativo
   };
 }
 
+// Coordenadas de um endereço do lava-rápido: pelas partes do CEP quando vierem,
+// senão pelo texto. Usado ao salvar e na prévia do mapa da tela do gerente.
+async function localizarEndereco(endereco, partes) {
+  if (partes) return mapa.geocodificarPartes(partes);
+  return mapa.geocodificar(endereco);
+}
+
+// Prévia (POST /api/admin/logistica/localizar): acha o endereço no mapa sem salvar
+async function localizar(corpo) {
+  const endereco = typeof corpo?.endereco === 'string' ? corpo.endereco.trim() : '';
+  const partes = corpo?.endereco_partes && typeof corpo.endereco_partes === 'object' ? corpo.endereco_partes : null;
+  if (!endereco && !partes) throw new ErroNegocio('Informe o endereço.');
+  const { latitude, longitude, encontrado } = await localizarEndereco(endereco, partes);
+  return { latitude, longitude, encontrado };
+}
+
 // Salva uma nova configuração (tela do gerente).
 // Segue a regra da tabela: a linha anterior é desativada e uma nova é criada,
 // guardando o histórico. As coordenadas do lava-rápido são buscadas no mapa aqui.
 async function salvarConfig(db, corpo) {
-  const { endereco, raio, taxaCentavos, ativo } = validarConfig(corpo);
+  const { endereco, partes, coordenadas: pontoManual, raio, taxaCentavos, ativo } = validarConfig(corpo);
 
   const anterior = await ultimaConfig(db);
   let coordenadas;
-  if (anterior && anterior.latitude !== null && anterior.endereco_lava_rapido === endereco) {
+  if (pontoManual) {
+    coordenadas = pontoManual;
+  } else if (anterior && anterior.latitude !== null && anterior.endereco_lava_rapido === endereco) {
     coordenadas = { latitude: anterior.latitude, longitude: anterior.longitude, encontrado: null };
   } else {
-    coordenadas = await mapa.geocodificar(endereco);
+    coordenadas = await localizarEndereco(endereco, partes);
   }
 
   const conn = await db.getConnection();
@@ -183,6 +217,7 @@ module.exports = {
   configAtiva,
   ultimaConfig,
   salvarConfig,
+  localizar,
   validarConfig,
   avaliarLevaTras
 };
