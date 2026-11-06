@@ -8,7 +8,7 @@ import EscolhaHorarioCliente from '../componentes/configCliente/EscolhaHorarioCl
 import { apiFetch } from '../utils/api';
 import { obterSessao, encerrarSessao } from '../utils/sessao';
 
-const AGENDAMENTO_VAZIO = { veiculos: [], selecoes: {}, resumo: [], levaTras: null };
+const AGENDAMENTO_VAZIO = { veiculos: [], selecoes: {}, resumo: [], levaTras: null, avaliacaoLevaTras: null };
 
 export default function PaginaCliente() {
   const navigate = useNavigate();
@@ -124,8 +124,9 @@ export default function PaginaCliente() {
   };
 
   // Passo 3 -> 4
-  const avancarParaHorario = (tipoLogistica) => {
-      setDadosAgendamento(prev => ({ ...prev, levaTras: tipoLogistica }));
+  // avaliacaoLevaTras: distância, endereço de busca e valor por veículo (só no leva e traz)
+  const avancarParaHorario = (tipoLogistica, avaliacaoLevaTras) => {
+      setDadosAgendamento(prev => ({ ...prev, levaTras: tipoLogistica, avaliacaoLevaTras }));
       setPassoAgendamento('horario');
   };
 
@@ -265,7 +266,8 @@ export default function PaginaCliente() {
           <EscolhaHorarioCliente
               resumo={dadosAgendamento.resumo}
               tipoLogistica={dadosAgendamento.levaTras}
-              levaTras={configAgendamento?.leva_tras}
+              levaTras={dadosAgendamento.avaliacaoLevaTras}
+              enderecoLavaRapido={configAgendamento?.endereco_lava_rapido}
               aoConcluir={concluirAgendamentoComSucesso}
               aoVoltar={() => setPassoAgendamento('modalidade')}
               aoCancelar={cancelarAgendamento}
