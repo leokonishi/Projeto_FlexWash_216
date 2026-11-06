@@ -7,6 +7,7 @@ import DashboardInicio from '../componentes/DashboardInicio';
 import GestaoClientes from './GestaoClientes';
 import GestaoFuncionarios from './GestaoFuncionarios';
 import GestaoServicos from './GestaoServicos';
+import GestaoLevaTras from './GestaoLevaTras';
 import Historico from './Historico'; // 1. IMPORTAÇÃO DO HISTÓRICO ADICIONADA AQUI
 import ModalConfirmacao from '../componentes/ModalConfirmacao';
 import { obterPerfil, encerrarSessao } from '../utils/sessao';
@@ -66,6 +67,7 @@ export default function PaginaAdmin() {
             <>
               <div className="nav-titulo-claro separator">PAINEL DE CONTROLE</div>
               <button className={abaAtiva === 'servicos' ? 'sidebar-btn-claro ativo' : 'sidebar-btn-claro'} onClick={() => setAbaAtiva('servicos')}>Serviços</button>
+              <button className={abaAtiva === 'levatras' ? 'sidebar-btn-claro ativo' : 'sidebar-btn-claro'} onClick={() => setAbaAtiva('levatras')}>Leva e Traz</button>
               <button className={abaAtiva === 'funcionarios' ? 'sidebar-btn-claro ativo' : 'sidebar-btn-claro'} onClick={() => setAbaAtiva('funcionarios')}>Funcionários</button>
             </>
           )}
@@ -84,6 +86,7 @@ export default function PaginaAdmin() {
               <>
                 <button className={abaAtiva === 'funcionarios' ? 'subtab-btn-claro ativo' : 'subtab-btn-claro'} onClick={() => setAbaAtiva('funcionarios')}>Comissões</button>
                 <button className={abaAtiva === 'servicos' ? 'subtab-btn-claro ativo' : 'subtab-btn-claro'} onClick={() => setAbaAtiva('servicos')}>Serviços</button>
+                <button className={abaAtiva === 'levatras' ? 'subtab-btn-claro ativo' : 'subtab-btn-claro'} onClick={() => setAbaAtiva('levatras')}>Leva e Traz</button>
               </>
             )}
           </div>
@@ -99,6 +102,8 @@ export default function PaginaAdmin() {
           {abaAtiva === 'funcionarios' && perfilUsuario === 'administrador' && <GestaoFuncionarios abrirAlerta={abrirAlerta} />}
           
           {abaAtiva === 'servicos' && perfilUsuario === 'administrador' && <GestaoServicos />}
+
+          {abaAtiva === 'levatras' && perfilUsuario === 'administrador' && <GestaoLevaTras />}
           {/* ---------------------------------------------- */}
 
           {/* Botão Flutuante Inferior Direito */}

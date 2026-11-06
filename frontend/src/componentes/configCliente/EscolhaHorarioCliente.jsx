@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { MapPin, Edit3, Check, Car } from 'lucide-react';
+import React, { useState } from 'react';
+import { MapPin, Car } from 'lucide-react';
 import { apiFetch, API_URL } from '../../utils/api';
 import { formatarMoeda } from '../../utils/precos';
 import SeletorDataHorario, { hojeLocal, formatarDataBr } from './SeletorDataHorario';
 
-const enderecoLavaRapido = "Av. Principal do Lavacar, 1000 - Centro, Osasco - SP";
-
-// Passo 4 do agendamento: data, horário, endereço (no leva e traz), resumo e confirmação.
+// Passo 4 do agendamento: data, horário, endereço, resumo e confirmação.
+// No leva e traz, `levaTras` é a avaliação feita no passo 3 (endereço de busca,
+// distância e valor por veículo); o backend confere o raio de novo ao confirmar.
 // Com mais de um carro, o cliente escolhe entre:
 //  - todos no mesmo horário: se o horário não tiver vaga para todos, os demais ocupam os
 //    próximos horários do dia (o backend decide e devolve);
 //  - um horário para cada carro: cada um com a sua data e hora (horario_por_veiculo).
-export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras, aoConcluir, aoVoltar, aoCancelar }) {
+export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras, enderecoLavaRapido, aoConcluir, aoVoltar, aoCancelar }) {
     const hoje = hojeLocal();
     const ehLevaTras = tipoLogistica === 'leva_tras';
     const taxaCentavos = ehLevaTras ? Math.round(Number(levaTras?.taxa_por_veiculo || 0) * 100) : 0;
@@ -28,30 +28,8 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
     const [sugestao, setSugestao] = useState(null);
     const [confirmado, setConfirmado] = useState(null);
 
-    // Estados para o endereço e edição
-    const [enderecoCliente, setEnderecoCliente] = useState('');
-    const [editandoEndereco, setEditandoEndereco] = useState(false);
-    const [novoEndereco, setNovoEndereco] = useState('');
-    const [salvandoEndereco, setSalvandoEndereco] = useState(false);
-
-    // Endereço do próprio cliente (só no leva e traz)
-    useEffect(() => {
-        if (!ehLevaTras) return;
-        const buscarEndereco = async () => {
-            try {
-                const resposta = await apiFetch(`${API_URL}/api/me`);
-                if (resposta.ok) {
-                    const cliente = await resposta.json();
-                    setEnderecoCliente(cliente.endereco || '');
-                    setNovoEndereco(cliente.endereco || '');
-                    if (!cliente.endereco) setEditandoEndereco(true);
-                }
-            } catch (err) {
-                console.error('Erro ao buscar endereço:', err);
-            }
-        };
-        buscarEndereco();
-    }, [ehLevaTras]);
+    const enderecoCliente = levaTras?.endereco_cliente || '';
+    const localLavaRapido = enderecoLavaRapido || 'nosso lava-rápido';
 
     const limparAvisos = () => { setErro(null); setSugestao(null); };
 
@@ -93,30 +71,6 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
         ? resumo.every(item => horariosVeiculos[item.veiculo.id]?.horario)
         : Boolean(horario);
 
-    const salvarNovoEndereco = async () => {
-        if (!novoEndereco.trim()) return;
-        setSalvandoEndereco(true);
-        try {
-            const resposta = await apiFetch(`${API_URL}/api/me/endereco`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ endereco: novoEndereco })
-            });
-            const json = await resposta.json();
-            if (resposta.ok) {
-                setEnderecoCliente(json.endereco);
-                setEditandoEndereco(false);
-            } else {
-                alert(json.erro || 'Erro ao atualizar o endereço.');
-            }
-        } catch (err) {
-            console.error(err);
-            alert('Falha de conexão ao salvar endereço.');
-        } finally {
-            setSalvandoEndereco(false);
-        }
-    };
-
     const lidarComFinalizacao = async () => {
         setErro(null);
         setSugestao(null);
@@ -126,7 +80,7 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
             return;
         }
         if (ehLevaTras && !enderecoCliente) {
-            setErro('Informe o endereço de busca do veículo.');
+            setErro('Volte ao passo anterior e informe o endereço de busca do veículo.');
             return;
         }
 
@@ -202,7 +156,7 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
                     <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569' }}>
                         {ehLevaTras
                             ? `Vamos buscar o(s) veículo(s) em: ${enderecoCliente}`
-                            : `Leve o(s) veículo(s) até ${enderecoLavaRapido} no horário marcado.`}
+                            : `Leve o(s) veículo(s) até ${localLavaRapido} no horário marcado.`}
                     </p>
                     <button onClick={aoConcluir} style={{ alignSelf: 'flex-end', padding: '0.75rem 1.5rem', borderRadius: '8px', fontWeight: '700', color: '#ffffff', backgroundColor: '#0f172a', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}>
                         Fechar
@@ -253,33 +207,21 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
                                 {ehLevaTras ? 'Endereço de busca (leva e traz)' : 'Local de Atendimento'}
                             </span>
 
-                            {ehLevaTras && !editandoEndereco && (
-                                <button onClick={() => setEditandoEndereco(true)} style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                    <Edit3 size={13} /> Alterar endereço
-                                </button>
-                            )}
                         </div>
 
                         {!ehLevaTras ? (
                             <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', fontWeight: '500' }}>
-                                {enderecoLavaRapido} <span style={{ display: 'block', fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>(Leve o seu veículo até ao pátio no horário agendado)</span>
+                                {localLavaRapido} <span style={{ display: 'block', fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>(Leve o seu veículo até ao pátio no horário agendado)</span>
                             </p>
-                        ) : !editandoEndereco ? (
-                            <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', fontWeight: '500' }}>{enderecoCliente}</p>
                         ) : (
-                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                                <input
-                                    type="text"
-                                    value={novoEndereco}
-                                    maxLength={255}
-                                    onChange={(e) => setNovoEndereco(e.target.value)}
-                                    placeholder="Rua, número, bairro e cidade"
-                                    style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem', outline: 'none' }}
-                                />
-                                <button onClick={salvandoEndereco ? null : salvarNovoEndereco} disabled={!novoEndereco.trim()} style={{ backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', padding: '0 0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                                    <Check size={16} />
-                                </button>
-                            </div>
+                            <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', fontWeight: '500' }}>
+                                {enderecoCliente}
+                                {levaTras?.distancia_km != null && (
+                                    <span style={{ display: 'block', fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>
+                                        {Number(levaTras.distancia_km).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km do lava-rápido (para trocar o endereço, volte ao passo anterior)
+                                    </span>
+                                )}
+                            </p>
                         )}
                     </div>
 

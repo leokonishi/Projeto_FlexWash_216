@@ -2,6 +2,7 @@ const { ErroNegocio } = require('./erros');
 const { calcularValorCentavos, centavosParaDecimal } = require('./precoExecucao');
 const { inteiroPositivo, listaDeIds, buscarPorIds, exigirTodos } = require('./execucoesService');
 const agenda = require('./agenda');
+const { configAtiva, avaliarLevaTras } = require('./logistica');
 
 const MAX_VEICULOS_POR_AGENDAMENTO = 10;
 const TIPOS_LOGISTICA = ['cliente_leva', 'leva_tras'];
@@ -27,26 +28,19 @@ async function ocupacaoDoDia(conn, data) {
   return new Map(linhas.map((l) => [l.horario, Number(l.total)]));
 }
 
-// Configuração do leva e traz em vigor (ou null se não houver nenhuma ativa)
-async function configLogistica(conn) {
-  const [linhas] = await conn.execute(
-    'SELECT taxa_por_veiculo FROM config_logistica WHERE ativo = TRUE ORDER BY id DESC LIMIT 1'
-  );
-  if (linhas.length === 0) return null;
-  const centavos = Math.round(Number(linhas[0].taxa_por_veiculo) * 100);
-  return Number.isFinite(centavos) && centavos >= 0 ? { taxaCentavos: centavos } : null;
-}
-
-// O que a tela do cliente precisa saber antes de montar o agendamento
+// O que a tela do cliente precisa saber antes de montar o agendamento.
+// Se o leva e traz atende o endereço do cliente (e o valor) sai de
+// GET /api/agendamentos/leva-e-traz, que mede a distância no mapa.
 async function obterConfiguracao(db) {
-  const logistica = await configLogistica(db);
+  const logistica = await configAtiva(db);
   return {
     horarios: agenda.HORARIOS,
     capacidade_por_horario: agenda.CAPACIDADE_POR_HORARIO,
     max_veiculos: MAX_VEICULOS_POR_AGENDAMENTO,
+    endereco_lava_rapido: logistica?.endereco_lava_rapido || null,
     leva_tras: {
-      disponivel: logistica !== null,
-      taxa_por_veiculo: logistica ? centavosParaDecimal(logistica.taxaCentavos) : null
+      ativo: Boolean(logistica && logistica.latitude !== null),
+      raio_km: logistica?.raio_km ?? null
     }
   };
 }
@@ -169,6 +163,8 @@ async function conferirHorariosIndividuais(conn, itens, veiculos) {
 //   algum estiver lotado, recusa com 409 dizendo qual.
 // - O preço de cada carro sai do banco (pacote + extras pelo porte, mais a taxa do
 //   leva e traz por carro), nunca do navegador.
+// - Leva e traz: a distância até o endereço do cliente é medida de novo aqui; fora do
+//   raio, o pedido é recusado.
 // - Tudo é gravado numa transação, com a agenda travada enquanto isso.
 async function registrarAgendamento(db, clienteId, corpo) {
   const { horarioPorVeiculo, data, horario, tipoLogistica, itens } = normalizarPedido(corpo);
@@ -177,6 +173,18 @@ async function registrarAgendamento(db, clienteId, corpo) {
   const pedidos = horarioPorVeiculo ? itens : [{ data, horario }];
   if (pedidos.some((p) => agenda.horarioPassou(p.data, p.horario, agora))) {
     throw new ErroNegocio('Esse horário já passou. Escolha um horário futuro.');
+  }
+
+  // Leva e traz: confere o raio antes de travar a agenda (consulta o mapa, pode demorar)
+  let taxaCentavos = 0;
+  let enderecoBusca = null;
+  let distanciaKm = null;
+  if (tipoLogistica === 'leva_tras') {
+    const avaliacao = await avaliarLevaTras(db, clienteId);
+    if (!avaliacao.disponivel) throw new ErroNegocio(avaliacao.mensagem, 409, { motivo: avaliacao.motivo });
+    taxaCentavos = Math.round(Number(avaliacao.taxa_por_veiculo) * 100);
+    enderecoBusca = avaliacao.endereco_cliente;
+    distanciaKm = avaliacao.distancia_km;
   }
 
   const conn = await db.getConnection();
@@ -214,19 +222,6 @@ async function registrarAgendamento(db, clienteId, corpo) {
     );
     exigirTodos(extras, extraIds, 404, 'Serviço(s) extra(s) não encontrado(s)');
 
-    // Leva e traz: precisa de configuração ativa e de endereço cadastrado
-    let taxaCentavos = 0;
-    let enderecoBusca = null;
-    if (tipoLogistica === 'leva_tras') {
-      const logistica = await configLogistica(conn);
-      if (!logistica) throw new ErroNegocio('O leva e traz não está disponível no momento.', 409);
-      taxaCentavos = logistica.taxaCentavos;
-
-      const [[cliente]] = await conn.execute('SELECT endereco FROM clientes WHERE id = ?', [clienteId]);
-      enderecoBusca = (cliente?.endereco || '').trim();
-      if (!enderecoBusca) throw new ErroNegocio('Cadastre o endereço de busca para usar o leva e traz.');
-    }
-
     // Data e horário de cada carro: [{ data, horario }], na ordem de `itens`
     let vagas;
     if (horarioPorVeiculo) {
@@ -243,8 +238,8 @@ async function registrarAgendamento(db, clienteId, corpo) {
     }
 
     const [resAgendamento] = await conn.execute(
-      'INSERT INTO agendamentos (cliente_id, tipo_logistica, endereco_busca) VALUES (?, ?, ?)',
-      [clienteId, tipoLogistica, enderecoBusca]
+      'INSERT INTO agendamentos (cliente_id, tipo_logistica, endereco_busca, distancia_km) VALUES (?, ?, ?, ?)',
+      [clienteId, tipoLogistica, enderecoBusca, distanciaKm]
     );
     const agendamentoId = resAgendamento.insertId;
 
@@ -296,6 +291,7 @@ async function registrarAgendamento(db, clienteId, corpo) {
     return {
       agendamento_id: agendamentoId,
       tipo_logistica: tipoLogistica,
+      distancia_km: distanciaKm,
       valor_total: centavosParaDecimal(totalCentavos),
       veiculos: criados
     };

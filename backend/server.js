@@ -23,6 +23,7 @@ const servicosRoutes = require('./routes/ServicosRoutes');
 const execucoesRoutes = require('./routes/execucoesRoutes');
 const meRoutes = require('./routes/meRoutes');
 const agendamentosRoutes = require('./routes/agendamentosRoutes');
+const logisticaRoutes = require('./routes/logisticaRoutes');
 
 // IMPORTAÇÃO DA PASTA 'endpoints' (Rota de serviços do cliente)
 const servicoClienteRoutes = require('./endpoints/servicos');
@@ -74,6 +75,7 @@ app.use('/api', servicoClienteRoutes); // <--- Regista as rotas de serviços do 
 app.use('/api', execucoesRoutes);
 app.use('/api', meRoutes);
 app.use('/api', agendamentosRoutes);
+app.use('/api', logisticaRoutes); // /api/admin/logistica (leva e traz: endereço, raio e valor)
 app.use('/api', veiculoRoutes);
 app.use('/api', comissoesFuncionarioRoutes);
 app.use('/api', comissoesAdminRoutes);
