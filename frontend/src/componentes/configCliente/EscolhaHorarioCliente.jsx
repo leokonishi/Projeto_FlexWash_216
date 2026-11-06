@@ -1,26 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, MapPin, Edit3, Check, Car } from 'lucide-react';
+import { MapPin, Edit3, Check, Car } from 'lucide-react';
 import { apiFetch, API_URL } from '../../utils/api';
 import { formatarMoeda } from '../../utils/precos';
-
-// Data de hoje no fuso do navegador (toISOString usaria UTC e, à noite, já mostraria o dia seguinte)
-const hojeLocal = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
-// AAAA-MM-DD -> DD/MM/AAAA
-const formatarDataBr = (dataIso) => {
-    if (!dataIso) return '';
-    const [ano, mes, dia] = dataIso.split('-');
-    return `${dia}/${mes}/${ano}`;
-};
+import SeletorDataHorario, { hojeLocal, formatarDataBr } from './SeletorDataHorario';
 
 const enderecoLavaRapido = "Av. Principal do Lavacar, 1000 - Centro, Osasco - SP";
 
 // Passo 4 do agendamento: data, horário, endereço (no leva e traz), resumo e confirmação.
-// Cada horário comporta um número limitado de carros; se o horário escolhido não tiver vaga
-// para todos, os demais ocupam os próximos horários do dia (o backend decide e devolve).
+// Com mais de um carro, o cliente escolhe entre:
+//  - todos no mesmo horário: se o horário não tiver vaga para todos, os demais ocupam os
+//    próximos horários do dia (o backend decide e devolve);
+//  - um horário para cada carro: cada um com a sua data e hora (horario_por_veiculo).
 export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras, aoConcluir, aoVoltar, aoCancelar }) {
     const hoje = hojeLocal();
     const ehLevaTras = tipoLogistica === 'leva_tras';
@@ -28,9 +18,10 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
     const totalCentavos = resumo.reduce((acc, item) => acc + item.subtotalCentavos + taxaCentavos, 0);
 
     const [data, setData] = useState(hoje);
-    const [horarios, setHorarios] = useState([]);
     const [horario, setHorario] = useState(null);
-    const [carregandoHorarios, setCarregandoHorarios] = useState(false);
+    const [porVeiculo, setPorVeiculo] = useState(false);
+    // { [veiculoId]: { data, horario } } — usado só no modo "um horário para cada carro"
+    const [horariosVeiculos, setHorariosVeiculos] = useState({});
 
     const [carregando, setCarregando] = useState(false);
     const [erro, setErro] = useState(null);
@@ -62,36 +53,45 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
         buscarEndereco();
     }, [ehLevaTras]);
 
-    // Vagas do dia escolhido
-    useEffect(() => {
-        if (!data) return;
-        let cancelado = false;
-        const buscarHorarios = async () => {
-            setCarregandoHorarios(true);
-            try {
-                const resposta = await apiFetch(`${API_URL}/api/agendamentos/horarios?data=${data}`);
-                const json = await resposta.json();
-                if (cancelado) return;
-                if (resposta.ok) {
-                    setHorarios(json.horarios);
-                    // Mantém o horário escolhido se ainda tiver vaga; senão, pega o primeiro livre
-                    setHorario(atual => {
-                        const ainda = json.horarios.find(h => h.horario === atual && h.vagas > 0);
-                        return ainda ? atual : (json.horarios.find(h => h.vagas > 0)?.horario ?? null);
-                    });
-                } else {
-                    setHorarios([]);
-                    setErro(json.erro || 'Erro ao buscar os horários.');
-                }
-            } catch {
-                if (!cancelado) setErro('Falha de conexão ao buscar os horários.');
-            } finally {
-                if (!cancelado) setCarregandoHorarios(false);
-            }
-        };
-        buscarHorarios();
-        return () => { cancelado = true; };
-    }, [data]);
+    const limparAvisos = () => { setErro(null); setSugestao(null); };
+
+    const mudarGeral = ({ data: novaData, horario: novoHorario }) => {
+        limparAvisos();
+        setData(novaData);
+        setHorario(novoHorario);
+    };
+
+    const mudarVeiculo = (veiculoId) => ({ data: novaData, horario: novoHorario }) => {
+        limparAvisos();
+        setHorariosVeiculos(atual => ({ ...atual, [veiculoId]: { data: novaData, horario: novoHorario } }));
+    };
+
+    const alternarModo = (individual) => {
+        limparAvisos();
+        if (individual) {
+            // Começa com todos na data/horário que já estavam escolhidos
+            const inicial = {};
+            resumo.forEach(item => { inicial[item.veiculo.id] = horariosVeiculos[item.veiculo.id] || { data, horario }; });
+            setHorariosVeiculos(inicial);
+        }
+        setPorVeiculo(individual);
+    };
+
+    // Vagas que os OUTROS carros deste pedido já pegaram na mesma data (modo individual)
+    const ocupadosPorOutros = (veiculoId) => {
+        const meu = horariosVeiculos[veiculoId];
+        const mapa = new Map();
+        resumo.forEach(item => {
+            const outro = horariosVeiculos[item.veiculo.id];
+            if (item.veiculo.id === veiculoId || !outro?.horario || outro.data !== meu?.data) return;
+            mapa.set(outro.horario, (mapa.get(outro.horario) || 0) + 1);
+        });
+        return mapa;
+    };
+
+    const tudoEscolhido = porVeiculo
+        ? resumo.every(item => horariosVeiculos[item.veiculo.id]?.horario)
+        : Boolean(horario);
 
     const salvarNovoEndereco = async () => {
         if (!novoEndereco.trim()) return;
@@ -121,8 +121,8 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
         setErro(null);
         setSugestao(null);
 
-        if (!horario) {
-            setErro('Escolha um horário.');
+        if (!tudoEscolhido) {
+            setErro(porVeiculo ? 'Escolha um horário para cada carro.' : 'Escolha um horário.');
             return;
         }
         if (ehLevaTras && !enderecoCliente) {
@@ -136,13 +136,13 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    data,
-                    horario,
+                    ...(porVeiculo ? { horario_por_veiculo: true } : { data, horario }),
                     tipo_logistica: tipoLogistica,
                     veiculos: resumo.map(item => ({
                         veiculo_id: item.veiculo.id,
                         pacote_id: item.pacote.id,
-                        extras: item.extras.map(e => e.id)
+                        extras: item.extras.map(e => e.id),
+                        ...(porVeiculo ? horariosVeiculos[item.veiculo.id] : {})
                     }))
                 })
             });
@@ -164,6 +164,7 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
 
     const aceitarSugestao = () => {
         setErro(null);
+        setPorVeiculo(false);
         setHorario(sugestao.horario);
         setData(sugestao.data);
         setSugestao(null);
@@ -282,61 +283,61 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
                         )}
                     </div>
 
-                    {/* Data */}
-                    <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                            <label style={rotulo}><Calendar size={14} /> Data do Atendimento</label>
-                            <span style={{ fontSize: '0.8rem', fontWeight: '600', color: '#2563eb' }}>Selecionada: {formatarDataBr(data)}</span>
+                    {/* Mesmo horário x um horário por carro */}
+                    {resumo.length > 1 && (
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            {[[false, 'Todos no mesmo horário'], [true, 'Um horário para cada carro']].map(([individual, texto]) => (
+                                <button
+                                    key={texto}
+                                    type="button"
+                                    onClick={() => alternarModo(individual)}
+                                    style={{
+                                        flex: 1, padding: '0.6rem', borderRadius: '8px', border: '1px solid', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer',
+                                        backgroundColor: porVeiculo === individual ? '#eff6ff' : '#ffffff',
+                                        borderColor: porVeiculo === individual ? '#3b82f6' : '#e2e8f0',
+                                        color: porVeiculo === individual ? '#1e40af' : '#475569'
+                                    }}
+                                >
+                                    {texto}
+                                </button>
+                            ))}
                         </div>
-                        <input
-                            type="date"
-                            min={hoje}
-                            value={data}
-                            onChange={(e) => { setErro(null); setSugestao(null); setData(e.target.value); }}
-                            style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.95rem', backgroundColor: '#f8fafc', boxSizing: 'border-box' }}
-                        />
-                    </div>
+                    )}
 
-                    {/* Horários com vagas */}
-                    <div>
-                        <label style={{ ...rotulo, marginBottom: '0.5rem' }}><Clock size={14} /> Horário de início</label>
-                        {carregandoHorarios ? (
-                            <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Buscando vagas...</p>
-                        ) : (
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
-                                {horarios.map((h) => {
-                                    const selecionado = horario === h.horario;
-                                    const livre = h.vagas > 0;
-                                    return (
-                                        <button
-                                            key={h.horario}
-                                            type="button"
-                                            disabled={!livre}
-                                            onClick={() => { setErro(null); setSugestao(null); setHorario(h.horario); }}
-                                            style={{
-                                                padding: '0.55rem', borderRadius: '8px', border: '1px solid', fontWeight: '600', fontSize: '0.9rem',
-                                                cursor: livre ? 'pointer' : 'not-allowed',
-                                                backgroundColor: selecionado ? '#eff6ff' : livre ? '#ffffff' : '#f1f5f9',
-                                                borderColor: selecionado ? '#3b82f6' : '#e2e8f0',
-                                                color: selecionado ? '#1e40af' : livre ? '#475569' : '#94a3b8',
-                                                transition: 'all 0.2s'
-                                            }}
-                                        >
-                                            {h.horario}
-                                            <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: '500' }}>
-                                                {h.passado ? 'Encerrado' : livre ? `${h.vagas} vaga(s)` : 'Lotado'}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
-                        {resumo.length > 1 && (
-                            <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>
-                                Se o horário escolhido não tiver vaga para todos os carros, os demais ficam nos próximos horários do dia.
-                            </p>
-                        )}
-                    </div>
+                    {!porVeiculo ? (
+                        <div>
+                            <SeletorDataHorario data={data} horario={horario} onChange={mudarGeral} />
+                            {resumo.length > 1 && (
+                                <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>
+                                    Se o horário escolhido não tiver vaga para todos os carros, os demais ficam nos próximos horários do dia.
+                                </p>
+                            )}
+                        </div>
+                    ) : (
+                        resumo.map(item => {
+                            const escolha = horariosVeiculos[item.veiculo.id] || { data, horario: null };
+                            return (
+                                <div key={item.veiculo.id} style={caixa}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', fontSize: '0.9rem' }}>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                            <Car size={15} color="#2563eb" />
+                                            <strong>{item.veiculo.marca} {item.veiculo.modelo}</strong>
+                                        </span>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: '600', color: escolha.horario ? '#2563eb' : '#dc2626' }}>
+                                            {escolha.horario ? `${formatarDataBr(escolha.data)} às ${escolha.horario}` : 'Escolha um horário'}
+                                        </span>
+                                    </div>
+                                    <SeletorDataHorario
+                                        compacto
+                                        data={escolha.data}
+                                        horario={escolha.horario}
+                                        onChange={mudarVeiculo(item.veiculo.id)}
+                                        ocupadosNoPedido={ocupadosPorOutros(item.veiculo.id)}
+                                    />
+                                </div>
+                            );
+                        })
+                    )}
 
                     {/* Resumo do pedido */}
                     <div style={caixa}>
@@ -374,7 +375,7 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
                         <button onClick={aoCancelar} disabled={carregando} style={{ padding: '0.75rem 1rem', borderRadius: '8px', fontWeight: '600', color: '#64748b', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}>
                             Cancelar
                         </button>
-                        <button onClick={lidarComFinalizacao} disabled={carregando || !horario} style={{ padding: '0.75rem 1.5rem', borderRadius: '8px', fontWeight: '700', color: '#ffffff', backgroundColor: horario ? '#0f172a' : '#cbd5e1', cursor: horario ? 'pointer' : 'not-allowed', border: 'none', fontSize: '0.85rem', opacity: carregando ? 0.7 : 1 }}>
+                        <button onClick={lidarComFinalizacao} disabled={carregando || !tudoEscolhido} style={{ padding: '0.75rem 1.5rem', borderRadius: '8px', fontWeight: '700', color: '#ffffff', backgroundColor: tudoEscolhido ? '#0f172a' : '#cbd5e1', cursor: tudoEscolhido ? 'pointer' : 'not-allowed', border: 'none', fontSize: '0.85rem', opacity: carregando ? 0.7 : 1 }}>
                             {carregando ? 'A confirmar...' : 'Confirmar Agendamento'}
                         </button>
                     </div>
