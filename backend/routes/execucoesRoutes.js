@@ -151,9 +151,14 @@ router.put('/execucoes/:id/status', async (req, res) => {
 // 4. EXCLUIR SERVIÇO DO PÁTIO (DELETE) - Apenas Administrador
 router.delete('/execucoes/:id', async (req, res) => {
     try {
-        await db.execute('DELETE FROM execucoes WHERE id = ?', [req.params.id]);
-        res.status(200).json({ mensagem: 'Serviço removido do pátio!' });
+        // execucao_extras e execucao_funcionarios saem junto (ON DELETE CASCADE)
+        const [resultado] = await db.execute('DELETE FROM execucoes WHERE id = ?', [req.params.id]);
+        if (resultado.affectedRows === 0) {
+            return res.status(404).json({ erro: 'Serviço não encontrado. Atualize a tela.' });
+        }
+        res.status(200).json({ mensagem: 'Serviço removido!' });
     } catch (erro) {
+        console.error('Erro ao remover serviço:', erro);
         res.status(500).json({ erro: 'Erro ao remover serviço.' });
     }
 });

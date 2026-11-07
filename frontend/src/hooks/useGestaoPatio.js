@@ -95,17 +95,42 @@ export function useGestaoPatio(abrirAlerta) {
   };
 
   const excluirServico = (idServico) => {
-    alertar('Excluir Serviço', 'Tem a certeza que deseja remover este veículo do pátio?', async () => {
+    alertar('Excluir Serviço', 'Tem a certeza que deseja remover este serviço? Ele é apagado e não vai para o histórico.', async () => {
       try {
         const res = await apiFetch(`${API_URL}/api/execucoes/${idServico}`, { method: 'DELETE' });
-        if (res.ok) buscarDadosDoPatio();
-      } catch (erro) {
-        console.error(erro);
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}));
+          alertar('Não foi possível excluir', json.erro || 'Erro ao remover o serviço.', () => {}, 'perigo');
+        }
+        buscarDadosDoPatio();
+      } catch {
+        alertar('Erro', 'Falha ao conectar com o servidor.', () => {}, 'perigo');
+      }
+    }, 'perigo');
+  };
+
+  // Agendamento que não vai acontecer: muda o status para "Cancelado" (fica registrado, sem valor no faturamento do pátio)
+  const cancelarAgendamento = (item) => {
+    const quem = item.cliente_nome ? ` de ${item.cliente_nome}` : '';
+    alertar('Cancelar agendamento', `Cancelar o agendamento${quem} (${item.modelo || 'veículo'} ${item.placa || ''})?`, async () => {
+      try {
+        const res = await apiFetch(`${API_URL}/api/execucoes/${item.id}/status`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ novoStatus: 'Cancelado' })
+        });
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}));
+          alertar('Não foi possível cancelar', json.erro || 'Erro ao cancelar o agendamento.', () => {}, 'perigo');
+        }
+        buscarDadosDoPatio();
+      } catch {
+        alertar('Erro', 'Falha ao conectar com o servidor.', () => {}, 'perigo');
       }
     }, 'perigo');
   };
 
   useEffect(() => { buscarDadosDoPatio(); }, []);
 
-  return { metricas, listaPatio, proximosAgendamentos, carregando, buscarDadosDoPatio, avancarStatusServico, excluirServico };
+  return { metricas, listaPatio, proximosAgendamentos, carregando, buscarDadosDoPatio, avancarStatusServico, excluirServico, cancelarAgendamento };
 }

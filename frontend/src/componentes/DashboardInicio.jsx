@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Car, CalendarClock, ParkingSquare, Droplets, Wallet, Truck, Trash2, ArrowRight, CheckCircle2, User, RefreshCw } from 'lucide-react';
+import { Plus, Car, CalendarClock, ParkingSquare, Droplets, Wallet, Truck, Trash2, ArrowRight, CheckCircle2, User, RefreshCw, CalendarX } from 'lucide-react';
 import ModalNovaLavagem from '../componentes/ModalNovaLavagem';
 import { useGestaoPatio } from '../hooks/useGestaoPatio'; // Importamos o "cérebro"
 
@@ -42,7 +42,8 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
     carregando,
     buscarDadosDoPatio,
     avancarStatusServico,
-    excluirServico
+    excluirServico,
+    cancelarAgendamento
   } = useGestaoPatio(abrirAlerta);
 
   // 2. Estado apenas para controlar se a janelinha (modal) está aberta ou fechada
@@ -105,11 +106,18 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
 
         <div className="mt-3 flex items-center justify-between border-t border-dashed border-tinta-200 pt-3">
           <span className="font-display text-lg font-extrabold text-tinta-950">{moeda(item.valor_total)}</span>
-          {ehAdmin && (
-            <button onClick={() => excluirServico(item.id)} className="fw-btn-perigo" title="Remover do pátio" aria-label="Remover do pátio">
-              <Trash2 size={17} />
-            </button>
-          )}
+          <div className="flex gap-1">
+            {podeOperar && item.status === 'Agendado' && (
+              <button onClick={() => cancelarAgendamento(item)} className="grid size-9 place-items-center rounded-lg text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" title="Cancelar agendamento" aria-label="Cancelar agendamento">
+                <CalendarX size={17} />
+              </button>
+            )}
+            {ehAdmin && (
+              <button onClick={() => excluirServico(item.id)} className="fw-btn-perigo" title="Excluir serviço" aria-label="Excluir serviço">
+                <Trash2 size={17} />
+              </button>
+            )}
+          </div>
         </div>
 
         {podeOperar && (
@@ -262,6 +270,18 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
                         ? <span className="inline-flex items-center gap-1 text-xs font-semibold text-ouro-700"><Truck size={12} /> Leva e traz</span>
                         : <span className="text-xs text-tinta-500">Cliente leva</span>}
                     </div>
+                    {podeOperar && (
+                      <div className="flex shrink-0 gap-1">
+                        <button onClick={() => cancelarAgendamento(item)} className="grid size-9 place-items-center rounded-lg text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" title="Cancelar agendamento" aria-label="Cancelar agendamento">
+                          <CalendarX size={17} />
+                        </button>
+                        {ehAdmin && (
+                          <button onClick={() => excluirServico(item.id)} className="fw-btn-perigo" title="Excluir agendamento" aria-label="Excluir agendamento">
+                            <Trash2 size={17} />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </li>
                 );
               })}

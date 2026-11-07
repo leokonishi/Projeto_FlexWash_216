@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
-import { Search, UserPlus, Users, Trash2, Check, Loader2, Wrench } from 'lucide-react';
+import { Search, UserPlus, Users, Trash2, Check, Loader2, Wrench, Edit2, UserCog } from 'lucide-react';
 import CabecalhoPagina, { Secao } from '../componentes/ui/CabecalhoPagina';
 
 // Os textos são gravados no banco como estão: não mudar a grafia sem migrar os dados
@@ -38,14 +38,31 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
   const [filtroNomeCpf, setFiltroNomeCpf] = useState('');
   const [filtroFuncao, setFiltroFuncao] = useState('');
 
-  const [formulario, setFormulario] = useState({
-    cpf: '',
-    nome: '',
-    email: '',
-    telefone: '',
-    funcoes: ['Lavagem Geral'],
-    senha: ''
-  });
+  const FORM_VAZIO = { cpf: '', nome: '', email: '', telefone: '', funcoes: ['Lavagem Geral'], senha: '' };
+  const [formulario, setFormulario] = useState(FORM_VAZIO);
+  const [editandoId, setEditandoId] = useState(null); // null = cadastro novo
+  const editando = editandoId !== null;
+
+  const iniciarEdicao = (func) => {
+    const listaFuncoes = Array.isArray(func.funcoes)
+      ? func.funcoes
+      : String(func.funcoes || '').split(',').map((f) => f.trim()).filter(Boolean);
+    setEditandoId(func.id);
+    setFormulario({
+      cpf: func.cpf || '',
+      nome: func.nome || '',
+      email: func.email || '',
+      telefone: func.telefone || '',
+      funcoes: listaFuncoes,
+      senha: ''
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelarEdicao = () => {
+    setEditandoId(null);
+    setFormulario(FORM_VAZIO);
+  };
 
   useEffect(() => {
     async function buscarFuncionarios() {
@@ -98,8 +115,8 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
     setEnviando(true);
 
     try {
-      const resposta = await apiFetch(`${API_URL}/api/funcionarios`, {
-        method: 'POST',
+      const resposta = await apiFetch(editando ? `${API_URL}/api/funcionarios/${editandoId}` : `${API_URL}/api/funcionarios`, {
+        method: editando ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formulario)
       });
@@ -112,18 +129,17 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
       }
 
       const json = await resposta.json();
-      if (!resposta.ok) throw new Error(json.mensagem || 'Erro ao cadastrar funcionario');
+      if (!resposta.ok) throw new Error(json.mensagem || 'Erro ao salvar funcionario');
 
-      setFuncionarios((prev) => [...prev, json.dados]);
-      avisar('Sucesso', 'Funcionário cadastrado com sucesso!');
-      setFormulario({
-        cpf: '',
-        nome: '',
-        email: '',
-        telefone: '',
-        funcoes: ['Lavagem Geral'],
-        senha: ''
-      });
+      if (editando) {
+        setFuncionarios((prev) => prev.map((f) => (f.id === editandoId ? { ...f, ...json.dados } : f)));
+        avisar('Sucesso', 'Funcionário atualizado com sucesso!');
+      } else {
+        setFuncionarios((prev) => [...prev, json.dados]);
+        avisar('Sucesso', 'Funcionário cadastrado com sucesso!');
+      }
+      setEditandoId(null);
+      setFormulario(FORM_VAZIO);
     } catch (erro) {
       avisar('Erro', erro.message, 'perigo');
     } finally {
@@ -137,10 +153,11 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
         method: 'DELETE'
       });
 
-      const json = await resposta.json();
+      const json = await resposta.json().catch(() => ({}));
       if (!resposta.ok) throw new Error(json.mensagem || 'Erro ao excluir no servidor');
 
       setFuncionarios((prev) => prev.filter((item) => item.id !== id));
+      if (editandoId === id) cancelarEdicao();
     } catch (erro) {
       avisar('Erro', erro.message, 'perigo');
     }
@@ -148,7 +165,7 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
 
   const handleExcluir = (id, nome) => {
     if (abrirAlerta) {
-      abrirAlerta('Remover funcionário', `Deseja remover o funcionário ${nome}?`, () => excluirNoServidor(id), 'perigo');
+      abrirAlerta('Remover funcionário', `Deseja remover o funcionário ${nome}? Ele perde o acesso ao sistema. As lavagens que já fez continuam no histórico.`, () => excluirNoServidor(id), 'perigo');
     } else if (window.confirm(`Deseja remover o funcionário ${nome}?`)) {
       excluirNoServidor(id);
     }
@@ -178,7 +195,12 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
       />
 
       <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
-        <Secao titulo="Novo funcionário" icone={UserPlus} className="self-start">
+        <Secao
+          titulo={editando ? 'Editar funcionário' : 'Novo funcionário'}
+          icone={editando ? UserCog : UserPlus}
+          className="self-start"
+          acoes={editando && <button type="button" onClick={cancelarEdicao} className="text-sm font-semibold text-tinta-500 hover:text-tinta-800">Cancelar</button>}
+        >
           <form onSubmit={handleSubmit} className="space-y-4">
             {campo('nome', 'Nome completo', { type: 'text', placeholder: 'Ex: Marcos Souza' })}
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
@@ -210,11 +232,13 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
               </div>
             </div>
 
-            {campo('senha', 'Senha de acesso', { type: 'password', placeholder: 'Mínimo 6 caracteres', autoComplete: 'new-password' })}
+            {editando
+              ? campo('senha', 'Nova senha (opcional)', { type: 'password', placeholder: 'Deixe em branco para manter a atual', autoComplete: 'new-password', required: false, minLength: 6 })
+              : campo('senha', 'Senha de acesso', { type: 'password', placeholder: 'Mínimo 6 caracteres', autoComplete: 'new-password', minLength: 6 })}
 
             <button type="submit" className="fw-btn-primario w-full" disabled={enviando}>
               {enviando ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />}
-              {enviando ? 'Cadastrando...' : 'Cadastrar funcionário'}
+              {enviando ? 'Salvando...' : editando ? 'Salvar alterações' : 'Cadastrar funcionário'}
             </button>
           </form>
         </Secao>
@@ -286,9 +310,14 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
                           <span className="whitespace-nowrap rounded-full bg-ouro-50 px-2.5 py-1 text-xs font-semibold text-ouro-700 ring-1 ring-inset ring-ouro-200">Por serviço</span>
                         </td>
                         <td className="text-right">
+                          <div className="flex justify-end gap-1">
+                          <button type="button" onClick={() => iniciarEdicao(func)} className="grid size-9 place-items-center rounded-lg text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" title="Editar" aria-label={`Editar ${func.nome}`}>
+                            <Edit2 size={16} />
+                          </button>
                           <button type="button" className="fw-btn-perigo" onClick={() => handleExcluir(func.id, func.nome)} title="Remover" aria-label={`Remover ${func.nome}`}>
                             <Trash2 size={16} />
                           </button>
+                          </div>
                         </td>
                       </tr>
                     );

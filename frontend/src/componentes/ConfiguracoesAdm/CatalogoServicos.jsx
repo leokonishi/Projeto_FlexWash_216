@@ -14,6 +14,8 @@ export default function CatalogoServicos({ abrirAlerta, rota, icone, textos }) {
   const [carregando, setCarregando] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
   const [form, setForm] = useState(FORM_VAZIO);
+  const [editandoId, setEditandoId] = useState(null); // null = cadastro novo
+  const [salvando, setSalvando] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
   const mudar = (campo) => (e) => setForm(prev => ({ ...prev, [campo]: e.target.value }));
@@ -36,11 +38,37 @@ export default function CatalogoServicos({ abrirAlerta, rota, icone, textos }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rota]);
 
-  // 2. Salva um novo item
+  const abrirNovo = () => {
+    setEditandoId(null);
+    setForm(FORM_VAZIO);
+    setModalAberto(true);
+  };
+
+  const abrirEdicao = (item) => {
+    setEditandoId(item.id);
+    setForm({
+      nome: item.nome || '',
+      descricao: item.descricao || '',
+      precoPequeno: String(Number(item.preco_pequeno ?? 0)),
+      precoMedio: String(Number(item.preco_medio ?? 0)),
+      precoGrande: String(Number(item.preco_grande ?? 0)),
+      comissao: String(Number(item.comissao_porcentagem ?? 0)),
+    });
+    setModalAberto(true);
+  };
+
+  const fecharModal = () => {
+    setModalAberto(false);
+    setEditandoId(null);
+    setForm(FORM_VAZIO);
+  };
+
+  // 2. Salva um item novo (POST) ou editado (PUT)
   const handleSalvar = async (e) => {
     e.preventDefault();
+    if (salvando) return;
     const { nome, descricao, precoPequeno, precoMedio, precoGrande, comissao } = form;
-    if (!nome || !precoPequeno || !precoMedio || !precoGrande) {
+    if (!nome.trim() || precoPequeno === '' || precoMedio === '' || precoGrande === '') {
       abrirAlerta('Atenção', 'Preencha o nome e os preços para os 3 portes.', () => {}, 'aviso');
       return;
     }
@@ -54,21 +82,27 @@ export default function CatalogoServicos({ abrirAlerta, rota, icone, textos }) {
       comissao_porcentagem: Number(comissao || 0)
     };
 
+    const editando = editandoId !== null;
+    setSalvando(true);
     try {
-      const res = await apiFetch(`${API_URL}${rota}`, {
-        method: 'POST',
+      const res = await apiFetch(editando ? `${API_URL}${rota}/${editandoId}` : `${API_URL}${rota}`, {
+        method: editando ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(novoItem)
       });
+      const json = await res.json().catch(() => ({}));
 
       if (res.ok) {
-        abrirAlerta('Sucesso', textos.sucesso, () => {}, 'aviso');
-        setModalAberto(false);
-        setForm(FORM_VAZIO);
+        abrirAlerta('Sucesso', editando ? textos.sucessoEdicao : textos.sucesso, () => {}, 'aviso');
+        fecharModal();
         buscarItens(); // Atualiza a lista na tela
+      } else {
+        abrirAlerta('Atenção', json.erro || 'Não foi possível salvar.', () => {}, 'perigo');
       }
     } catch {
       abrirAlerta('Erro', 'Falha ao conectar com o servidor.', () => {}, 'perigo');
+    } finally {
+      setSalvando(false);
     }
   };
 
@@ -76,13 +110,18 @@ export default function CatalogoServicos({ abrirAlerta, rota, icone, textos }) {
   const handleExcluir = (id, nomeItem) => {
     abrirAlerta(
       textos.tituloExcluir,
-      `Deseja excluir "${nomeItem}"? Isso removerá a opção das novas lavagens.`,
+      `Deseja excluir "${nomeItem}"? Ele deixa de aparecer nas novas lavagens e nos agendamentos.`,
       async () => {
         try {
           const res = await apiFetch(`${API_URL}${rota}/${id}`, { method: 'DELETE' });
-          if (res.ok) buscarItens();
-        } catch (erro) {
-          console.error(erro);
+          if (res.ok) {
+            setItens(prev => prev.filter(i => i.id !== id));
+          } else {
+            const json = await res.json().catch(() => ({}));
+            abrirAlerta('Não foi possível excluir', json.erro || 'Erro ao excluir.', () => {}, 'perigo');
+          }
+        } catch {
+          abrirAlerta('Erro', 'Falha ao conectar com o servidor.', () => {}, 'perigo');
         }
       },
       'perigo'
@@ -94,7 +133,7 @@ export default function CatalogoServicos({ abrirAlerta, rota, icone, textos }) {
       titulo={textos.titulo}
       subtitulo={textos.subtitulo}
       icone={icone}
-      acoes={<button onClick={() => setModalAberto(true)} className="fw-btn-contorno h-9 px-3"><Plus size={16} /> {textos.botaoNovo}</button>}
+      acoes={<button onClick={abrirNovo} className="fw-btn-contorno h-9 px-3"><Plus size={16} /> {textos.botaoNovo}</button>}
     >
       {carregando ? (
         <div className="space-y-3">{[0, 1].map(i => <div key={i} className="h-28 animate-pulse rounded-xl bg-tinta-100" />)}</div>
@@ -110,8 +149,8 @@ export default function CatalogoServicos({ abrirAlerta, rota, icone, textos }) {
                   <p className="mt-0.5 text-sm text-tinta-500">{item.descricao || 'Sem descrição.'}</p>
                 </div>
                 <div className="flex shrink-0 gap-1">
-                  <button className="grid size-9 place-items-center rounded-lg text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" title="Editar" aria-label="Editar"><Edit2 size={15} /></button>
-                  <button onClick={() => handleExcluir(item.id, item.nome)} className="fw-btn-perigo" title="Excluir" aria-label="Excluir"><Trash2 size={15} /></button>
+                  <button onClick={() => abrirEdicao(item)} className="grid size-9 place-items-center rounded-lg text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" title="Editar" aria-label={`Editar ${item.nome}`}><Edit2 size={15} /></button>
+                  <button onClick={() => handleExcluir(item.id, item.nome)} className="fw-btn-perigo" title="Excluir" aria-label={`Excluir ${item.nome}`}><Trash2 size={15} /></button>
                 </div>
               </div>
 
@@ -131,15 +170,16 @@ export default function CatalogoServicos({ abrirAlerta, rota, icone, textos }) {
         </ul>
       )}
 
-      {/* MODAL DE CADASTRO */}
+      {/* MODAL DE CADASTRO / EDIÇÃO */}
       {modalAberto && (
         <ModalPasso
-          titulo={textos.tituloModal}
-          aoFechar={() => setModalAberto(false)}
+          titulo={editandoId !== null ? textos.tituloEditar : textos.tituloModal}
+          subtitulo={editandoId !== null ? 'O novo preço vale para as próximas entradas; serviços já registrados mantêm o valor.' : undefined}
+          aoFechar={fecharModal}
           rodape={
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setModalAberto(false)} className="fw-btn-contorno">Cancelar</button>
-              <button type="submit" form={`form-${rota}`} className="fw-btn-primario"><Check size={17} /> Salvar</button>
+              <button type="button" onClick={fecharModal} className="fw-btn-contorno">Cancelar</button>
+              <button type="submit" form={`form-${rota}`} className="fw-btn-primario" disabled={salvando}><Check size={17} /> {salvando ? 'Salvando...' : editandoId !== null ? 'Salvar alterações' : 'Salvar'}</button>
             </div>
           }
         >

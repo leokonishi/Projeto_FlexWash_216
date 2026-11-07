@@ -10,6 +10,8 @@ const TEXTOS = {
   tituloModal: 'Novo pacote de lavagem',
   exemploNome: 'Ex: Lavagem Completa',
   sucesso: 'Pacote de lavagem cadastrado!',
+  tituloEditar: 'Editar pacote de lavagem',
+  sucessoEdicao: 'Pacote de lavagem atualizado!',
   tituloExcluir: 'Excluir Pacote',
 };
 
