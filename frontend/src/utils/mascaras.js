@@ -26,3 +26,47 @@ export const aplicarMascaraPlaca = (valor) => {
   if (v.length > 7) v = v.slice(0, 7);
   return v;
 };
+
+// E-mail: sem espaços, minúsculo, só caracteres válidos e um único "@"
+export const aplicarMascaraEmail = (valor) => {
+  if (!valor) return '';
+  let v = valor.toLowerCase().replace(/[^a-z0-9@._+-]/g, '');
+  const arroba = v.indexOf('@');
+  if (arroba !== -1) {
+    v = v.slice(0, arroba + 1) + v.slice(arroba + 1).replace(/@/g, '');
+  }
+  return v.slice(0, 150);
+};
+
+// ---------- Validações (usar no envio do formulário) ----------
+
+// CPF com os dois dígitos verificadores corretos
+export const cpfValido = (valor) => {
+  const v = String(valor || '').replace(/\D/g, '');
+  if (v.length !== 11 || /^(\d)\1{10}$/.test(v)) return false;
+  const digito = (base) => {
+    let soma = 0;
+    for (let i = 0; i < base.length; i++) soma += Number(base[i]) * (base.length + 1 - i);
+    const resto = (soma * 10) % 11;
+    return resto === 10 ? 0 : resto;
+  };
+  return digito(v.slice(0, 9)) === Number(v[9]) && digito(v.slice(0, 10)) === Number(v[10]);
+};
+
+// Telefone com DDD: fixo (10 dígitos) ou celular (11 dígitos, começando com 9)
+export const telefoneValido = (valor) => {
+  const v = String(valor || '').replace(/\D/g, '');
+  if (v.length === 10) return true;
+  return v.length === 11 && v[2] === '9';
+};
+
+export const emailValido = (valor) => /^[a-z0-9._+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/i.test(String(valor || ''));
+
+// Confere CPF, telefone e e-mail de uma vez. Campos opcionais vazios passam.
+// Retorna a primeira mensagem de erro ou null.
+export const validarContato = ({ cpf, telefone, email }, { telefoneObrigatorio = false, emailObrigatorio = false, validarCpf = true } = {}) => {
+  if (validarCpf && cpf !== undefined && !cpfValido(cpf)) return 'CPF inválido. Confira os 11 números.';
+  if ((telefoneObrigatorio || telefone) && !telefoneValido(telefone)) return 'Telefone inválido. Use DDD + número, ex.: (11) 99999-9999.';
+  if ((emailObrigatorio || email) && !emailValido(email)) return 'E-mail inválido. Ex.: nome@gmail.com';
+  return null;
+};

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Edit2, Trash2, Car, UserPlus, Users, Check } from 'lucide-react';
 import CabecalhoPagina, { Secao } from '../componentes/ui/CabecalhoPagina';
-import { aplicarMascaraCPF, aplicarMascaraTelefone, aplicarMascaraPlaca } from '../utils/mascaras';
+import { aplicarMascaraCPF, aplicarMascaraTelefone, aplicarMascaraPlaca, aplicarMascaraEmail, validarContato } from '../utils/mascaras';
 import ModalFrota from '../componentes/ModalFrota';
 import ModalPasso from '../componentes/ui/ModalPasso';
 import { apiFetch } from '../utils/api';
@@ -59,6 +59,11 @@ export default function GestaoClientes({ abrirAlerta }) {
     e.preventDefault();
 
     const novoCliente = { cpf, nome, email, telefone, endereco };
+    const erroContato = validarContato(novoCliente, { telefoneObrigatorio: true });
+    if (erroContato) {
+      abrirAlerta('Atenção', erroContato, () => {}, 'aviso');
+      return;
+    }
 
     try {
       const resposta = await apiFetch(`${API_URL}/api/clientes`, {
@@ -94,8 +99,9 @@ export default function GestaoClientes({ abrirAlerta }) {
     setEdicao({
       id: cliente.id,
       nome: cliente.nome || '',
-      cpf: cliente.cpf || '',
-      telefone: cliente.telefone || '',
+      cpf: aplicarMascaraCPF(cliente.cpf || ''),
+      cpfOriginal: aplicarMascaraCPF(cliente.cpf || ''),
+      telefone: aplicarMascaraTelefone(cliente.telefone || ''),
       email: cliente.email || '',
       endereco: cliente.endereco || '',
     });
@@ -108,9 +114,15 @@ export default function GestaoClientes({ abrirAlerta }) {
   const salvarEdicao = async (e) => {
     e.preventDefault();
     if (salvandoEdicao) return;
+    const { id, cpfOriginal, ...dados } = edicao;
+    // CPF antigo (cadastrado antes da validação) só é conferido se for alterado
+    const erroContato = validarContato(dados, { validarCpf: dados.cpf !== cpfOriginal });
+    if (erroContato) {
+      abrirAlerta('Atenção', erroContato, () => {}, 'aviso');
+      return;
+    }
     setSalvandoEdicao(true);
     try {
-      const { id, ...dados } = edicao;
       const resposta = await apiFetch(`${API_URL}/api/clientes/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -203,7 +215,7 @@ export default function GestaoClientes({ abrirAlerta }) {
               </div>
               <div>
                 <label htmlFor="gc-email" className="fw-label">E-mail <span className="font-normal text-tinta-400">(opcional)</span></label>
-                <input id="gc-email" className="fw-input" type="email" placeholder="roberto@gmail.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <input id="gc-email" className="fw-input" type="email" placeholder="roberto@gmail.com" value={email} onChange={(e) => setEmail(aplicarMascaraEmail(e.target.value))} />
               </div>
             </div>
             <div>
@@ -322,7 +334,7 @@ export default function GestaoClientes({ abrirAlerta }) {
             </div>
             <div>
               <label htmlFor="ec-email" className="fw-label">E-mail</label>
-              <input id="ec-email" className="fw-input" type="email" value={edicao.email} onChange={mudarEdicao('email')} />
+              <input id="ec-email" className="fw-input" type="email" value={edicao.email} onChange={mudarEdicao('email', aplicarMascaraEmail)} />
             </div>
             <div>
               <label htmlFor="ec-end" className="fw-label">Endereço <span className="font-normal text-tinta-400">(opcional)</span></label>
