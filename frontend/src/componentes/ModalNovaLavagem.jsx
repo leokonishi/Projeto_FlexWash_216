@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Car, Check } from 'lucide-react';
+import { Car, Check, MapPin, Truck, Loader2 } from 'lucide-react';
 import ModalPasso, { Marcador } from './ui/ModalPasso';
 import ConfiguracaoVeiculo from './ConfiguracaoVeiculo';
 import { apiFetch } from '../utils/api';
@@ -18,6 +18,12 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
   const [veiculosDoCliente, setVeiculosDoCliente] = useState([]);
   const [veiculosSelecionados, setVeiculosSelecionados] = useState([]); // Array de IDs
   const [configuracoes, setConfiguracoes] = useState({}); // Guarda as configs e preços de cada veículo
+
+  // Modalidade: o cliente trouxe o carro ou é leva e traz (busca no endereço do cliente)
+  const [tipoLogistica, setTipoLogistica] = useState('cliente_leva');
+  const [avaliacaoLevaTras, setAvaliacaoLevaTras] = useState(null); // resposta de /execucoes/leva-e-traz/:id
+  const [verificandoLevaTras, setVerificandoLevaTras] = useState(false);
+  const [enviando, setEnviando] = useState(false);
 
   // 1. Busca inicial: Clientes, Pacotes, Extras e Funcionários
   useEffect(() => {
@@ -48,12 +54,32 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
 
   // 2. Quando seleciona um cliente, busca os veículos dele
   useEffect(() => {
+    setTipoLogistica('cliente_leva');
+    setAvaliacaoLevaTras(null);
     if (!clienteId) {
       setVeiculosDoCliente([]);
       setVeiculosSelecionados([]);
       setConfiguracoes({});
       return;
     }
+
+    // Leva e traz: mede a distância até o endereço do cliente (mesma regra do agendamento)
+    let cancelado = false;
+    const verificarLevaTras = async () => {
+      setVerificandoLevaTras(true);
+      try {
+        const res = await apiFetch(`${API_URL}/api/execucoes/leva-e-traz/${clienteId}`);
+        const json = await res.json().catch(() => ({}));
+        if (!cancelado) {
+          setAvaliacaoLevaTras(res.ok ? json : { disponivel: false, mensagem: json.erro || 'Não foi possível verificar o leva e traz.' });
+        }
+      } catch {
+        if (!cancelado) setAvaliacaoLevaTras({ disponivel: false, mensagem: 'Falha de conexão ao verificar o leva e traz.' });
+      } finally {
+        if (!cancelado) setVerificandoLevaTras(false);
+      }
+    };
+    verificarLevaTras();
 
     const buscarVeiculos = async () => {
       try {
@@ -64,6 +90,7 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
       }
     };
     buscarVeiculos();
+    return () => { cancelado = true; };
   }, [clienteId]);
 
   // Função disparada quando marcamos/desmarcamos a checkbox de um carro
@@ -88,7 +115,11 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
   };
 
   // Calcula o valor total de todos os carros selecionados
-  const valorTotalGeral = Object.values(configuracoes).reduce((acc, curr) => acc + (curr.valor_total || 0), 0);
+  const levaTrasDisponivel = Boolean(avaliacaoLevaTras?.disponivel) && !verificandoLevaTras;
+  const taxaLevaTras = levaTrasDisponivel ? Number(avaliacaoLevaTras.taxa_por_veiculo || 0) : 0;
+  const totalLevaTras = tipoLogistica === 'leva_tras' ? taxaLevaTras * veiculosSelecionados.length : 0;
+  const valorTotalGeral = Object.values(configuracoes).reduce((acc, curr) => acc + (curr.valor_total || 0), 0) + totalLevaTras;
+  const moeda = (valor) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   // 3. ENVIAR PARA O BANCO DE DADOS (POST) - Versão Blindada
   const handleConfirmar = async () => {
@@ -97,12 +128,14 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
       else alert('Selecione pelo menos um veículo.');
       return;
     }
+    if (enviando) return;
 
     // Monta o "Payload" extraindo dados de forma segura (impede crash se faltar info).
     // O valor NÃO é enviado: o servidor calcula o preço pelo pacote, extras e porte do veículo.
     // O total mostrado na tela é só uma prévia.
     const payload = {
       cliente_id: clienteId,
+      tipo_logistica: tipoLogistica,
       veiculos: veiculosSelecionados.map(vId => {
         const config = configuracoes[vId] || {};
         return {
@@ -114,6 +147,7 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
       })
     };
 
+    setEnviando(true);
     try {
       const res = await apiFetch(`${API_URL}/api/execucoes`, {
         method: 'POST',
@@ -136,7 +170,44 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
       console.error(error);
       if(abrirAlerta) abrirAlerta('Erro', 'Falha de conexão com o servidor.', () => {}, 'perigo');
       else alert('Falha de conexão com o servidor.');
+    } finally {
+      setEnviando(false);
     }
+  };
+
+  // Situação do leva e traz embaixo do título da opção
+  let situacaoLevaTras;
+  if (verificandoLevaTras) situacaoLevaTras = { cor: 'text-tinta-500', texto: 'Calculando a distância até o endereço do cliente...' };
+  else if (levaTrasDisponivel) {
+    situacaoLevaTras = {
+      cor: 'text-verde-700',
+      texto: taxaLevaTras === 0 ? 'Grátis' : `+ ${moeda(taxaLevaTras)} por veículo`
+    };
+  } else situacaoLevaTras = { cor: 'text-red-600', texto: avaliacaoLevaTras?.mensagem || 'Indisponível para este cliente' };
+
+  const opcaoModalidade = (tipo, Icone, titulo, descricao, extra, habilitada = true) => {
+    const ativo = tipoLogistica === tipo;
+    return (
+      <button
+        type="button"
+        role="radio"
+        aria-checked={ativo}
+        disabled={!habilitada}
+        data-ativo={ativo}
+        onClick={() => setTipoLogistica(tipo)}
+        className="fw-opcao items-start disabled:cursor-not-allowed disabled:opacity-70"
+      >
+        <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${ativo ? 'bg-marca-600 text-white' : 'bg-tinta-100 text-tinta-500'}`}>
+          <Icone size={18} />
+        </span>
+        <span className="min-w-0 flex-1 text-left">
+          <span className="block font-semibold text-tinta-900">{titulo}</span>
+          <span className="block text-xs text-tinta-500">{descricao}</span>
+          {extra}
+        </span>
+        <Marcador ativo={ativo} redondo />
+      </button>
+    );
   };
 
   return (
@@ -152,11 +223,15 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
               Total · {veiculosSelecionados.length} {veiculosSelecionados.length === 1 ? 'carro' : 'carros'}
             </p>
             <p className="font-display text-xl font-extrabold text-tinta-950">
-              {valorTotalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              {moeda(valorTotalGeral)}
             </p>
           </div>
-          <button onClick={handleConfirmar} disabled={veiculosSelecionados.length === 0} className="fw-btn-primario px-6">
-            <Check size={17} /> Confirmar entrada
+          <button
+            onClick={handleConfirmar}
+            disabled={veiculosSelecionados.length === 0 || enviando || (tipoLogistica === 'leva_tras' && !levaTrasDisponivel)}
+            className="fw-btn-primario px-6"
+          >
+            {enviando ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />} Confirmar entrada
           </button>
         </div>
       }
@@ -196,6 +271,26 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {clienteId && (
+          <div>
+            <span className="fw-label">Como o carro chega</span>
+            <div role="radiogroup" className="grid gap-2 sm:grid-cols-2">
+              {opcaoModalidade('cliente_leva', MapPin, 'Cliente trouxe o carro', 'O carro já está aqui no pátio.')}
+              {opcaoModalidade(
+                'leva_tras',
+                Truck,
+                'Leva e traz',
+                avaliacaoLevaTras?.endereco_cliente || 'A equipe busca e devolve no endereço do cliente.',
+                <span className={`mt-1 flex items-center gap-1.5 text-xs font-semibold ${situacaoLevaTras.cor}`}>
+                  {verificandoLevaTras && <Loader2 size={12} className="animate-spin" />}
+                  {situacaoLevaTras.texto}
+                </span>,
+                levaTrasDisponivel
+              )}
+            </div>
           </div>
         )}
 

@@ -44,7 +44,18 @@ const pool = mysql.createPool({
   connectionLimit: Number(process.env.DB_POOL_LIMIT) || 10,
   queueLimit: 0,
   enableKeepAlive: true,
-  keepAliveInitialDelay: 10000
+  keepAliveInitialDelay: 10000,
+  // Datas em UTC dos dois lados (ver o 'connection' abaixo). Sem isso, o mysql2 lia o
+  // criado_em (gravado em UTC pela Aiven) como se fosse hora local do servidor Node,
+  // e uma entrada feita às 22h aparecia com a data do dia seguinte.
+  timezone: 'Z'
+});
+
+// Cada conexão nova conversa em UTC: TIMESTAMP (criado_em) sai em UTC e o mysql2 o
+// entrega como um instante correto. Quem formata para o fuso do lava-rápido é a tela.
+// (data_agendamento é DATETIME e sempre sai como texto via DATE_FORMAT, sem fuso.)
+pool.on('connection', (conexao) => {
+  conexao.query("SET time_zone = '+00:00'");
 });
 
 const poolPromise = pool.promise();

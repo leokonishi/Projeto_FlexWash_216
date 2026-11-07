@@ -19,6 +19,32 @@ const ETAPAS_PATIO = [
   { chave: 'Finalizado', nome: 'Pronto', icone: CheckCircle2 },
 ];
 
+// Linha do tempo de um carro no lava-rápido. `compacta` é a versão de uma linha,
+// usada quando o cliente tem mais de um carro no pátio ao mesmo tempo.
+function LinhaDoTempo({ status, compacta = false }) {
+  const etapaAtual = ETAPAS_PATIO.findIndex(e => e.chave === status);
+  return (
+    <ol className={`grid grid-cols-3 gap-2 ${compacta ? '' : 'rounded-2xl bg-white/5 p-3 ring-1 ring-white/10 sm:p-4'}`}>
+      {ETAPAS_PATIO.map((etapa, i) => {
+        const feita = i < etapaAtual;
+        const atual = i === etapaAtual;
+        const Icone = etapa.icone;
+        return (
+          <li key={etapa.chave} className={`flex items-center text-center ${compacta ? 'flex-row justify-center gap-1.5 sm:justify-start' : 'flex-col gap-2'}`}>
+            <span className={`relative grid shrink-0 place-items-center rounded-full transition-colors ${compacta ? 'size-7' : 'size-10'} ${
+              atual ? 'bg-marca-500 text-white shadow-lg shadow-marca-500/40' : feita ? 'bg-verde-500 text-white' : 'bg-white/10 text-tinta-400'
+            }`}>
+              {atual && <span className="absolute inset-0 animate-ping rounded-full bg-marca-400/40" />}
+              <Icone size={compacta ? 14 : 18} className="relative" />
+            </span>
+            <span className={`font-semibold ${compacta ? 'text-[11px] sm:text-xs' : 'text-xs'} ${atual ? 'text-white' : feita ? 'text-verde-300' : 'text-tinta-400'}`}>{etapa.nome}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 export default function PaginaCliente() {
   const navigate = useNavigate();
   const sessao = obterSessao();
@@ -58,8 +84,13 @@ export default function PaginaCliente() {
     buscarDadosClienteBackend();
   }, [navigate, API_URL]);
 
-  // O card de status olha só o que está no pátio (agendados e cancelados não contam)
-  const noPatio = ultimosAgendamentos.find(item => item.status === 'Aguardando' || item.status === 'Em Andamento');
+  // O card de status olha só o que está no pátio (agendados e cancelados não contam).
+  // Todos os carros em andamento aparecem: os que já estão lavando vêm primeiro.
+  const noPatio = ultimosAgendamentos
+    .filter(item => item.status === 'Aguardando' || item.status === 'Em Andamento')
+    .sort((a, b) => (a.status === b.status ? a.id - b.id : a.status === 'Em Andamento' ? -1 : 1));
+  const variosNoPatio = noPatio.length > 1;
+  const lavando = noPatio.filter(item => item.status === 'Em Andamento').length;
   // Próximo horário marcado
   const proximoAgendado = ultimosAgendamentos
     .filter(item => item.status === 'Agendado' && item.data_agendamento)
@@ -128,7 +159,13 @@ export default function PaginaCliente() {
       window.location.reload(); // Recarrega a página para atualizar a lista de agendamentos
   };
 
-  const etapaAtual = noPatio ? ETAPAS_PATIO.findIndex(e => e.chave === noPatio.status) : -1;
+  // Título do destaque conforme quantos carros estão no lava-rápido
+  let tituloPatio = null;
+  if (noPatio.length === 1) {
+    tituloPatio = noPatio[0].status === 'Em Andamento' ? 'Seu carro está sendo lavado' : 'Seu carro já está no pátio';
+  } else if (variosNoPatio) {
+    tituloPatio = `Seus ${noPatio.length} carros estão com a gente`;
+  }
   const inicial = (sessao?.email || 'C').charAt(0).toUpperCase();
 
   return (
@@ -166,14 +203,20 @@ export default function PaginaCliente() {
                 <Sparkles size={15} /> Olá, que bom te ver por aqui
               </p>
 
-              {noPatio ? (
+              {noPatio.length > 0 ? (
                 <>
-                  <h1 className="mt-2 text-2xl font-extrabold leading-tight sm:text-3xl">
-                    {noPatio.status === 'Em Andamento' ? 'Seu carro está sendo lavado' : 'Seu carro já está no pátio'}
-                  </h1>
-                  <p className="mt-1.5 flex items-center gap-2 text-sm text-tinta-300">
-                    <Car size={16} /> {noPatio.marca} {noPatio.modelo} · {noPatio.pacote_nome || 'Serviço avulso'}
-                  </p>
+                  <h1 className="mt-2 text-2xl font-extrabold leading-tight sm:text-3xl">{tituloPatio}</h1>
+                  {variosNoPatio ? (
+                    <p className="mt-1.5 text-sm text-tinta-300">
+                      {lavando === 0
+                        ? 'Todos já estão no pátio, aguardando a lavagem.'
+                        : `${lavando} ${lavando === 1 ? 'sendo lavado' : 'sendo lavados'} agora · ${noPatio.length - lavando} no pátio`}
+                    </p>
+                  ) : (
+                    <p className="mt-1.5 flex items-center gap-2 text-sm text-tinta-300">
+                      <Car size={16} /> {noPatio[0].marca} {noPatio[0].modelo} · {noPatio[0].pacote_nome || 'Serviço avulso'}
+                    </p>
+                  )}
                 </>
               ) : (
                 <>
@@ -190,26 +233,28 @@ export default function PaginaCliente() {
             </button>
           </div>
 
-          {/* Linha do tempo enquanto o carro está no lava-rápido */}
-          {noPatio && (
-            <ol className="relative mt-6 grid grid-cols-3 gap-2 rounded-2xl bg-white/5 p-3 ring-1 ring-white/10 sm:p-4">
-              {ETAPAS_PATIO.map((etapa, i) => {
-                const feita = i < etapaAtual;
-                const atual = i === etapaAtual;
-                const Icone = etapa.icone;
-                return (
-                  <li key={etapa.chave} className="flex flex-col items-center gap-2 text-center">
-                    <span className={`relative grid size-10 place-items-center rounded-full transition-colors ${
-                      atual ? 'bg-marca-500 text-white shadow-lg shadow-marca-500/40' : feita ? 'bg-verde-500 text-white' : 'bg-white/10 text-tinta-400'
-                    }`}>
-                      {atual && <span className="absolute inset-0 animate-ping rounded-full bg-marca-400/40" />}
-                      <Icone size={18} className="relative" />
-                    </span>
-                    <span className={`text-xs font-semibold ${atual ? 'text-white' : feita ? 'text-verde-300' : 'text-tinta-400'}`}>{etapa.nome}</span>
-                  </li>
-                );
-              })}
-            </ol>
+          {/* Linha do tempo enquanto o carro está no lava-rápido (uma por carro) */}
+          {noPatio.length === 1 && (
+            <div className="relative mt-6"><LinhaDoTempo status={noPatio[0].status} /></div>
+          )}
+          {variosNoPatio && (
+            <ul className="relative mt-6 divide-y divide-white/10 rounded-2xl bg-white/5 ring-1 ring-white/10">
+              {noPatio.map(item => (
+                <li key={item.id} className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:p-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white/10 text-white"><Car size={17} /></span>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-white">{item.marca} {item.modelo}</p>
+                      <p className="truncate text-xs text-tinta-300">
+                        {item.placa && <span className="font-mono uppercase">{item.placa} · </span>}
+                        {item.pacote_nome || 'Serviço avulso'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="sm:w-80 sm:shrink-0"><LinhaDoTempo status={item.status} compacta /></div>
+                </li>
+              ))}
+            </ul>
           )}
         </section>
 
