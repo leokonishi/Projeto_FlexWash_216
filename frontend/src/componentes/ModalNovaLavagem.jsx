@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { Car, Check } from 'lucide-react';
+import ModalPasso, { Marcador } from './ui/ModalPasso';
 import ConfiguracaoVeiculo from './ConfiguracaoVeiculo';
 import { apiFetch } from '../utils/api';
 
@@ -113,8 +114,6 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
       })
     };
 
-    console.log("Enviando para o Banco:", payload); // Para você acompanhar no F12
-
     try {
       const res = await apiFetch(`${API_URL}/api/execucoes`, {
         method: 'POST',
@@ -141,94 +140,84 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '800px', padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
-        
-        {/* Header Fixo */}
-        <div style={{ padding: '1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a' }}>Iniciar Entrada de Veículos</h2>
-          <button onClick={fecharModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><X /></button>
-        </div>
-
-        {/* Corpo Rolável */}
-        <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
-          
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.5rem' }}>CLIENTE ASSOCIADO</label>
-            <select value={clienteId} onChange={e => setClienteId(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-              <option value="">Selecione um cliente...</option>
-              {clientes.map(c => (
-                <option key={c.id} value={c.id}>{c.nome} - {c.cpf || c.telefone}</option>
-              ))}
-            </select>
+    <ModalPasso
+      titulo="Nova entrada no pátio"
+      subtitulo="Escolha o cliente, os carros e o serviço de cada um."
+      largura="sm:max-w-3xl"
+      aoFechar={fecharModal}
+      rodape={
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-medium text-tinta-500">
+              Total · {veiculosSelecionados.length} {veiculosSelecionados.length === 1 ? 'carro' : 'carros'}
+            </p>
+            <p className="font-display text-xl font-extrabold text-tinta-950">
+              {valorTotalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </p>
           </div>
-
-          {clienteId && (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.5rem' }}>SELECIONE OS VEÍCULOS PARA ENTRADA</label>
-              
-              {veiculosDoCliente.length === 0 ? (
-                <p style={{ color: '#ef4444', fontSize: '0.85rem' }}>Este cliente não possui veículos cadastrados.</p>
-              ) : (
-                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                  {veiculosDoCliente.map(v => (
-                    <label key={v.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', background: veiculosSelecionados.includes(v.id) ? '#eff6ff' : 'white' }}>
-                      <input type="checkbox" checked={veiculosSelecionados.includes(v.id)} onChange={() => toggleVeiculo(v.id)} />
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontWeight: '600', color: '#0f172a' }}>{v.marca} {v.modelo}</span>
-                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{v.placa} • {v.porte}</span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {veiculosSelecionados.length > 0 && (
-            <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '1.5rem' }}>
-              <h3 style={{ fontSize: '1rem', color: '#0f172a', marginBottom: '1rem' }}>Configurações Individuais de Serviços por Carro</h3>
-              
-              {veiculosSelecionados.map(vId => {
-                const veiculo = veiculosDoCliente.find(v => v.id === vId);
-                return (
-                  <ConfiguracaoVeiculo 
-                    key={vId} 
-                    veiculo={veiculo} 
-                    pacotes={pacotes} 
-                    extras={extras} 
-                    funcionarios={funcionarios} 
-                    onAtualizar={handleAtualizarConfig} 
-                  />
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Extrato e Footer Fixos no Bottom */}
-        <div style={{ background: '#f8fafc', borderTop: '1px solid #e2e8f0', padding: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1rem' }}>
-            <div>
-              <h4 style={{ margin: '0 0 0.25rem 0', color: '#0f172a' }}>EXTRATO CONSOLIDADO</h4>
-              <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>Detalhamento dos valores que entrarão no pátio.</p>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <span style={{ display: 'block', fontSize: '0.75rem', color: '#64748b' }}>Valor Total Geral</span>
-              <strong style={{ fontSize: '1.5rem', color: '#2563eb' }}>R$ {valorTotalGeral.toFixed(2)}</strong>
-            </div>
-          </div>
-          
-          <button 
-            onClick={handleConfirmar}
-            disabled={veiculosSelecionados.length === 0}
-            style={{ width: '100%', padding: '1rem', background: veiculosSelecionados.length === 0 ? '#cbd5e1' : '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: veiculosSelecionados.length === 0 ? 'not-allowed' : 'pointer' }}
-          >
-            Confirmar Entrada Geral
+          <button onClick={handleConfirmar} disabled={veiculosSelecionados.length === 0} className="fw-btn-primario px-6">
+            <Check size={17} /> Confirmar entrada
           </button>
         </div>
+      }
+    >
+      <div className="space-y-6">
+        <div>
+          <label htmlFor="nl-cliente" className="fw-label">Cliente</label>
+          <select id="nl-cliente" value={clienteId} onChange={e => setClienteId(e.target.value)} className="fw-input cursor-pointer">
+            <option value="">Selecione um cliente...</option>
+            {clientes.map(c => (
+              <option key={c.id} value={c.id}>{c.nome} - {c.cpf || c.telefone}</option>
+            ))}
+          </select>
+        </div>
 
+        {clienteId && (
+          <div>
+            <span className="fw-label">Carros que estão entrando</span>
+            {veiculosDoCliente.length === 0 ? (
+              <p className="fw-alerta-aviso">Este cliente não possui veículos cadastrados.</p>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {veiculosDoCliente.map(v => {
+                  const ativo = veiculosSelecionados.includes(v.id);
+                  return (
+                    <button type="button" key={v.id} data-ativo={ativo} onClick={() => toggleVeiculo(v.id)} className="fw-opcao">
+                      <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${ativo ? 'bg-marca-600 text-white' : 'bg-tinta-100 text-tinta-500'}`}>
+                        <Car size={18} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold text-tinta-900">{v.marca} {v.modelo}</span>
+                        <span className="block text-xs text-tinta-500"><span className="font-mono uppercase">{v.placa}</span> · Porte {v.porte}</span>
+                      </span>
+                      <Marcador ativo={ativo} />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {veiculosSelecionados.length > 0 && (
+          <div className="space-y-4">
+            <p className="fw-rotulo-secao">Serviço de cada carro</p>
+            {veiculosSelecionados.map(vId => {
+              const veiculo = veiculosDoCliente.find(v => v.id === vId);
+              return (
+                <ConfiguracaoVeiculo
+                  key={vId}
+                  veiculo={veiculo}
+                  pacotes={pacotes}
+                  extras={extras}
+                  funcionarios={funcionarios}
+                  onAtualizar={handleAtualizarConfig}
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
-    </div>
+    </ModalPasso>
   );
 }
