@@ -13,5 +13,8 @@
     "dotenv": "^18.0.1",
     "mysql2": "^3.x.x",
     "jsonwebtoken": "^9.0.2"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

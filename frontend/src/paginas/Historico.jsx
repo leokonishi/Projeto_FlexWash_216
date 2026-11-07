@@ -2,14 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Trash2, FileSpreadsheet, FileText, History as HistoryIcon } from 'lucide-react';
 import CabecalhoPagina, { Secao } from '../componentes/ui/CabecalhoPagina';
 import BadgeStatus from '../componentes/ui/BadgeStatus';
-import { apiFetch } from '../utils/api';
+import { apiFetch, API_URL } from '../utils/api';
 import { obterPerfil } from '../utils/sessao';
 
 export default function Historico({ abrirAlerta }) {
   const [historico, setHistorico] = useState([]);
   const [carregando, setCarregando] = useState(true);
   
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
   const perfilUsuario = obterPerfil() || 'funcionario'; // lido do token
 
   const buscarHistorico = async () => {

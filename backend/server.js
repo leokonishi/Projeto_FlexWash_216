@@ -32,8 +32,28 @@ const servicoClienteRoutes = require('./endpoints/servicos');
 // 2. INICIALIZAÇÃO DO APP
 // ==========================================
 const app = express();
-app.use(cors());
+
+// CORS: em produção, CORS_ORIGIN lista os endereços do frontend que podem chamar a API
+// (separados por vírgula, ex.: https://flexwash.vercel.app). Sem a variável, libera qualquer
+// origem, como antes (útil no computador).
+const origensPermitidas = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((o) => o.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
+app.use(cors(origensPermitidas.length ? { origin: origensPermitidas } : undefined));
 app.use(express.json());
+
+// Saúde do servidor: usada pelo Render (health check) e para conferir se o banco responde.
+const db = require('./bd');
+app.get('/api/saude', async (req, res) => {
+  try {
+    await db.query('SELECT 1');
+    return res.json({ ok: true, banco: 'conectado' });
+  } catch (erro) {
+    console.error('[saude] Banco indisponível:', erro.message);
+    return res.status(503).json({ ok: false, banco: 'indisponível' });
+  }
+});
 
 // ==========================================
 // 3. CONTROLE DE ACESSO (por prefixo de URL)
@@ -95,7 +115,7 @@ app.get('/api/protegida', verificarToken, (req, res) => {
 // 5. INICIA O SERVIDOR (PORTA 8080 PARA O FRONTEND)
 // ==========================================
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
 

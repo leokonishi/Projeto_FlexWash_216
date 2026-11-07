@@ -7,7 +7,7 @@ import EscolhaLevaTrasCliente from '../componentes/configCliente/EscolhaLevaTras
 import EscolhaHorarioCliente from '../componentes/configCliente/EscolhaHorarioCliente';
 import Logo from '../componentes/ui/Logo';
 import BadgeStatus from '../componentes/ui/BadgeStatus';
-import { apiFetch } from '../utils/api';
+import { apiFetch, API_URL } from '../utils/api';
 import { obterSessao, encerrarSessao } from '../utils/sessao';
 
 const AGENDAMENTO_VAZIO = { veiculos: [], selecoes: {}, resumo: [], levaTras: null, avaliacaoLevaTras: null };
@@ -58,7 +58,6 @@ export default function PaginaCliente() {
   const [dadosAgendamento, setDadosAgendamento] = useState(AGENDAMENTO_VAZIO);
   const [configAgendamento, setConfigAgendamento] = useState(null); // horários, vagas e taxa do leva e traz
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
   useEffect(() => {
     async function buscarDadosClienteBackend() {
@@ -82,7 +81,7 @@ export default function PaginaCliente() {
     }
 
     buscarDadosClienteBackend();
-  }, [navigate, API_URL]);
+  }, [navigate]);
 
   // O card de status olha só o que está no pátio (agendados e cancelados não contam).
   // Todos os carros em andamento aparecem: os que já estão lavando vêm primeiro.
