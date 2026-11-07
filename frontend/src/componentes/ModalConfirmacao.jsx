@@ -1,52 +1,36 @@
 import React from 'react';
-import { AlertTriangle } from 'lucide-react'; // Biblioteca de ícones leve (instale com: npm install lucide-react)
+import { AlertTriangle, Info } from 'lucide-react';
 
-export default function ModalConfirmacao({ 
-  isOpen, 
-  titulo, 
-  mensagem, 
-  onConfirm, 
-  onCancel, 
-  tipo = 'aviso' // pode ser 'aviso' (edição) ou 'perigo' (exclusão)
+// Modal de confirmação/aviso usado em todo o painel.
+// tipo: 'aviso' (informação ou edição) ou 'perigo' (exclusão)
+export default function ModalConfirmacao({
+  isOpen,
+  titulo,
+  mensagem,
+  onConfirm,
+  onCancel,
+  tipo = 'aviso'
 }) {
   if (!isOpen) return null;
+  const perigo = tipo === 'perigo';
+  const Icone = perigo ? AlertTriangle : Info;
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content alert">
-        
-        {/* Ícone de Alerta */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          marginBottom: '1rem' 
-        }}>
-          <div style={{
-            background: tipo === 'perigo' ? '#ffe4e6' : '#fef9c3',
-            padding: '1rem',
-            borderRadius: '50%'
-          }}>
-            <AlertTriangle 
-              size={32} 
-              color={tipo === 'perigo' ? '#e11d48' : '#ca8a04'} 
-            />
-          </div>
-        </div>
+    <div className="fixed inset-0 z-[300] flex items-end justify-center bg-tinta-950/55 p-4 backdrop-blur-sm animate-surgir sm:items-center">
+      <div role="alertdialog" aria-modal="true" className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-elevada animate-subir">
+        <span className={`mx-auto grid size-14 place-items-center rounded-2xl ${perigo ? 'bg-red-50 text-red-600' : 'bg-marca-50 text-marca-600'}`}>
+          <Icone size={26} />
+        </span>
 
-        <h3 style={{ margin: '0 0 0.5rem 0', color: '#0f172a', fontSize: '1.25rem' }}>
-          {titulo}
-        </h3>
-        
-        <p style={{ margin: '0 0 2rem 0', color: '#64748b', fontSize: '0.95rem' }}>
-          {mensagem}
-        </p>
+        <h3 className="mt-4 font-display text-lg font-bold text-tinta-950">{titulo}</h3>
+        <p className="mt-1.5 text-sm text-tinta-500">{mensagem}</p>
 
-        <div className="modal-footer">
-          <button className="btn-cancelar" onClick={onCancel}>
+        <div className="mt-6 grid grid-cols-2 gap-2">
+          <button className="fw-btn-contorno" onClick={onCancel}>
             Cancelar
           </button>
-          <button 
-            className={`btn-confirmar ${tipo === 'perigo' ? 'perigo' : ''}`} 
+          <button
+            className={perigo ? 'fw-btn bg-red-600 text-white hover:bg-red-700' : 'fw-btn-primario'}
             onClick={onConfirm}
           >
             Confirmar
