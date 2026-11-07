@@ -4,6 +4,7 @@ const db = require('../bd');
 const { registrarEntrada } = require('../services/execucoesService');
 const { ErroNegocio } = require('../services/erros');
 const agenda = require('../services/agenda');
+const { avaliarLevaTras } = require('../services/logistica');
 
 // Campos comuns às listas do pátio e dos próximos agendamentos
 const CAMPOS_PATIO = `
@@ -39,10 +40,26 @@ router.post('/execucoes', async (req, res) => {
         return res.status(201).json({ mensagem: 'Serviços registrados com sucesso no pátio!', ...resultado });
     } catch (erro) {
         if (erro instanceof ErroNegocio) {
-            return res.status(erro.status).json({ erro: erro.message });
+            return res.status(erro.status).json({ erro: erro.message, ...(erro.detalhes || {}) });
         }
         console.error('Erro ao registrar execução:', erro);
         return res.status(500).json({ erro: 'Erro interno ao iniciar o serviço.' });
+    }
+});
+
+// 1b. LEVA E TRAZ PARA UM CLIENTE (Nova entrada no pátio)
+// Mesma regra do agendamento do cliente: mede a distância até o endereço cadastrado
+// e diz se está dentro do raio (e a taxa por veículo).
+router.get('/execucoes/leva-e-traz/:cliente_id', async (req, res) => {
+    const clienteId = Number(req.params.cliente_id);
+    if (!Number.isInteger(clienteId) || clienteId <= 0) {
+        return res.status(400).json({ erro: 'Cliente inválido.' });
+    }
+    try {
+        res.status(200).json(await avaliarLevaTras(db, clienteId));
+    } catch (erro) {
+        console.error('Erro ao verificar o leva e traz:', erro);
+        res.status(500).json({ erro: 'Erro ao verificar o leva e traz.' });
     }
 });
 

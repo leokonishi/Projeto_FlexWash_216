@@ -1,7 +1,9 @@
 const { ErroNegocio } = require('./erros');
 const { calcularValorCentavos, centavosParaDecimal } = require('./precoExecucao');
+const { avaliarLevaTras } = require('./logistica');
 
 const MAX_VEICULOS_POR_ENTRADA = 20;
+const TIPOS_LOGISTICA = ['cliente_leva', 'leva_tras'];
 
 // Aceita número inteiro positivo ou string só com dígitos (o <select> do frontend envia string).
 function inteiroPositivo(valor) {
@@ -38,6 +40,9 @@ function normalizarEntrada(corpo) {
     throw new ErroNegocio(`Máximo de ${MAX_VEICULOS_POR_ENTRADA} veículos por entrada.`);
   }
 
+  const tipoLogistica = corpo?.tipo_logistica ?? 'cliente_leva';
+  if (!TIPOS_LOGISTICA.includes(tipoLogistica)) throw new ErroNegocio('Modalidade de atendimento inválida.');
+
   const vistos = new Set();
   const itens = veiculos.map((v) => {
     const veiculoId = inteiroPositivo(v?.veiculo_id);
@@ -59,7 +64,7 @@ function normalizarEntrada(corpo) {
     };
   });
 
-  return { clienteId, itens };
+  return { clienteId, tipoLogistica, itens };
 }
 
 const marcadores = (ids) => ids.map(() => '?').join(', ');
@@ -80,10 +85,25 @@ function exigirTodos(mapa, ids, status, mensagem) {
 // Registra a entrada de 1..N veículos no pátio.
 // - Confere que cada veículo é do cliente informado e que pacote, extras e funcionários existem.
 // - Calcula o valor de cada execução a partir dos preços do banco e do porte do veículo.
+// - Leva e traz (tipo_logistica = 'leva_tras'): confere o raio no endereço do cliente,
+//   cria o registro em `agendamentos` (como no agendamento do cliente) e soma a taxa
+//   por veículo no valor de cada carro.
 // - Grava execução + extras + funcionários numa única transação: ou entra tudo, ou nada.
 // `db` é o pool do mysql2/promise (precisa de getConnection()).
 async function registrarEntrada(db, corpo) {
-  const { clienteId, itens } = normalizarEntrada(corpo);
+  const { clienteId, tipoLogistica, itens } = normalizarEntrada(corpo);
+
+  // Leva e traz: mede a distância antes de abrir a transação (consulta o mapa, pode demorar)
+  let levaTras = null;
+  if (tipoLogistica === 'leva_tras') {
+    const avaliacao = await avaliarLevaTras(db, clienteId);
+    if (!avaliacao.disponivel) throw new ErroNegocio(avaliacao.mensagem, 409, { motivo: avaliacao.motivo });
+    levaTras = {
+      taxaCentavos: Math.round(Number(avaliacao.taxa_por_veiculo) * 100),
+      endereco: avaliacao.endereco_cliente,
+      distanciaKm: avaliacao.distancia_km
+    };
+  }
 
   const conn = await db.getConnection();
   try {
@@ -119,18 +139,29 @@ async function registrarEntrada(db, corpo) {
     const funcionarios = await buscarPorIds(conn, 'SELECT id FROM funcionarios WHERE id IN (#)', funcionarioIds);
     exigirTodos(funcionarios, funcionarioIds, 404, 'Funcionário(s) não encontrado(s)');
 
+    // Mesmo registro que o agendamento do cliente usa para o leva e traz (endereço e distância)
+    let agendamentoId = null;
+    if (levaTras) {
+      const [resAgendamento] = await conn.execute(
+        "INSERT INTO agendamentos (cliente_id, tipo_logistica, endereco_busca, distancia_km) VALUES (?, 'leva_tras', ?, ?)",
+        [clienteId, levaTras.endereco, levaTras.distanciaKm]
+      );
+      agendamentoId = resAgendamento.insertId;
+    }
+    const taxaCentavos = levaTras ? levaTras.taxaCentavos : 0;
+
     const criadas = [];
     for (const item of itens) {
       const centavos = calcularValorCentavos({
         porte: veiculos.get(item.veiculoId).porte,
         pacote: item.pacoteId === null ? null : pacotes.get(item.pacoteId),
         extras: item.extraIds.map((id) => extras.get(id))
-      });
+      }) + taxaCentavos;
       const valorTotal = centavosParaDecimal(centavos);
 
       const [resultado] = await conn.execute(
-        'INSERT INTO execucoes (cliente_id, veiculo_id, pacote_id, valor_total) VALUES (?, ?, ?, ?)',
-        [clienteId, item.veiculoId, item.pacoteId, valorTotal]
+        'INSERT INTO execucoes (cliente_id, veiculo_id, pacote_id, agendamento_id, valor_total, valor_logistica) VALUES (?, ?, ?, ?, ?, ?)',
+        [clienteId, item.veiculoId, item.pacoteId, agendamentoId, valorTotal, centavosParaDecimal(taxaCentavos)]
       );
       const execucaoId = resultado.insertId;
 
@@ -148,7 +179,7 @@ async function registrarEntrada(db, corpo) {
     }
 
     await conn.commit();
-    return { execucoes: criadas };
+    return { tipo_logistica: tipoLogistica, execucoes: criadas };
   } catch (erro) {
     try {
       await conn.rollback();
