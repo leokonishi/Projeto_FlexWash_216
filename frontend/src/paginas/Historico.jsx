@@ -44,10 +44,13 @@ export default function Historico({ abrirAlerta }) {
           try {
             const resposta = await apiFetch(`${API_URL}/api/execucoes/${id}`, { method: 'DELETE' });
             if (resposta.ok) {
-              setHistorico(historico.filter(item => item.id !== id));
+              setHistorico(prev => prev.filter(item => item.id !== id));
+            } else {
+              const json = await resposta.json().catch(() => ({}));
+              abrirAlerta('Não foi possível apagar', json.erro || json.mensagem || 'Erro ao apagar o registro.', () => {}, 'perigo');
             }
-          } catch (erro) {
-            console.error(erro);
+          } catch {
+            abrirAlerta('Erro', 'Falha na conexão com o servidor.', () => {}, 'perigo');
           }
         },
         'perigo'

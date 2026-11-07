@@ -32,10 +32,11 @@ export default function PaginaAdmin() {
   const abasVisiveis = ABAS.filter(a => !a.admin || ehAdmin);
 
   // --- CONTROLE GLOBAL DO MODAL DE ALERTA ---
+  // Fecha antes de executar a ação: assim a ação pode abrir outro alerta (erro, 2ª confirmação) sem ele sumir.
   const [alerta, setAlerta] = useState({ isOpen: false, titulo: '', mensagem: '', onConfirm: null, tipo: 'aviso' });
 
   const abrirAlerta = (titulo, mensagem, onConfirm, tipo = 'aviso') => {
-    setAlerta({ isOpen: true, titulo, mensagem, onConfirm: () => { onConfirm(); fecharAlerta(); }, tipo });
+    setAlerta({ isOpen: true, titulo, mensagem, onConfirm: () => { fecharAlerta(); onConfirm(); }, tipo });
   };
   const fecharAlerta = () => setAlerta(prev => ({ ...prev, isOpen: false }));
   // ------------------------------------------
@@ -133,7 +134,7 @@ export default function PaginaAdmin() {
 
           {abaAtiva === 'funcionarios' && ehAdmin && <GestaoFuncionarios abrirAlerta={abrirAlerta} />}
 
-          {abaAtiva === 'servicos' && ehAdmin && <GestaoServicos />}
+          {abaAtiva === 'servicos' && ehAdmin && <GestaoServicos abrirAlerta={abrirAlerta} />}
 
           {abaAtiva === 'levatras' && ehAdmin && (
             <Suspense fallback={<div className="p-8 text-center text-tinta-500">Carregando o mapa...</div>}>

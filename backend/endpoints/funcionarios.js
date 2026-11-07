@@ -115,11 +115,95 @@ router.post('/funcionarios', async (req, res) => {
   }
 });
 
+// Normaliza as funções (array ou texto separado por vírgula)
+const lerFuncoes = (funcoes) => (Array.isArray(funcoes)
+  ? funcoes
+  : typeof funcoes === 'string' && funcoes.trim() !== ''
+  ? funcoes.split(',')
+  : []).map((f) => String(f).trim()).filter(Boolean);
+
+// EDITAR FUNCIONÁRIO (PUT) - só administrador. Senha é opcional: em branco mantém a atual.
+router.put('/funcionarios/:id', async (req, res) => {
+  const texto = (v) => (typeof v === 'string' ? v.trim() : '');
+  const nome = texto(req.body.nome);
+  const cpf = texto(req.body.cpf);
+  const email = texto(req.body.email);
+  const telefone = texto(req.body.telefone);
+  const senha = typeof req.body.senha === 'string' ? req.body.senha : '';
+  const listaFuncoes = lerFuncoes(req.body.funcoes);
+
+  if (!nome || !cpf || !email || !telefone || listaFuncoes.length === 0) {
+    return res.status(400).json({ sucesso: false, mensagem: 'Preencha todos os campos e selecione pelo menos uma funcao.' });
+  }
+  if (senha && senha.length < 6) {
+    return res.status(400).json({ sucesso: false, mensagem: 'A nova senha precisa ter pelo menos 6 caracteres.' });
+  }
+
+  try {
+    const [[duplicado]] = await db.execute(
+      'SELECT id FROM funcionarios WHERE (cpf = ? OR email = ?) AND id <> ? LIMIT 1',
+      [cpf, email, req.params.id]
+    );
+    if (duplicado) {
+      return res.status(409).json({ sucesso: false, mensagem: 'CPF ou E-mail ja cadastrado para outra pessoa.' });
+    }
+
+    const campos = ['nome = ?', 'cpf = ?', 'email = ?', 'telefone = ?', 'funcoes = ?'];
+    const valores = [nome, cpf, email, telefone, listaFuncoes.join(', ')];
+    if (senha) {
+      campos.push('senha = ?');
+      valores.push(await bcrypt.hash(senha, 10));
+    }
+
+    // "perfil = 'funcionario'": o administrador não é editado por esta tela
+    const [resultado] = await db.execute(
+      `UPDATE funcionarios SET ${campos.join(', ')} WHERE id = ? AND perfil = 'funcionario'`,
+      [...valores, req.params.id]
+    );
+    if (resultado.affectedRows === 0) {
+      return res.status(404).json({ sucesso: false, mensagem: 'Funcionario nao encontrado.' });
+    }
+
+    return res.status(200).json({
+      sucesso: true,
+      mensagem: 'Funcionario atualizado com sucesso!',
+      dados: { id: Number(req.params.id), nome, cpf, email, telefone, funcoes: listaFuncoes, perfil: 'funcionario' }
+    });
+  } catch (erro) {
+    if (erro.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ sucesso: false, mensagem: 'CPF ou E-mail ja cadastrado para outra pessoa.' });
+    }
+    console.error('Erro ao atualizar funcionario:', erro);
+    return res.status(500).json({ sucesso: false, mensagem: 'Erro interno ao atualizar funcionario.' });
+  }
+});
+
+// EXCLUIR FUNCIONÁRIO (DELETE) - só administrador.
+// Bloqueia se ele ainda está escalado em um serviço agendado ou no pátio.
+// No histórico, as lavagens já feitas continuam (só deixam de mostrar o nome dele).
 router.delete('/funcionarios/:id', async (req, res) => {
   try {
-    await FuncionarioDB.removerPorId(req.params.id);
+    const [[ativos]] = await db.execute(
+      `SELECT COUNT(*) AS total FROM execucao_funcionarios ef JOIN execucoes e ON e.id = ef.execucao_id
+       WHERE ef.funcionario_id = ? AND e.status IN ('Agendado', 'Aguardando', 'Em Andamento')`,
+      [req.params.id]
+    );
+    if (Number(ativos.total) > 0) {
+      return res.status(409).json({
+        sucesso: false,
+        mensagem: `Este funcionario esta escalado em ${ativos.total} servico(s) agendado(s) ou no patio. Finalize esses servicos antes de remove-lo.`
+      });
+    }
+
+    const resultado = await FuncionarioDB.removerPorId(req.params.id);
+    if (resultado.affectedRows === 0) {
+      return res.status(404).json({ sucesso: false, mensagem: 'Funcionario nao encontrado.' });
+    }
     return res.status(200).json({ sucesso: true, mensagem: 'Funcionario removido com sucesso.' });
   } catch (erro) {
+    if (erro.code === 'ER_ROW_IS_REFERENCED_2' || erro.code === 'ER_ROW_IS_REFERENCED') {
+      return res.status(409).json({ sucesso: false, mensagem: 'Este funcionario tem registros ligados a ele e nao pode ser removido.' });
+    }
     console.error('Erro ao remover funcionario:', erro);
     return res.status(500).json({ sucesso: false, mensagem: 'Erro ao remover funcionario.' });
   }

@@ -44,9 +44,11 @@ app.use(express.json());
 // soAdmin = apenas administrador
 // soCliente = apenas cliente (rotas que usam o id do token como id do cliente)
 // ==========================================
-app.use('/api/clientes', escolher((req) =>
-  req.method === 'POST' && req.path === '/' ? [] : equipe // cadastro público; o resto (lista, frota) é da equipe
-));
+app.use('/api/clientes', escolher((req) => {
+  if (req.method === 'POST' && req.path === '/') return []; // cadastro público
+  if (req.method === 'DELETE') return soAdmin;              // excluir cliente: só o administrador
+  return equipe;                                            // lista, edição e frota: equipe
+}));
 app.use('/api/veiculos', ...equipe);
 app.use('/api/me', ...soCliente);           // dados, endereço e veículos do próprio cliente (id vem do token)
 app.use('/api/agendamentos', ...soCliente); // agendamento feito pelo cliente
@@ -66,6 +68,8 @@ app.use('/api/admin', ...soAdmin);      // relatórios financeiros
 // ==========================================
 app.post('/api/clientes', cadastroCliente.cadastrar);
 app.get('/api/clientes', cadastroCliente.listarClientes);
+app.put('/api/clientes/:id', cadastroCliente.atualizarCliente);
+app.delete('/api/clientes/:id', cadastroCliente.excluirCliente);
 
 app.use('/api', loginClienteRoutes);
 app.use('/api', loginGestao);

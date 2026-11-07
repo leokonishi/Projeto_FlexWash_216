@@ -10,6 +10,8 @@ const TEXTOS = {
   tituloModal: 'Novo serviço extra',
   exemploNome: 'Ex: Cera líquida',
   sucesso: 'Serviço adicional cadastrado!',
+  tituloEditar: 'Editar serviço extra',
+  sucessoEdicao: 'Serviço adicional atualizado!',
   tituloExcluir: 'Excluir Serviço',
 };
 
