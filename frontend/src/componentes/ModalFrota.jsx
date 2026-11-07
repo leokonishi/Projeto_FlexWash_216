@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Edit, Repeat, Trash2, Car } from 'lucide-react';
+import { Trash2, Car, Plus } from 'lucide-react';
+import ModalPasso from './ui/ModalPasso';
 import { aplicarMascaraPlaca } from '../utils/mascaras';
 import { apiFetch } from '../utils/api';
 
@@ -101,56 +102,48 @@ export default function ModalFrota({ cliente, fecharModal, abrirAlerta, atualiza
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '600px', padding: '1.5rem' }}>
-        
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1e293b' }}>
-            <Car size={24} color="#3b82f6" />
-            <h2 style={{ margin: 0, fontSize: '1.25rem' }}>
-              Gerenciar Frota de <span style={{ color: '#3b82f6' }}>{cliente.nome.split(' ')[0]}</span>
-            </h2>
-          </div>
-          <button onClick={fecharModal} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><X size={24} /></button>
-        </div>
-
-        <div style={{ marginBottom: '2rem' }}>
-          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#94a3b8', marginBottom: '0.5rem' }}>VEÍCULOS REGISTRADOS</label>
-          
+    <ModalPasso
+      titulo={`Frota de ${cliente.nome.split(' ')[0]}`}
+      subtitulo={`${veiculos.length} ${veiculos.length === 1 ? 'veículo registrado' : 'veículos registrados'}`}
+      aoFechar={fecharModal}
+      rodape={<div className="flex justify-end"><button className="fw-btn-contorno" onClick={fecharModal}>Fechar</button></div>}
+    >
+      <div className="space-y-6">
+        <div>
+          <p className="fw-rotulo-secao mb-2">Veículos</p>
           {carregando ? (
-            <div style={{ padding: '1rem', textAlign: 'center', color: '#64748b' }}>Carregando frota...</div>
+            <div className="space-y-2">{[0, 1].map(i => <div key={i} className="h-16 animate-pulse rounded-xl bg-tinta-100" />)}</div>
           ) : veiculos.length === 0 ? (
-            <div style={{ padding: '1rem', textAlign: 'center', color: '#64748b', background: '#f1f5f9', borderRadius: '8px' }}>
-              Nenhum veículo cadastrado para este cliente.
-            </div>
+            <p className="rounded-xl bg-tinta-50 px-4 py-6 text-center text-sm text-tinta-500">Nenhum veículo cadastrado para este cliente.</p>
           ) : (
-            <div style={{ maxHeight: '200px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+            <ul className="space-y-2">
               {veiculos.map(v => (
-                <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #e2e8f0', padding: '1rem', borderRadius: '8px', marginBottom: '0.5rem' }}>
-                  <div>
-                    <strong style={{ display: 'block', color: '#0f172a' }}>{v.marca} {v.modelo}</strong>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                      PLACA: {v.placa} • COR: {v.cor} • PORTE: {v.porte ? v.porte.toUpperCase() : 'MÉDIO'}
-                    </span>
+                <li key={v.id} className="flex items-center gap-3 rounded-xl border border-tinta-200 p-3">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-tinta-100 text-tinta-500"><Car size={18} /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold text-tinta-900">{v.marca} {v.modelo}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-tinta-500">
+                      <span className="fw-placa">{v.placa}</span>
+                      <span>{v.cor}</span>
+                      <span className="text-tinta-300">•</span>
+                      <span>Porte {v.porte || 'Médio'}</span>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button onClick={() => handleExcluirVeiculo(v)} style={{ padding: '0.4rem', background: '#ffe4e6', border: '1px solid #fecdd3', color: '#e11d48', borderRadius: '6px', cursor: 'pointer' }}>
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
+                  <button onClick={() => handleExcluirVeiculo(v)} className="fw-btn-perigo" title="Remover veículo" aria-label="Remover veículo">
+                    <Trash2 size={16} />
+                  </button>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </div>
 
-        <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#94a3b8', marginBottom: '1rem' }}>CADASTRAR NOVO VEÍCULO NA FROTA</label>
-          
-          <div className="modal-grid-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <div className="form-cliente-grupo" style={{ marginBottom: 0 }}>
-              <label>MARCA</label>
-              <select value={marca} onChange={(e) => setMarca(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}>
+        <div className="rounded-2xl border border-tinta-200 bg-tinta-50/70 p-4">
+          <p className="fw-rotulo-secao mb-3">Adicionar veículo</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
+            <div className="col-span-2 sm:col-span-3">
+              <label className="fw-label">Marca</label>
+              <select className="fw-input cursor-pointer" value={marca} onChange={(e) => setMarca(e.target.value)}>
                 {listaMarcas.length > 0 ? (
                   listaMarcas.map(m => (
                     <option key={m.codigo} value={m.nome}>{m.nome}</option>
@@ -165,40 +158,30 @@ export default function ModalFrota({ cliente, fecharModal, abrirAlerta, atualiza
                 )}
               </select>
             </div>
-            <div className="form-cliente-grupo" style={{ marginBottom: 0 }}>
-              <label>MODELO</label>
-              <input type="text" placeholder="Ex: Civic LX 2003" value={modelo} onChange={(e) => setModelo(e.target.value)} />
+            <div className="col-span-2 sm:col-span-3">
+              <label className="fw-label">Modelo</label>
+              <input className="fw-input" type="text" placeholder="Ex: Civic LX 2003" value={modelo} onChange={(e) => setModelo(e.target.value)} />
             </div>
-          </div>
-
-          <div className="modal-grid-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-            <div className="form-cliente-grupo">
-              <label>PLACA</label>
-              <input type="text" placeholder="ABC1D23" value={placaInput} onChange={(e) => setPlacaInput(aplicarMascaraPlaca(e.target.value))} />
+            <div className="sm:col-span-2">
+              <label className="fw-label">Placa</label>
+              <input className="fw-input font-mono uppercase" type="text" placeholder="ABC1D23" value={placaInput} onChange={(e) => setPlacaInput(aplicarMascaraPlaca(e.target.value))} />
             </div>
-            <div className="form-cliente-grupo">
-              <label>COR</label>
-              <input type="text" placeholder="Ex: Verde Vermont" value={cor} onChange={(e) => setCor(e.target.value)} />
+            <div className="sm:col-span-2">
+              <label className="fw-label">Cor</label>
+              <input className="fw-input" type="text" placeholder="Ex: Prata" value={cor} onChange={(e) => setCor(e.target.value)} />
             </div>
-            <div className="form-cliente-grupo">
-              <label>PORTE</label>
-              <select value={porte} onChange={(e) => setPorte(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}>
+            <div className="col-span-2 sm:col-span-2">
+              <label className="fw-label">Porte</label>
+              <select className="fw-input cursor-pointer" value={porte} onChange={(e) => setPorte(e.target.value)}>
                 <option>Pequeno</option><option>Médio</option><option>Grande</option>
               </select>
             </div>
           </div>
-
-          <button onClick={handleAdicionarVeiculo} className="btn-confirmar-cadastro" style={{ background: '#2563eb', margin: '1rem 0 0 0', width: '100%' }}>
-            Adicionar Veículo
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
-          <button className="btn-cancelar" style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', cursor: 'pointer' }} onClick={fecharModal}>
-            Fechar Janela
+          <button onClick={handleAdicionarVeiculo} className="fw-btn-primario mt-4 w-full">
+            <Plus size={17} /> Adicionar veículo
           </button>
         </div>
       </div>
-    </div>
+    </ModalPasso>
   );
 }

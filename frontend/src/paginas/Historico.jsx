@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, FileSpreadsheet, FileText } from 'lucide-react';
+import { Trash2, FileSpreadsheet, FileText, History as HistoryIcon } from 'lucide-react';
+import CabecalhoPagina, { Secao } from '../componentes/ui/CabecalhoPagina';
+import BadgeStatus from '../componentes/ui/BadgeStatus';
 import { apiFetch } from '../utils/api';
 import { obterPerfil } from '../utils/sessao';
-import '../paginas_css/gestao_clientes.css'; // Usando o mesmo CSS da tabela de clientes para manter o padrão
 
 export default function Historico({ abrirAlerta }) {
   const [historico, setHistorico] = useState([]);
@@ -62,118 +63,79 @@ export default function Historico({ abrirAlerta }) {
   const handleExportarExcel = () => alert('A exportação para Excel será implementada em breve!');
   const handleExportarPDF = () => alert('A exportação para PDF será implementada em breve!');
 
+  const totalFaturado = historico.reduce((acc, item) => acc + Number(item.valor_total || 0), 0);
+  const moeda = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
   return (
-    <div className="clientes-layout" style={{ display: 'block', padding: '2rem' }}>
-      <main style={{ width: '100%' }}>
-        <div className="clientes-card" style={{ width: '100%' }}>
-          
-          {/* Cabeçalho da Página */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-            <div>
-              <h2 className="clientes-card-titulo" style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>
-                Relatório Geral de Atendimentos
-              </h2>
-              <p className="clientes-card-subtitulo">
-                Visualização retroativa e exportação de todas as lavagens registradas.
-              </p>
-            </div>
-            
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button 
-                onClick={handleExportarExcel}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
-              >
-                <FileSpreadsheet size={18} /> Exportar Excel / CSV
-              </button>
-              <button 
-                onClick={handleExportarPDF}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
-              >
-                <FileText size={18} /> Exportar Relatório PDF
-              </button>
-            </div>
-          </div>
-          
-          {/* Tabela de Histórico */}
-          <div className="tabela-clientes-wrapper">
-            {carregando ? (
-               <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>A carregar histórico de serviços...</div>
-            ) : (
-              <table className="tabela-clientes">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>VEÍCULO</th>
-                    <th>PLACA</th>
-                    <th>CLIENTE</th>
-                    <th>SERVIÇO / EXTRAS</th>
-                    <th>VALOR TOTAL</th>
-                    <th>RESPONSÁVEIS</th>
-                    <th>STATUS FINAL</th>
-                    <th>AÇÕES</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {historico.map(item => (
-                    <tr key={item.id}>
-                      <td style={{ color: '#94a3b8', fontWeight: 'bold' }}>#{item.id}</td>
-                      <td>
-                        <strong>{item.marca} {item.modelo}</strong>
-                        <span className="sub-texto" style={{ display: 'block' }}>Porte: {item.porte}</span>
-                      </td>
-                      <td><strong>{item.placa}</strong></td>
-                      <td>{item.cliente_nome}</td>
-                      <td>
-                        <strong>{item.pacote_nome || 'Serviço Avulso'}</strong>
-                        <span className="sub-texto" style={{ display: 'block', marginTop: '4px' }}>
-                          Adicionais: {item.servicos_extras || 'Nenhum'}
-                        </span>
-                      </td>
-                      <td>
-                        <strong>R$ {Number(item.valor_total || 0).toFixed(2)}</strong>
-                      </td>
-                      <td>
-                        <span className="sub-texto" style={{ marginTop: 0 }}>
-                          {item.responsaveis || 'Não atribuído'}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <span style={{ background: '#dcfce7', color: '#166534', padding: '4px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold', width: 'fit-content' }}>
-                            Concluído
-                          </span>
-                          <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
-                            Data: {new Date(item.data_entrada).toLocaleDateString('pt-BR')}
-                          </span>
-                        </div>
-                      </td>
-                      <td>
-                        {perfilUsuario === 'administrador' && (
-                          <button 
-                            className="pc-btn-acao" 
-                            onClick={() => handleExcluirRegistro(item.id)}
-                            title="Apagar do histórico"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                  {historico.length === 0 && (
-                    <tr>
-                      <td colSpan="9" style={{textAlign: 'center', padding: '3rem', color: '#64748b'}}>
-                        Nenhum serviço finalizado até ao momento.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            )}
-          </div>
-          
+    <div className="mx-auto max-w-7xl">
+      <CabecalhoPagina titulo="Histórico" subtitulo="Todas as lavagens finalizadas, com valores e responsáveis.">
+        <button onClick={handleExportarExcel} className="fw-btn-contorno"><FileSpreadsheet size={17} className="text-verde-600" /> Excel / CSV</button>
+        <button onClick={handleExportarPDF} className="fw-btn-contorno"><FileText size={17} className="text-red-500" /> PDF</button>
+      </CabecalhoPagina>
+
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:max-w-xl">
+        <div className="fw-card p-4 sm:p-5">
+          <p className="text-sm font-semibold text-tinta-500">Atendimentos</p>
+          <p className="mt-1 font-display text-2xl font-extrabold text-tinta-950 sm:text-3xl">{historico.length}</p>
         </div>
-      </main>
+        <div className="fw-card p-4 sm:p-5">
+          <p className="text-sm font-semibold text-tinta-500">Total faturado</p>
+          <p className="mt-1 truncate font-display text-2xl font-extrabold text-verde-700 sm:text-3xl">{moeda(totalFaturado)}</p>
+        </div>
+      </div>
+
+      <Secao titulo="Atendimentos finalizados" icone={HistoryIcon} semPadding>
+        {carregando ? (
+          <div className="space-y-3 p-5">{[0, 1, 2].map(i => <div key={i} className="h-14 animate-pulse rounded-xl bg-tinta-100" />)}</div>
+        ) : historico.length === 0 ? (
+          <p className="px-5 py-12 text-center text-sm text-tinta-500">Nenhum serviço finalizado até o momento.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="fw-tabela">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Data</th>
+                  <th>Veículo</th>
+                  <th>Cliente</th>
+                  <th>Serviço</th>
+                  <th>Responsáveis</th>
+                  <th className="text-right">Valor</th>
+                  <th>Status</th>
+                  {perfilUsuario === 'administrador' && <th />}
+                </tr>
+              </thead>
+              <tbody>
+                {historico.map(item => (
+                  <tr key={item.id}>
+                    <td className="font-mono text-xs text-tinta-400">#{item.id}</td>
+                    <td className="whitespace-nowrap">{new Date(item.data_entrada).toLocaleDateString('pt-BR')}</td>
+                    <td>
+                      <p className="whitespace-nowrap font-semibold text-tinta-900">{item.marca} {item.modelo}</p>
+                      <div className="mt-1 flex items-center gap-2 text-xs text-tinta-500"><span className="fw-placa">{item.placa}</span> {item.porte}</div>
+                    </td>
+                    <td className="whitespace-nowrap">{item.cliente_nome}</td>
+                    <td>
+                      <p className="font-medium text-tinta-800">{item.pacote_nome || 'Serviço avulso'}</p>
+                      {item.servicos_extras && <p className="text-xs text-verde-700">+ {item.servicos_extras}</p>}
+                    </td>
+                    <td className="text-xs text-tinta-500">{item.responsaveis || 'Não atribuído'}</td>
+                    <td className="whitespace-nowrap text-right font-semibold text-tinta-900">{moeda(item.valor_total)}</td>
+                    <td><BadgeStatus status="Finalizado" /></td>
+                    {perfilUsuario === 'administrador' && (
+                      <td className="text-right">
+                        <button className="fw-btn-perigo" onClick={() => handleExcluirRegistro(item.id)} title="Apagar do histórico" aria-label="Apagar do histórico">
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Secao>
     </div>
   );
 }
