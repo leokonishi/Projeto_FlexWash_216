@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
 import LayoutAcesso from '../componentes/ui/LayoutAcesso';
+import { aplicarMascaraEmail } from '../utils/mascaras';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -67,7 +68,7 @@ export default function Login() {
             autoComplete="email"
             className="fw-input"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => setEmail(aplicarMascaraEmail(e.target.value))}
             placeholder="seu.email@exemplo.com"
           />
         </div>

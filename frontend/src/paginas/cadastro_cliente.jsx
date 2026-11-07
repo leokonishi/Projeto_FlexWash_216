@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Loader2, ArrowRight, MapPin } from 'lucide-react';
-import { aplicarMascaraCPF, aplicarMascaraTelefone } from '../utils/mascaras'; // Importando as máscaras reutilizáveis!
+import { aplicarMascaraCPF, aplicarMascaraTelefone, aplicarMascaraEmail, validarContato } from '../utils/mascaras'; // Importando as máscaras reutilizáveis!
 import FormEnderecoCep from '../componentes/FormEnderecoCep';
 import LayoutAcesso from '../componentes/ui/LayoutAcesso';
 import { ENDERECO_VAZIO, enderecoCompleto, enderecoVazio, partesParaApi } from '../utils/endereco';
@@ -28,6 +28,7 @@ export default function CadastroCliente() {
 
     if (name === 'cpf') value = aplicarMascaraCPF(value);
     if (name === 'telefone') value = aplicarMascaraTelefone(value);
+    if (name === 'email') value = aplicarMascaraEmail(value);
 
     setFormulario({ ...formulario, [name]: value });
   };
@@ -37,6 +38,12 @@ export default function CadastroCliente() {
     setErro(null);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
+    const erroContato = validarContato(formulario, { telefoneObrigatorio: true, emailObrigatorio: true });
+    if (erroContato) {
+      setErro(erroContato);
+      return;
+    }
 
     // Endereço é opcional, mas se começou a preencher, precisa estar completo
     if (!enderecoVazio(endereco) && !enderecoCompleto(endereco)) {

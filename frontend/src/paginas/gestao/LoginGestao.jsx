@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, ArrowRight, ShieldCheck, Wrench, LayoutDashboard, Gauge, Users } from 'lucide-react';
 import LayoutAcesso from '../../componentes/ui/LayoutAcesso';
+import { aplicarMascaraEmail } from '../../utils/mascaras';
 
 const DESTAQUES_EQUIPE = [
   { icone: Gauge, texto: 'Fluxo do pátio em tempo real, do agendado ao pronto' },
@@ -105,7 +106,7 @@ export default function LoginGestao() {
             className="fw-input"
             placeholder="admin@flexwash.com"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => setEmail(aplicarMascaraEmail(e.target.value))}
           />
         </div>
 
