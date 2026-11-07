@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { MapPin, Car } from 'lucide-react';
+import { MapPin, Car, Check, Truck, Loader2 } from 'lucide-react';
+import ModalPasso from '../ui/ModalPasso';
 import { apiFetch, API_URL } from '../../utils/api';
 import { formatarMoeda } from '../../utils/precos';
 import SeletorDataHorario, { hojeLocal, formatarDataBr } from './SeletorDataHorario';
@@ -129,200 +130,173 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
         return item ? `${item.veiculo.marca} ${item.veiculo.modelo}` : `Veículo #${veiculoId}`;
     };
 
-    const caixa = { backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0' };
-    const rotulo = { display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' };
-
     // ---------- Tela de sucesso ----------
     if (confirmado) {
         return (
-            <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', padding: '1rem' }}>
-                <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', maxWidth: '520px', width: '100%', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                        <div style={{ backgroundColor: '#dcfce7', color: '#15803d', borderRadius: '50%', padding: '0.4rem', display: 'flex' }}><Check size={20} /></div>
-                        <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800', color: '#0f172a' }}>Agendamento confirmado!</h2>
-                    </div>
-                    <div style={caixa}>
-                        {confirmado.veiculos.map(v => (
-                            <div key={v.execucao_id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.35rem 0', fontSize: '0.9rem' }}>
-                                <span><strong>{nomeVeiculo(v.veiculo_id)}</strong> • {formatarDataBr(v.data)} às {v.horario}</span>
-                                <span>{formatarMoeda(Math.round(Number(v.valor_total) * 100))}</span>
-                            </div>
-                        ))}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e2e8f0', marginTop: '0.5rem', paddingTop: '0.5rem', fontWeight: '800' }}>
-                            <span>Total</span>
-                            <span>{formatarMoeda(Math.round(Number(confirmado.valor_total) * 100))}</span>
-                        </div>
-                    </div>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569' }}>
+            <ModalPasso
+                titulo="Agendamento confirmado"
+                aoFechar={aoConcluir}
+                rodape={<button onClick={aoConcluir} className="fw-btn-primario w-full">Pronto</button>}
+            >
+                <div className="flex flex-col items-center text-center">
+                    <span className="relative grid size-16 place-items-center rounded-full bg-verde-100 text-verde-600">
+                        <span className="absolute inset-0 animate-ping rounded-full bg-verde-200/60 [animation-iteration-count:2]" />
+                        <Check size={32} strokeWidth={2.5} className="relative" />
+                    </span>
+                    <p className="mt-4 font-display text-xl font-extrabold text-tinta-950">Tudo certo!</p>
+                    <p className="mt-1 max-w-sm text-sm text-tinta-500">
                         {ehLevaTras
-                            ? `Vamos buscar o(s) veículo(s) em: ${enderecoCliente}`
-                            : `Leve o(s) veículo(s) até ${localLavaRapido} no horário marcado.`}
+                            ? `Vamos buscar o carro em: ${enderecoCliente}`
+                            : `Leve o carro até ${localLavaRapido} no horário marcado.`}
                     </p>
-                    <button onClick={aoConcluir} style={{ alignSelf: 'flex-end', padding: '0.75rem 1.5rem', borderRadius: '8px', fontWeight: '700', color: '#ffffff', backgroundColor: '#0f172a', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}>
-                        Fechar
-                    </button>
                 </div>
-            </div>
+
+                <div className="mt-6 rounded-2xl border border-tinta-200 bg-tinta-50/70 p-4">
+                    {confirmado.veiculos.map(v => (
+                        <div key={v.execucao_id} className="flex items-start justify-between gap-3 py-2 text-sm">
+                            <span>
+                                <strong className="block text-tinta-900">{nomeVeiculo(v.veiculo_id)}</strong>
+                                <span className="text-tinta-500">{formatarDataBr(v.data)} às {v.horario}</span>
+                            </span>
+                            <span className="font-semibold text-tinta-900">{formatarMoeda(Math.round(Number(v.valor_total) * 100))}</span>
+                        </div>
+                    ))}
+                    <div className="mt-2 flex justify-between border-t border-tinta-200 pt-3 font-bold text-tinta-950">
+                        <span>Total</span>
+                        <span>{formatarMoeda(Math.round(Number(confirmado.valor_total) * 100))}</span>
+                    </div>
+                </div>
+            </ModalPasso>
         );
     }
 
     return (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', padding: '1rem' }}>
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', maxWidth: '600px', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', maxHeight: '90vh' }}>
-
-                <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc' }}>
+        <ModalPasso
+            passo={4}
+            titulo="Data, horário e resumo"
+            subtitulo={`${resumo.length} ${resumo.length === 1 ? 'carro' : 'carros'} · ${ehLevaTras ? 'Leva e traz' : 'Eu levo o carro'}`}
+            aoFechar={aoCancelar}
+            aoVoltar={carregando ? null : aoVoltar}
+            rodape={
+                <div className="flex items-center justify-between gap-3">
                     <div>
-                        <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '800', color: '#0f172a' }}>
-                            Data, Horário e Resumo
-                        </h2>
-                        <span style={{ fontSize: '0.8rem', color: '#2563eb', fontWeight: '600' }}>
-                            Passo 4 de 4 • {resumo.length} veículo(s) • {ehLevaTras ? 'Leva e traz' : 'Eu levo o carro'}
-                        </span>
+                        <p className="text-xs font-medium text-tinta-500">Total</p>
+                        <p className="font-display text-xl font-extrabold text-tinta-950">{formatarMoeda(totalCentavos)}</p>
                     </div>
-                    <button onClick={aoCancelar} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '1.5rem', cursor: 'pointer', fontWeight: 'bold' }}>
-                        &times;
+                    <button onClick={lidarComFinalizacao} disabled={carregando || !tudoEscolhido} className="fw-btn-ouro px-6">
+                        {carregando ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />}
+                        {carregando ? 'Confirmando...' : 'Confirmar'}
                     </button>
                 </div>
+            }
+        >
+            <div className="space-y-5">
+                {erro && (
+                    <div className="fw-alerta-erro">
+                        {erro}
+                        {sugestao && (
+                            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-tinta-900">
+                                <span>Próximo horário com vaga para todos: <strong>{formatarDataBr(sugestao.data)} às {sugestao.horario}</strong></span>
+                                <button onClick={aceitarSugestao} className="fw-btn-primario h-9 px-3 text-xs">
+                                    Usar esse horário
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
 
-                <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', overflowY: 'auto' }}>
-                    {erro && (
-                        <div style={{ backgroundColor: '#fef2f2', color: '#dc2626', padding: '0.75rem', borderRadius: '8px', border: '1px solid #fecaca', fontSize: '0.85rem' }}>
-                            {erro}
-                            {sugestao && (
-                                <div style={{ marginTop: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap', color: '#0f172a' }}>
-                                    <span>Próximo horário com vaga para todos: <strong>{formatarDataBr(sugestao.data)} às {sugestao.horario}</strong></span>
-                                    <button onClick={aceitarSugestao} style={{ padding: '0.45rem 0.9rem', borderRadius: '6px', border: 'none', backgroundColor: '#2563eb', color: '#ffffff', fontWeight: '700', cursor: 'pointer', fontSize: '0.8rem' }}>
-                                        Usar esse horário
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                {/* Local */}
+                <div className="flex items-start gap-3 rounded-2xl border border-tinta-200 bg-tinta-50/70 p-4">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-marca-600 ring-1 ring-tinta-200">
+                        {ehLevaTras ? <Truck size={18} /> : <MapPin size={18} />}
+                    </span>
+                    <div className="min-w-0">
+                        <p className="fw-rotulo-secao">{ehLevaTras ? 'Buscamos em' : 'Local de atendimento'}</p>
+                        <p className="mt-0.5 text-[15px] font-medium text-tinta-900">{ehLevaTras ? enderecoCliente : localLavaRapido}</p>
+                        <p className="mt-0.5 text-xs text-tinta-500">
+                            {ehLevaTras
+                                ? (levaTras?.distancia_km != null
+                                    ? `${Number(levaTras.distancia_km).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km do lava-rápido · para trocar, volte ao passo anterior`
+                                    : 'Para trocar o endereço, volte ao passo anterior')
+                                : 'Leve o carro até o pátio no horário agendado'}
+                        </p>
+                    </div>
+                </div>
 
-                    {/* Local */}
-                    <div style={caixa}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <span style={rotulo}>
-                                <MapPin size={14} color="#2563eb" />
-                                {ehLevaTras ? 'Endereço de busca (leva e traz)' : 'Local de Atendimento'}
-                            </span>
+                {/* Mesmo horário x um horário por carro */}
+                {resumo.length > 1 && (
+                    <div className="grid grid-cols-2 gap-1 rounded-xl bg-tinta-100 p-1">
+                        {[[false, 'Mesmo horário'], [true, 'Um por carro']].map(([individual, texto]) => (
+                            <button
+                                key={texto}
+                                type="button"
+                                onClick={() => alternarModo(individual)}
+                                className={`h-9 rounded-lg text-sm font-semibold transition-all ${porVeiculo === individual ? 'bg-white text-tinta-950 shadow-sm' : 'text-tinta-500 hover:text-tinta-800'}`}
+                            >
+                                {texto}
+                            </button>
+                        ))}
+                    </div>
+                )}
 
-                        </div>
-
-                        {!ehLevaTras ? (
-                            <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', fontWeight: '500' }}>
-                                {localLavaRapido} <span style={{ display: 'block', fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>(Leve o seu veículo até ao pátio no horário agendado)</span>
-                            </p>
-                        ) : (
-                            <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', fontWeight: '500' }}>
-                                {enderecoCliente}
-                                {levaTras?.distancia_km != null && (
-                                    <span style={{ display: 'block', fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>
-                                        {Number(levaTras.distancia_km).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km do lava-rápido (para trocar o endereço, volte ao passo anterior)
-                                    </span>
-                                )}
+                {!porVeiculo ? (
+                    <div>
+                        <SeletorDataHorario data={data} horario={horario} onChange={mudarGeral} />
+                        {resumo.length > 1 && (
+                            <p className="mt-2 text-xs text-tinta-500">
+                                Se o horário escolhido não tiver vaga para todos os carros, os demais ficam nos próximos horários do dia.
                             </p>
                         )}
                     </div>
-
-                    {/* Mesmo horário x um horário por carro */}
-                    {resumo.length > 1 && (
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            {[[false, 'Todos no mesmo horário'], [true, 'Um horário para cada carro']].map(([individual, texto]) => (
-                                <button
-                                    key={texto}
-                                    type="button"
-                                    onClick={() => alternarModo(individual)}
-                                    style={{
-                                        flex: 1, padding: '0.6rem', borderRadius: '8px', border: '1px solid', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer',
-                                        backgroundColor: porVeiculo === individual ? '#eff6ff' : '#ffffff',
-                                        borderColor: porVeiculo === individual ? '#3b82f6' : '#e2e8f0',
-                                        color: porVeiculo === individual ? '#1e40af' : '#475569'
-                                    }}
-                                >
-                                    {texto}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-
-                    {!porVeiculo ? (
-                        <div>
-                            <SeletorDataHorario data={data} horario={horario} onChange={mudarGeral} />
-                            {resumo.length > 1 && (
-                                <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>
-                                    Se o horário escolhido não tiver vaga para todos os carros, os demais ficam nos próximos horários do dia.
-                                </p>
-                            )}
-                        </div>
-                    ) : (
-                        resumo.map(item => {
-                            const escolha = horariosVeiculos[item.veiculo.id] || { data, horario: null };
-                            return (
-                                <div key={item.veiculo.id} style={caixa}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', fontSize: '0.9rem' }}>
-                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                            <Car size={15} color="#2563eb" />
-                                            <strong>{item.veiculo.marca} {item.veiculo.modelo}</strong>
-                                        </span>
-                                        <span style={{ fontSize: '0.8rem', fontWeight: '600', color: escolha.horario ? '#2563eb' : '#dc2626' }}>
-                                            {escolha.horario ? `${formatarDataBr(escolha.data)} às ${escolha.horario}` : 'Escolha um horário'}
-                                        </span>
-                                    </div>
-                                    <SeletorDataHorario
-                                        compacto
-                                        data={escolha.data}
-                                        horario={escolha.horario}
-                                        onChange={mudarVeiculo(item.veiculo.id)}
-                                        ocupadosNoPedido={ocupadosPorOutros(item.veiculo.id)}
-                                    />
-                                </div>
-                            );
-                        })
-                    )}
-
-                    {/* Resumo do pedido */}
-                    <div style={caixa}>
-                        <span style={{ ...rotulo, marginBottom: '0.5rem' }}>Resumo</span>
-                        {resumo.map((item) => (
-                            <div key={item.veiculo.id} style={{ padding: '0.5rem 0', borderBottom: '1px dashed #e2e8f0' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                        <Car size={15} color="#2563eb" />
-                                        <strong>{item.veiculo.marca} {item.veiculo.modelo}</strong>
-                                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(porte {item.veiculo.porte})</span>
+                ) : (
+                    resumo.map(item => {
+                        const escolha = horariosVeiculos[item.veiculo.id] || { data, horario: null };
+                        return (
+                            <div key={item.veiculo.id} className="rounded-2xl border border-tinta-200 p-4">
+                                <div className="mb-3 flex items-center justify-between gap-2 text-sm">
+                                    <span className="flex min-w-0 items-center gap-2">
+                                        <Car size={16} className="shrink-0 text-marca-600" />
+                                        <strong className="truncate text-tinta-900">{item.veiculo.marca} {item.veiculo.modelo}</strong>
                                     </span>
-                                    <strong>{formatarMoeda(item.subtotalCentavos + taxaCentavos)}</strong>
+                                    <span className={`shrink-0 text-xs font-semibold ${escolha.horario ? 'text-marca-700' : 'text-ouro-700'}`}>
+                                        {escolha.horario ? `${formatarDataBr(escolha.data)} às ${escolha.horario}` : 'Escolha um horário'}
+                                    </span>
                                 </div>
-                                <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '0.2rem' }}>
+                                <SeletorDataHorario
+                                    compacto
+                                    data={escolha.data}
+                                    horario={escolha.horario}
+                                    onChange={mudarVeiculo(item.veiculo.id)}
+                                    ocupadosNoPedido={ocupadosPorOutros(item.veiculo.id)}
+                                />
+                            </div>
+                        );
+                    })
+                )}
+
+                {/* Resumo do pedido */}
+                <div className="rounded-2xl border border-tinta-200">
+                    <p className="fw-rotulo-secao border-b border-tinta-100 px-4 py-3">Resumo do pedido</p>
+                    <ul className="divide-y divide-dashed divide-tinta-200 px-4">
+                        {resumo.map((item) => (
+                            <li key={item.veiculo.id} className="py-3">
+                                <div className="flex justify-between gap-3 text-sm">
+                                    <span className="flex min-w-0 items-center gap-2">
+                                        <Car size={15} className="shrink-0 text-marca-600" />
+                                        <strong className="truncate text-tinta-900">{item.veiculo.marca} {item.veiculo.modelo}</strong>
+                                    </span>
+                                    <strong className="text-tinta-900">{formatarMoeda(item.subtotalCentavos + taxaCentavos)}</strong>
+                                </div>
+                                <p className="mt-1 pl-6 text-xs text-tinta-500">
                                     {item.pacote?.nome}
                                     {item.extras.length > 0 && ` + ${item.extras.map(e => e.nome).join(', ')}`}
                                     {ehLevaTras && ` + leva e traz ${formatarMoeda(taxaCentavos)}`}
-                                </div>
-                            </div>
+                                </p>
+                            </li>
                         ))}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.6rem', fontWeight: '800', fontSize: '1rem' }}>
-                            <span>Total</span>
-                            <span>{formatarMoeda(totalCentavos)}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div style={{ padding: '1.0rem 1.5rem', borderTop: '1px solid #e2e8f0', backgroundColor: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <button onClick={aoVoltar} disabled={carregando} style={{ padding: '0.75rem 1.25rem', borderRadius: '8px', fontWeight: '600', color: '#475569', backgroundColor: 'transparent', border: '1px solid #cbd5e1', cursor: 'pointer', fontSize: '0.85rem' }}>
-                        Voltar
-                    </button>
-
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button onClick={aoCancelar} disabled={carregando} style={{ padding: '0.75rem 1rem', borderRadius: '8px', fontWeight: '600', color: '#64748b', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}>
-                            Cancelar
-                        </button>
-                        <button onClick={lidarComFinalizacao} disabled={carregando || !tudoEscolhido} style={{ padding: '0.75rem 1.5rem', borderRadius: '8px', fontWeight: '700', color: '#ffffff', backgroundColor: tudoEscolhido ? '#0f172a' : '#cbd5e1', cursor: tudoEscolhido ? 'pointer' : 'not-allowed', border: 'none', fontSize: '0.85rem', opacity: carregando ? 0.7 : 1 }}>
-                            {carregando ? 'A confirmar...' : 'Confirmar Agendamento'}
-                        </button>
-                    </div>
+                    </ul>
                 </div>
             </div>
-        </div>
+        </ModalPasso>
     );
 }

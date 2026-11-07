@@ -1,20 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import '../paginas_css/home_cliente.css';
+import { LogOut, CalendarPlus, CalendarClock, Car, Droplets, Sparkles, CheckCircle2, ParkingSquare, History } from 'lucide-react';
 import EscolhaServicoCliente from '../componentes/configCliente/EscolhaServicoCliente';
 import EscolhaVeiculoCliente from '../componentes/configCliente/EscolhaVeiculoCliente';
 import EscolhaLevaTrasCliente from '../componentes/configCliente/EscolhaLevaTrasCliente';
 import EscolhaHorarioCliente from '../componentes/configCliente/EscolhaHorarioCliente';
+import Logo from '../componentes/ui/Logo';
+import BadgeStatus from '../componentes/ui/BadgeStatus';
 import { apiFetch } from '../utils/api';
 import { obterSessao, encerrarSessao } from '../utils/sessao';
 
 const AGENDAMENTO_VAZIO = { veiculos: [], selecoes: {}, resumo: [], levaTras: null, avaliacaoLevaTras: null };
 
+// Etapas que o cliente acompanha enquanto o carro está no lava-rápido
+const ETAPAS_PATIO = [
+  { chave: 'Aguardando', nome: 'No pátio', icone: ParkingSquare },
+  { chave: 'Em Andamento', nome: 'Lavando', icone: Droplets },
+  { chave: 'Finalizado', nome: 'Pronto', icone: CheckCircle2 },
+];
+
 export default function PaginaCliente() {
   const navigate = useNavigate();
-  
-  const [statusVeiculo, setStatusVeiculo] = useState('concluido');
-  const [etapaAvaliacaoAberta, setEtapaAvaliacaoAberta] = useState(false);
+  const sessao = obterSessao();
+
   const [ultimosAgendamentos, setUltimosAgendamentos] = useState([]);
   const [carregando, setCarregando] = useState(true);
 
@@ -38,18 +46,7 @@ export default function PaginaCliente() {
         const resposta = await apiFetch(`${API_URL}/api/execucoes/cliente/${sessao.id}`);
 
         if (resposta.ok) {
-          const dados = await resposta.json();
-          setUltimosAgendamentos(dados);
-
-          // O card de status olha só o que está no pátio (agendados e cancelados não contam)
-          const noPatio = dados.find(item => item.status === 'Aguardando' || item.status === 'Em Andamento');
-          if (noPatio?.status === 'Aguardando') {
-            setStatusVeiculo('no_patio');
-          } else if (noPatio?.status === 'Em Andamento') {
-            setStatusVeiculo('em_andamento');
-          } else {
-            setStatusVeiculo('concluido');
-          }
+          setUltimosAgendamentos(await resposta.json());
         }
       } catch (erro) {
         console.error("Erro ao buscar dados do painel do cliente:", erro);
@@ -60,6 +57,14 @@ export default function PaginaCliente() {
 
     buscarDadosClienteBackend();
   }, [navigate, API_URL]);
+
+  // O card de status olha só o que está no pátio (agendados e cancelados não contam)
+  const noPatio = ultimosAgendamentos.find(item => item.status === 'Aguardando' || item.status === 'Em Andamento');
+  // Próximo horário marcado
+  const proximoAgendado = ultimosAgendamentos
+    .filter(item => item.status === 'Agendado' && item.data_agendamento)
+    .sort((a, b) => a.data_agendamento.localeCompare(b.data_agendamento))[0];
+  const totalConcluidos = ultimosAgendamentos.filter(item => !['Agendado', 'Aguardando', 'Em Andamento', 'Cancelado'].includes(item.status)).length;
 
   const lidarComLogout = () => {
     encerrarSessao();
@@ -76,19 +81,7 @@ export default function PaginaCliente() {
     return new Date(item.criado_em).toLocaleDateString('pt-BR');
   };
 
-  const renderStatusBadge = (status) => {
-    if (status === 'Aguardando') {
-      return <span style={{ background: '#fef08a', color: '#854d0e', padding: '4px 12px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.75rem' }}>Aguardando</span>;
-    } else if (status === 'Em Andamento') {
-      return <span style={{ background: '#bfdbfe', color: '#1e3a8a', padding: '4px 12px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.75rem' }}>Em Andamento</span>;
-    } else if (status === 'Agendado') {
-      return <span style={{ background: '#e9d5ff', color: '#581c87', padding: '4px 12px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.75rem' }}>Agendado</span>;
-    } else if (status === 'Cancelado') {
-      return <span style={{ background: '#e2e8f0', color: '#475569', padding: '4px 12px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.75rem' }}>Cancelado</span>;
-    } else {
-      return <span style={{ background: '#bbf7d0', color: '#166534', padding: '4px 12px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.75rem' }}>Concluído</span>;
-    }
-  };
+  const formatarValor = (valor) => Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   // FLUXO DE AGENDAMENTO
   const iniciarAgendamento = async () => {
@@ -132,102 +125,201 @@ export default function PaginaCliente() {
 
   const concluirAgendamentoComSucesso = () => {
       cancelarAgendamento();
-      window.location.reload(); // Recarrega a página para atualizar a tabela de histórico
+      window.location.reload(); // Recarrega a página para atualizar a lista de agendamentos
   };
 
+  const etapaAtual = noPatio ? ETAPAS_PATIO.findIndex(e => e.chave === noPatio.status) : -1;
+  const inicial = (sessao?.email || 'C').charAt(0).toUpperCase();
+
   return (
-    <div className="home-cliente-pagina-completa">
-      
-      {/* Navbar Superior */}
-      <header className="navbar-superior">
-        <div className="navbar-conteudo">
-          <h2 className="navbar-logo">FLEX WASH</h2>
-          
-          <div className="navbar-usuario-area">
-            <div className="navbar-info-texto">
-              <span className="navbar-nome-usuario">Cliente FlexWash</span>
-              <span className="navbar-perfil-usuario">ÁREA DO CLIENTE</span>
+    <div className="fw-app min-h-[100dvh]">
+
+      {/* Barra superior */}
+      <header className="sticky top-0 z-50 border-b border-tinta-200/70 bg-white/85 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
+          <Logo tamanho="sm" />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="hidden text-right sm:block">
+              <p className="max-w-[220px] truncate text-sm font-semibold text-tinta-900">{sessao?.email || 'Cliente'}</p>
+              <p className="text-xs text-tinta-500">Área do cliente</p>
             </div>
-            <div className="navbar-avatar">CF</div>
-            <button onClick={lidarComLogout} className="btn-sair-navbar">
-              Sair
+            <span className="grid size-9 place-items-center rounded-full bg-linear-to-br from-marca-500 to-verde-500 text-sm font-bold text-white ring-2 ring-white">
+              {inicial}
+            </span>
+            <button onClick={lidarComLogout} className="fw-btn-fantasma h-9" aria-label="Sair">
+              <LogOut size={18} /><span className="hidden sm:inline">Sair</span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* Conteúdo Principal (Dashboard de fundo) */}
-      <main className="home-cliente-container">
-        <div className="home-cliente-banner">
-        <h1>Bem-vindo ao Flex Wash</h1>
-        <p>Gestão inteligente e estética automotiva de alto padrão para o seu veículo.</p>
-        </div>
+      <main className="mx-auto max-w-5xl space-y-5 px-4 pb-16 pt-5 sm:space-y-6 sm:px-6 sm:pt-8">
 
-        <div className="home-cliente-grid">
-            <div className="home-cliente-card">
-                <h3>Status Atual do Veículo</h3>
-                <div className="home-cliente-status-box">
-                <p><strong>Situação atual:</strong> 
-                    <span className="badge-status">
-                    {statusVeiculo === 'no_patio' && 'Veículo no pátio (Aguardando)'}
-                    {statusVeiculo === 'em_andamento' && 'Serviço em andamento'}
-                    {statusVeiculo === 'concluido' && 'Nenhum serviço em andamento'}
+        {/* Destaque: status do carro + agendar */}
+        <section className="relative overflow-hidden rounded-3xl bg-tinta-950 p-5 text-white shadow-elevada sm:p-8">
+          <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 size-72 rounded-full bg-marca-600/45 blur-3xl" />
+          <div aria-hidden="true" className="pointer-events-none absolute -bottom-24 left-1/3 size-72 rounded-full bg-verde-500/20 blur-3xl" />
+
+          <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+            <div className="min-w-0">
+              <p className="flex items-center gap-1.5 text-sm font-medium text-ouro-300">
+                <Sparkles size={15} /> Olá, que bom te ver por aqui
+              </p>
+
+              {noPatio ? (
+                <>
+                  <h1 className="mt-2 text-2xl font-extrabold leading-tight sm:text-3xl">
+                    {noPatio.status === 'Em Andamento' ? 'Seu carro está sendo lavado' : 'Seu carro já está no pátio'}
+                  </h1>
+                  <p className="mt-1.5 flex items-center gap-2 text-sm text-tinta-300">
+                    <Car size={16} /> {noPatio.marca} {noPatio.modelo} · {noPatio.pacote_nome || 'Serviço avulso'}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h1 className="mt-2 text-2xl font-extrabold leading-tight sm:text-3xl">Pronto para deixar o carro brilhando?</h1>
+                  <p className="mt-1.5 max-w-md text-sm text-tinta-300">
+                    Nenhum carro no pátio agora. Agende em poucos toques e acompanhe tudo por aqui.
+                  </p>
+                </>
+              )}
+            </div>
+
+            <button onClick={iniciarAgendamento} className="fw-btn-ouro h-12 w-full shrink-0 px-6 text-[15px] md:w-auto">
+              <CalendarPlus size={18} /> Agendar lavagem
+            </button>
+          </div>
+
+          {/* Linha do tempo enquanto o carro está no lava-rápido */}
+          {noPatio && (
+            <ol className="relative mt-6 grid grid-cols-3 gap-2 rounded-2xl bg-white/5 p-3 ring-1 ring-white/10 sm:p-4">
+              {ETAPAS_PATIO.map((etapa, i) => {
+                const feita = i < etapaAtual;
+                const atual = i === etapaAtual;
+                const Icone = etapa.icone;
+                return (
+                  <li key={etapa.chave} className="flex flex-col items-center gap-2 text-center">
+                    <span className={`relative grid size-10 place-items-center rounded-full transition-colors ${
+                      atual ? 'bg-marca-500 text-white shadow-lg shadow-marca-500/40' : feita ? 'bg-verde-500 text-white' : 'bg-white/10 text-tinta-400'
+                    }`}>
+                      {atual && <span className="absolute inset-0 animate-ping rounded-full bg-marca-400/40" />}
+                      <Icone size={18} className="relative" />
                     </span>
-                </p>
-                </div>
-            </div>
-
-            <div className="home-cliente-card flex-between">
-                <div>
-                <h3>Novo Agendamento</h3>
-                <p className="texto-descricao-card">Precisa deixar seu carro brilhando de novo? Agende um horário com nossa equipe em poucos cliques.</p>
-                </div>
-                <button onClick={iniciarAgendamento} className="btn-primario">
-                Agendar Nova Lavagem
-                </button>
-            </div>
-        </div>
-
-        {/* Tabela de Histórico */}
-        <div className="home-cliente-card secao-tabela">
-          <h3>Últimos Agendamentos</h3>
-          {carregando ? (
-              <p className="texto-carregando">A carregar o seu histórico...</p>
-          ) : (
-              <div className="table-responsive">
-              <table className="tabela-historico">
-                  <thead>
-                  <tr>
-                      <th style={{ textAlign: 'left', padding: '12px' }}>Veículo</th>
-                      <th style={{ textAlign: 'left', padding: '12px' }}>Serviço</th>
-                      <th style={{ textAlign: 'left', padding: '12px' }}>Data</th>
-                      <th style={{ textAlign: 'left', padding: '12px' }}>Valor Total</th>
-                      <th style={{ textAlign: 'left', padding: '12px' }}>Status</th>
-                  </tr>
-                  </thead>
-                  <tbody>
-                  {ultimosAgendamentos.length === 0 ? (
-                      <tr>
-                      <td colSpan="5" className="tabela-vazia" style={{ textAlign: 'center', padding: '2rem' }}>
-                          Nenhum serviço registrado até ao momento.
-                      </td>
-                      </tr>
-                  ) : (
-                      ultimosAgendamentos.map((item) => (
-                      <tr key={item.id} style={{ borderBottom: '1px solid #1e293b' }}>
-                          <td style={{ padding: '12px' }}><strong>{item.marca} {item.modelo}</strong></td>
-                          <td style={{ padding: '12px' }}>{item.pacote_nome || 'Serviço Avulso'}</td>
-                          <td style={{ padding: '12px' }}>{formatarDataTabela(item)}</td>
-                          <td style={{ padding: '12px' }}>R$ {Number(item.valor_total).toFixed(2)}</td>
-                          <td style={{ padding: '12px' }}>{renderStatusBadge(item.status)}</td>
-                      </tr>
-                      ))
-                  )}
-                  </tbody>
-              </table>
-              </div>
+                    <span className={`text-xs font-semibold ${atual ? 'text-white' : feita ? 'text-verde-300' : 'text-tinta-400'}`}>{etapa.nome}</span>
+                  </li>
+                );
+              })}
+            </ol>
           )}
-        </div>
+        </section>
+
+        {/* Resumo rápido */}
+        <section className="grid grid-cols-2 gap-3 sm:gap-4">
+          <div className="fw-card col-span-2 flex items-center gap-4 p-4 sm:col-span-1 sm:p-5">
+            <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-marca-50 text-marca-600">
+              <CalendarClock size={22} />
+            </span>
+            <div className="min-w-0">
+              <p className="fw-rotulo-secao">Próximo agendamento</p>
+              {proximoAgendado ? (
+                <>
+                  <p className="mt-0.5 truncate font-semibold text-tinta-900">{formatarDataTabela(proximoAgendado)}</p>
+                  <p className="truncate text-sm text-tinta-500">{proximoAgendado.marca} {proximoAgendado.modelo} · {proximoAgendado.pacote_nome || 'Serviço avulso'}</p>
+                </>
+              ) : (
+                <p className="mt-0.5 text-sm text-tinta-500">Nenhum horário marcado</p>
+              )}
+            </div>
+          </div>
+          <div className="fw-card col-span-2 flex items-center gap-4 p-4 sm:col-span-1 sm:p-5">
+            <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-verde-50 text-verde-600">
+              <CheckCircle2 size={22} />
+            </span>
+            <div>
+              <p className="fw-rotulo-secao">Lavagens concluídas</p>
+              <p className="mt-0.5 font-display text-2xl font-extrabold text-tinta-950">{totalConcluidos}</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Histórico */}
+        <section className="fw-card overflow-hidden">
+          <div className="flex items-center justify-between border-b border-tinta-100 px-4 py-4 sm:px-6">
+            <h2 className="flex items-center gap-2 text-base font-bold text-tinta-950 sm:text-lg">
+              <History size={18} className="text-marca-600" /> Seus agendamentos
+            </h2>
+            {!carregando && ultimosAgendamentos.length > 0 && (
+              <span className="text-xs font-medium text-tinta-500">{ultimosAgendamentos.length} no total</span>
+            )}
+          </div>
+
+          {carregando ? (
+            <div className="space-y-3 p-4 sm:p-6">
+              {[0, 1, 2].map(i => <div key={i} className="h-16 animate-pulse rounded-xl bg-tinta-100" />)}
+            </div>
+          ) : ultimosAgendamentos.length === 0 ? (
+            <div className="flex flex-col items-center px-6 py-12 text-center">
+              <span className="grid size-14 place-items-center rounded-2xl bg-marca-50 text-marca-600"><Droplets size={26} /></span>
+              <p className="mt-4 font-semibold text-tinta-900">Nenhum serviço por aqui ainda</p>
+              <p className="mt-1 max-w-xs text-sm text-tinta-500">Quando você agendar uma lavagem, ela aparece nesta lista.</p>
+              <button onClick={iniciarAgendamento} className="fw-btn-primario mt-5"><CalendarPlus size={17} /> Agendar agora</button>
+            </div>
+          ) : (
+            <>
+              {/* Celular: lista de cartões */}
+              <ul className="divide-y divide-tinta-100 md:hidden">
+                {ultimosAgendamentos.map((item) => (
+                  <li key={item.id} className="flex items-center gap-3 px-4 py-3.5">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-tinta-100 text-tinta-600"><Car size={18} /></span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate font-semibold text-tinta-900">{item.marca} {item.modelo}</p>
+                        <BadgeStatus status={item.status} />
+                      </div>
+                      <p className="mt-0.5 truncate text-sm text-tinta-500">{item.pacote_nome || 'Serviço avulso'}</p>
+                      <div className="mt-1 flex items-center justify-between text-xs text-tinta-500">
+                        <span>{formatarDataTabela(item)}</span>
+                        <span className="font-semibold text-tinta-800">{formatarValor(item.valor_total)}</span>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Computador: tabela */}
+              <div className="hidden md:block">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-tinta-50 text-xs uppercase tracking-wider text-tinta-500">
+                    <tr>
+                      <th className="px-6 py-3 font-semibold">Veículo</th>
+                      <th className="px-6 py-3 font-semibold">Serviço</th>
+                      <th className="px-6 py-3 font-semibold">Data</th>
+                      <th className="px-6 py-3 text-right font-semibold">Valor</th>
+                      <th className="px-6 py-3 font-semibold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-tinta-100">
+                    {ultimosAgendamentos.map((item) => (
+                      <tr key={item.id} className="transition-colors hover:bg-tinta-50/70">
+                        <td className="px-6 py-4">
+                          <span className="flex items-center gap-3">
+                            <span className="grid size-9 place-items-center rounded-lg bg-tinta-100 text-tinta-600"><Car size={16} /></span>
+                            <span className="font-semibold text-tinta-900">{item.marca} {item.modelo}</span>
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-tinta-600">{item.pacote_nome || 'Serviço avulso'}</td>
+                        <td className="px-6 py-4 text-tinta-600">{formatarDataTabela(item)}</td>
+                        <td className="px-6 py-4 text-right font-semibold text-tinta-900">{formatarValor(item.valor_total)}</td>
+                        <td className="px-6 py-4"><BadgeStatus status={item.status} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </section>
+
       </main>
 
       {/* ========================================== */}

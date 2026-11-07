@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Car, Check } from 'lucide-react';
+import { Car, ArrowRight, Sparkles } from 'lucide-react';
+import ModalPasso, { Marcador } from '../ui/ModalPasso';
 import { apiFetch, API_URL } from "../../utils/api";
 import { precoCentavos, formatarMoeda } from '../../utils/precos';
 
@@ -74,153 +75,105 @@ export default function EscolhaServicoCliente({ veiculos, selecoesIniciais = {},
     }));
     const todosComServico = veiculos.every(v => selecoes[v.id].pacoteId !== null);
 
-    const estiloOpcao = (ativo) => ({
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem',
-        padding: '0.75rem 1rem', borderRadius: '10px', cursor: 'pointer', border: '1px solid',
-        backgroundColor: ativo ? '#eff6ff' : '#ffffff',
-        borderColor: ativo ? '#3b82f6' : '#e2e8f0',
-        transition: 'all 0.2s'
-    });
-
-    const marcador = (ativo, redondo) => (
-        <div style={{
-            width: '20px', height: '20px', flexShrink: 0, borderRadius: redondo ? '50%' : '5px', border: '2px solid',
-            borderColor: ativo ? '#2563eb' : '#cbd5e1', backgroundColor: ativo ? '#2563eb' : 'transparent',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff'
-        }}>
-            {ativo && <Check size={12} strokeWidth={3} />}
-        </div>
-    );
-
     return (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', padding: '1rem' }}>
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', maxWidth: '700px', width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-
-                {/* Cabeçalho */}
-                <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc' }}>
+        <ModalPasso
+            passo={2}
+            titulo="Escolha os serviços"
+            subtitulo="O preço acompanha o porte de cada carro."
+            largura="sm:max-w-2xl"
+            aoFechar={aoCancelar}
+            aoVoltar={aoVoltar}
+            rodape={
+                <div className="flex items-center justify-between gap-3">
                     <div>
-                        <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '800', color: '#0f172a' }}>
-                            Serviços de cada veículo
-                        </h2>
-                        <span style={{ fontSize: '0.8rem', color: '#2563eb', fontWeight: '600' }}>
-                            Passo 2 de 4 • O preço segue o porte de cada carro
-                        </span>
+                        <p className="text-xs font-medium text-tinta-500">Total · {veiculos.length} {veiculos.length === 1 ? 'carro' : 'carros'}</p>
+                        <p className="font-display text-xl font-extrabold text-tinta-950">{formatarMoeda(totalCentavos)}</p>
                     </div>
-                    <button onClick={aoCancelar} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '1.5rem', cursor: 'pointer', fontWeight: 'bold' }}>
-                        &times;
+                    <button disabled={!todosComServico} onClick={() => aoAvancar(selecoes, montarResumo())} className="fw-btn-primario px-6">
+                        Continuar <ArrowRight size={17} />
                     </button>
                 </div>
+            }
+        >
+            <div className="space-y-5">
+                {carregando && (
+                    <div className="space-y-3">
+                        {[0, 1, 2].map(i => <div key={i} className="h-16 animate-pulse rounded-xl bg-tinta-100" />)}
+                    </div>
+                )}
 
-                {/* Conteúdo */}
-                <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                    {carregando && (
-                        <p style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Buscando os serviços disponíveis...</p>
-                    )}
+                {erro && <div className="fw-alerta-erro">{erro}</div>}
 
-                    {erro && (
-                        <div style={{ backgroundColor: '#fef2f2', color: '#dc2626', padding: '1rem', borderRadius: '8px', border: '1px solid #fecaca', fontSize: '0.9rem' }}>
-                            {erro}
-                        </div>
-                    )}
+                {!carregando && !erro && pacotes.length === 0 && (
+                    <p className="py-8 text-center text-sm text-tinta-500">Nenhum serviço disponível no momento.</p>
+                )}
 
-                    {!carregando && !erro && pacotes.length === 0 && (
-                        <p style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Nenhum serviço disponível no momento.</p>
-                    )}
-
-                    {!carregando && !erro && pacotes.length > 0 && veiculos.map((veiculo) => {
-                        const selecao = selecoes[veiculo.id];
-                        return (
-                            <div key={veiculo.id} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
-                                {/* Veículo */}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.85rem 1rem', backgroundColor: '#f1f5f9' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <Car size={18} color="#2563eb" />
-                                        <strong style={{ color: '#0f172a' }}>{veiculo.marca} {veiculo.modelo}</strong>
-                                        <span style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>{veiculo.placa}</span>
-                                    </div>
-                                    <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#1e40af', backgroundColor: '#dbeafe', padding: '0.2rem 0.6rem', borderRadius: '999px' }}>
-                                        Porte {veiculo.porte}
-                                    </span>
+                {!carregando && !erro && pacotes.length > 0 && veiculos.map((veiculo) => {
+                    const selecao = selecoes[veiculo.id];
+                    return (
+                        <div key={veiculo.id} className="overflow-hidden rounded-2xl border border-tinta-200">
+                            {/* Veículo */}
+                            <div className="flex items-center justify-between gap-3 bg-tinta-50 px-4 py-3">
+                                <div className="flex min-w-0 items-center gap-2.5">
+                                    <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white text-marca-600 ring-1 ring-tinta-200"><Car size={16} /></span>
+                                    <strong className="truncate text-tinta-900">{veiculo.marca} {veiculo.modelo}</strong>
+                                    <span className="hidden font-mono text-xs uppercase text-tinta-500 sm:inline">{veiculo.placa}</span>
                                 </div>
+                                <span className="shrink-0 rounded-full bg-marca-100 px-2.5 py-1 text-xs font-semibold text-marca-800">
+                                    Porte {veiculo.porte}
+                                </span>
+                            </div>
 
-                                <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Serviço (escolha 1)</span>
-                                    {pacotes.map((pacote) => {
-                                        const ativo = selecao.pacoteId === pacote.id;
-                                        return (
-                                            <div key={pacote.id} onClick={() => escolherPacote(veiculo.id, pacote.id)} style={estiloOpcao(ativo)}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                                    {marcador(ativo, true)}
-                                                    <div>
-                                                        <div style={{ fontWeight: '600', color: '#0f172a', fontSize: '0.95rem' }}>{pacote.nome}</div>
-                                                        {pacote.descricao && <div style={{ fontSize: '0.78rem', color: '#64748b' }}>{pacote.descricao}</div>}
-                                                    </div>
-                                                </div>
-                                                <span style={{ fontWeight: '700', color: '#15803d', whiteSpace: 'nowrap' }}>
-                                                    {formatarMoeda(precoCentavos(pacote, veiculo.porte))}
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
+                            <div className="space-y-2 p-4">
+                                <p className="fw-rotulo-secao">Lavagem · escolha 1</p>
+                                {pacotes.map((pacote) => {
+                                    const ativo = selecao.pacoteId === pacote.id;
+                                    return (
+                                        <button type="button" key={pacote.id} data-ativo={ativo} onClick={() => escolherPacote(veiculo.id, pacote.id)} className="fw-opcao">
+                                            <Marcador ativo={ativo} redondo />
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block font-semibold text-tinta-900">{pacote.nome}</span>
+                                                {pacote.descricao && <span className="block text-xs text-tinta-500">{pacote.descricao}</span>}
+                                            </span>
+                                            <span className="whitespace-nowrap font-semibold text-verde-700">
+                                                {formatarMoeda(precoCentavos(pacote, veiculo.porte))}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
 
-                                    {extras.length > 0 && (
-                                        <>
-                                            <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginTop: '0.5rem' }}>Extras (opcional)</span>
+                                {extras.length > 0 && (
+                                    <>
+                                        <p className="fw-rotulo-secao flex items-center gap-1.5 pt-3"><Sparkles size={13} className="text-ouro-500" /> Extras · opcional</p>
+                                        <div className="grid gap-2 sm:grid-cols-2">
                                             {extras.map((extra) => {
                                                 const ativo = selecao.extraIds.includes(extra.id);
                                                 return (
-                                                    <div key={extra.id} onClick={() => alternarExtra(veiculo.id, extra.id)} style={estiloOpcao(ativo)}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                                            {marcador(ativo, false)}
-                                                            <div style={{ fontWeight: '500', color: '#0f172a', fontSize: '0.9rem' }}>{extra.nome}</div>
-                                                        </div>
-                                                        <span style={{ fontWeight: '600', color: '#15803d', whiteSpace: 'nowrap' }}>
+                                                    <button type="button" key={extra.id} data-ativo={ativo} onClick={() => alternarExtra(veiculo.id, extra.id)} className="fw-opcao py-3">
+                                                        <Marcador ativo={ativo} />
+                                                        <span className="min-w-0 flex-1 text-sm font-medium text-tinta-900">{extra.nome}</span>
+                                                        <span className="whitespace-nowrap text-sm font-semibold text-verde-700">
                                                             + {formatarMoeda(precoCentavos(extra, veiculo.porte))}
                                                         </span>
-                                                    </div>
+                                                    </button>
                                                 );
                                             })}
-                                        </>
-                                    )}
-                                </div>
-
-                                {/* Subtotal do veículo */}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 1rem', borderTop: '1px dashed #e2e8f0', fontSize: '0.9rem' }}>
-                                    <span style={{ color: '#475569' }}>
-                                        {selecao.pacoteId === null ? 'Escolha um serviço para este carro' : 'Subtotal deste carro'}
-                                    </span>
-                                    <strong style={{ color: '#0f172a' }}>{formatarMoeda(subtotalCentavos(veiculo))}</strong>
-                                </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
-                        );
-                    })}
-                </div>
 
-                {/* Rodapé com total geral */}
-                <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e2e8f0', backgroundColor: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                    <button onClick={aoVoltar} style={{ padding: '0.75rem 1.25rem', borderRadius: '8px', fontWeight: '600', color: '#475569', backgroundColor: 'transparent', border: '1px solid #cbd5e1', cursor: 'pointer', fontSize: '0.85rem' }}>
-                        Voltar
-                    </button>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Total ({veiculos.length} veículo(s))</div>
-                            <div style={{ fontSize: '1.15rem', fontWeight: '800', color: '#0f172a' }}>{formatarMoeda(totalCentavos)}</div>
+                            {/* Subtotal do veículo */}
+                            <div className="flex items-center justify-between border-t border-dashed border-tinta-200 px-4 py-3 text-sm">
+                                <span className={selecao.pacoteId === null ? 'text-ouro-700' : 'text-tinta-500'}>
+                                    {selecao.pacoteId === null ? 'Escolha uma lavagem para este carro' : 'Subtotal deste carro'}
+                                </span>
+                                <strong className="text-tinta-950">{formatarMoeda(subtotalCentavos(veiculo))}</strong>
+                            </div>
                         </div>
-                        <button
-                            disabled={!todosComServico}
-                            onClick={() => aoAvancar(selecoes, montarResumo())}
-                            style={{
-                                padding: '0.75rem 1.5rem', borderRadius: '8px', fontWeight: '700', color: '#ffffff', border: 'none', fontSize: '0.85rem',
-                                backgroundColor: todosComServico ? '#0f172a' : '#cbd5e1',
-                                cursor: todosComServico ? 'pointer' : 'not-allowed'
-                            }}
-                        >
-                            Próximo
-                        </button>
-                    </div>
-                </div>
+                    );
+                })}
             </div>
-        </div>
+        </ModalPasso>
     );
 }

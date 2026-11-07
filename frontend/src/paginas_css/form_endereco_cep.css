@@ -1,12 +1,13 @@
 /* Formulário de endereço com CEP (componentes/FormEnderecoCep.jsx) */
 
 .fe-form {
-  --fe-texto: #0f172a;
-  --fe-rotulo: #334155;
-  --fe-borda: #cbd5e1;
+  --fe-texto: var(--color-tinta-900, #111827);
+  --fe-rotulo: var(--color-tinta-700, #364154);
+  --fe-borda: var(--color-tinta-200, #dfe4ec);
   --fe-fundo: #ffffff;
-  --fe-suave: #94a3b8;
-  --fe-azul: #2563eb;
+  --fe-suave: var(--color-tinta-400, #95a1b3);
+  --fe-azul: var(--color-marca-600, #1d56e6);
+  --fe-anel: var(--color-marca-100, #d9e8ff);
 
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -27,6 +28,7 @@
   --fe-fundo: #0f172a;
   --fe-suave: #64748b;
   --fe-azul: #3b82f6;
+  --fe-anel: rgba(59, 130, 246, 0.25);
 }
 
 .fe-campo {
@@ -45,22 +47,20 @@
 .fe-uf { grid-column: span 2; }
 
 .fe-campo label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--fe-rotulo);
 }
 
 .fe-campo input {
   width: 100%;
-  height: 40px;
-  padding: 0 0.75rem;
+  height: 44px;
+  padding: 0 0.875rem;
   border: 1px solid var(--fe-borda);
-  border-radius: 8px;
+  border-radius: 0.75rem;
   background: var(--fe-fundo);
   color: var(--fe-texto);
-  font-size: 0.9rem;
+  font-size: 15px;
   font-family: inherit;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
@@ -70,7 +70,7 @@
 .fe-campo input:focus {
   outline: none;
   border-color: var(--fe-azul);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+  box-shadow: 0 0 0 4px var(--fe-anel);
 }
 
 .fe-campo input:disabled { opacity: 0.6; }
@@ -83,11 +83,11 @@
 .fe-cep-linha input { flex: 1; }
 
 .fe-cep-linha button {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
   border: none;
-  border-radius: 8px;
+  border-radius: 0.75rem;
   background: var(--fe-azul);
   color: #ffffff;
   display: grid;
@@ -108,8 +108,8 @@
 
 /* Versão compacta (dentro do modal de agendamento) */
 .fe-compacto { gap: 0.6rem; }
-.fe-compacto .fe-campo input { height: 36px; font-size: 0.85rem; }
-.fe-compacto .fe-cep-linha button { width: 36px; height: 36px; }
+.fe-compacto .fe-campo input { height: 42px; font-size: 15px; }
+.fe-compacto .fe-cep-linha button { width: 42px; height: 42px; }
 
 @media (max-width: 420px) {
   .fe-numero { grid-column: span 3; }
