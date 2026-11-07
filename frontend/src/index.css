@@ -149,6 +149,27 @@
   .fw-opcao[aria-disabled="true"] {
     @apply cursor-not-allowed opacity-55 hover:border-tinta-200 hover:bg-white;
   }
+  /* Tabelas do painel */
+  .fw-tabela {
+    @apply w-full text-left text-sm;
+  }
+  .fw-tabela thead {
+    @apply bg-tinta-50 text-[11px] uppercase tracking-wider text-tinta-500;
+  }
+  .fw-tabela th {
+    @apply whitespace-nowrap px-4 py-3 font-semibold first:pl-5 last:pr-5;
+  }
+  .fw-tabela td {
+    @apply border-t border-tinta-100 px-4 py-3.5 align-middle text-tinta-700 first:pl-5 last:pr-5;
+  }
+  .fw-tabela tbody tr {
+    @apply transition-colors hover:bg-tinta-50/70;
+  }
+
+  /* Placa de carro */
+  .fw-placa {
+    @apply inline-block rounded-md border border-tinta-300 bg-white px-1.5 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-tinta-800;
+  }
 }
 
 @layer base {

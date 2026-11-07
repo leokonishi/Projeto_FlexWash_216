@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Edit2, Trash2, Car } from 'lucide-react';
-import '../paginas_css/gestao_clientes.css';
+import { Search, Edit2, Trash2, Car, UserPlus, Users, Check } from 'lucide-react';
+import CabecalhoPagina, { Secao } from '../componentes/ui/CabecalhoPagina';
 import { aplicarMascaraCPF, aplicarMascaraTelefone, aplicarMascaraPlaca } from '../utils/mascaras';
 import ModalFrota from '../componentes/ModalFrota';
 import { apiFetch } from '../utils/api';
@@ -108,127 +108,126 @@ export default function GestaoClientes({ abrirAlerta }) {
     return matchGeral && matchPlaca;
   });
   
-  return (
-    <div className="clientes-layout">
-      <aside>
-        <div className="clientes-card">
-          <h2 className="clientes-card-titulo">Cadastrar Cliente</h2>
-          <p className="clientes-card-subtitulo">Insira um novo cliente no sistema para vinculação de frotas e veículos.</p>
-          
-          <form onSubmit={handleSubmit}>
-            <div className="form-cliente-grupo">
-              <label>CPF (ÚNICO / CHAVE)</label>
-              <input type="text" placeholder="000.000.000-00" value={cpf} onChange={(e) => setCpf(aplicarMascaraCPF(e.target.value))} required />
-            </div>
-            <div className="form-cliente-grupo">
-              <label>NOME COMPLETO</label>
-              <input type="text" placeholder="Ex: Roberto Carlos" value={nome} onChange={(e) => setNome(e.target.value)} required />
-            </div>
-            <div className="form-cliente-grupo">
-              <label>E-MAIL</label>
-              <input type="email" placeholder="Ex: roberto@gmail.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
-            <div className="form-cliente-grupo">
-              <label>TELEFONE</label>
-              <input type="text" placeholder="Ex: (11) 99999-9999" value={telefone} onChange={(e) => setTelefone(aplicarMascaraTelefone(e.target.value))} required />
-            </div>
-            <div className="form-cliente-grupo">
-              <label>ENDEREÇO</label>
-              <input type="text" placeholder="Ex: Av. Paulista, 1000 - SP" value={endereco} onChange={(e) => setEndereco(e.target.value)} />
-            </div>
-            <button type="submit" className="btn-confirmar-cadastro">Confirmar Cadastro</button>
-          </form>
-        </div>
-      </aside>
+  const iniciais = (nome) => nome.split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase();
 
-      <main>
-        <div className="clientes-card">
-          <h2 className="clientes-card-titulo">Clientes Cadastrados</h2>
-          <p className="clientes-card-subtitulo">Busca, gerenciamento de contatos e controle de frotas associadas.</p>
-          
-          <div className="busca-filtros">
-            <div className="input-busca-wrapper">
-              <label>FILTRO POR CLIENTE (NOME / CPF)</label>
-              <Search size={16} className="icone-busca" />
-              <input type="text" placeholder="Buscar por Nome ou CPF..." value={buscaGeral} onChange={(e) => setBuscaGeral(e.target.value)} />
+  return (
+    <div className="mx-auto max-w-7xl">
+      <CabecalhoPagina titulo="Clientes" subtitulo="Cadastro de clientes, contatos e frotas de veículos." />
+
+      <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <Secao titulo="Novo cliente" icone={UserPlus} className="self-start">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="gc-cpf" className="fw-label">CPF</label>
+              <input id="gc-cpf" className="fw-input" type="text" inputMode="numeric" placeholder="000.000.000-00" value={cpf} onChange={(e) => setCpf(aplicarMascaraCPF(e.target.value))} required />
             </div>
-            <div className="input-busca-wrapper">
-              <label>FILTRO POR VEÍCULO (PLACA)</label>
-              <Search size={16} className="icone-busca" />
-              <input type="text" placeholder="DIGITE A PLACA (EX: BRA2E19)..." value={buscaPlaca} onChange={(e) => setBuscaPlaca(aplicarMascaraPlaca(e.target.value))} />
+            <div>
+              <label htmlFor="gc-nome" className="fw-label">Nome completo</label>
+              <input id="gc-nome" className="fw-input" type="text" placeholder="Ex: Roberto Carlos" value={nome} onChange={(e) => setNome(e.target.value)} required />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+              <div>
+                <label htmlFor="gc-tel" className="fw-label">Telefone</label>
+                <input id="gc-tel" className="fw-input" type="text" inputMode="tel" placeholder="(11) 99999-9999" value={telefone} onChange={(e) => setTelefone(aplicarMascaraTelefone(e.target.value))} required />
+              </div>
+              <div>
+                <label htmlFor="gc-email" className="fw-label">E-mail <span className="font-normal text-tinta-400">(opcional)</span></label>
+                <input id="gc-email" className="fw-input" type="email" placeholder="roberto@gmail.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="gc-end" className="fw-label">Endereço <span className="font-normal text-tinta-400">(opcional)</span></label>
+              <input id="gc-end" className="fw-input" type="text" placeholder="Av. Paulista, 1000 - SP" value={endereco} onChange={(e) => setEndereco(e.target.value)} />
+            </div>
+            <button type="submit" className="fw-btn-primario w-full"><Check size={17} /> Cadastrar cliente</button>
+          </form>
+        </Secao>
+
+        <Secao
+          titulo="Clientes cadastrados"
+          icone={Users}
+          acoes={!carregando && <span className="rounded-full bg-marca-50 px-2.5 py-1 text-xs font-bold text-marca-700">{clientesFiltrados.length}</span>}
+          semPadding
+        >
+          <div className="grid gap-3 border-b border-tinta-100 p-4 sm:grid-cols-2 sm:px-5">
+            <div className="relative">
+              <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-tinta-400" />
+              <input className="fw-input pl-10" type="text" placeholder="Buscar por nome ou CPF" value={buscaGeral} onChange={(e) => setBuscaGeral(e.target.value)} aria-label="Buscar por nome ou CPF" />
+            </div>
+            <div className="relative">
+              <Car size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-tinta-400" />
+              <input className="fw-input pl-10 font-mono uppercase placeholder:font-sans placeholder:normal-case" type="text" placeholder="Placa (ex: BRA2E19)" value={buscaPlaca} onChange={(e) => setBuscaPlaca(aplicarMascaraPlaca(e.target.value))} aria-label="Buscar por placa" />
             </div>
           </div>
 
-          <div className="tabela-clientes-wrapper">
-            {carregando ? (
-               <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>A carregar clientes...</div>
-            ) : (
-              <table className="tabela-clientes">
+          {carregando ? (
+            <div className="space-y-3 p-5">{[0, 1, 2].map(i => <div key={i} className="h-14 animate-pulse rounded-xl bg-tinta-100" />)}</div>
+          ) : clientesFiltrados.length === 0 ? (
+            <p className="px-5 py-12 text-center text-sm text-tinta-500">Nenhum cliente encontrado.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="fw-tabela">
                 <thead>
                   <tr>
-                    <th>CPF</th>
-                    <th>NOME</th>
-                    <th>CONTATO / E-MAIL</th>
-                    <th>ENDEREÇO</th>
-                    <th>FROTA DE VEÍCULOS</th>
-                    <th>AÇÕES</th>
+                    <th>Cliente</th>
+                    <th className="hidden sm:table-cell">Contato</th>
+                    <th className="hidden 2xl:table-cell">Endereço</th>
+                    <th>Frota</th>
+                    <th className="text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {clientesFiltrados.map(cliente => (
                     <tr key={cliente.id}>
-                      <td><strong>{cliente.cpf}</strong></td>
-                      <td><strong>{cliente.nome}</strong></td>
                       <td>
-                        <strong>{cliente.telefone}</strong>
-                        <span className="sub-texto">{cliente.email}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-marca-50 text-xs font-bold text-marca-700">{iniciais(cliente.nome)}</span>
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-tinta-900">{cliente.nome}</p>
+                            <p className="text-xs text-tinta-500">{cliente.cpf}</p><p className="text-xs text-tinta-500 sm:hidden">{cliente.telefone}</p>
+                          </div>
+                        </div>
                       </td>
-                      <td><span className="sub-texto" style={{marginTop: 0}}>{cliente.endereco}</span></td>
+                      <td className="hidden sm:table-cell">
+                        <p className="whitespace-nowrap font-medium text-tinta-800">{cliente.telefone}</p>
+                        {cliente.email && <p className="text-xs text-tinta-500">{cliente.email}</p>}
+                      </td>
+                      <td className="hidden max-w-[240px] truncate text-xs text-tinta-500 2xl:table-cell">{cliente.endereco || '—'}</td>
                       <td>
-                        {/* ALTERAÇÃO AQUI: Botão dinâmico com badge */}
-                        <button 
-  className={`btn-frota ${cliente.frota > 0 ? 'ativa' : ''}`} 
-  onClick={() => setClienteSelecionadoFrota(cliente)}
->
-  <Car size={14} /> 
-  Frota 
-  {cliente.frota > 0 ? (
-    <span className="badge-contador">{cliente.frota}</span>
-  ) : (
-    ' (0)'
-  )}
-</button>
+                        <button
+                          onClick={() => setClienteSelecionadoFrota(cliente)}
+                          className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                            cliente.frota > 0 ? 'bg-marca-50 text-marca-700 hover:bg-marca-100' : 'bg-tinta-100 text-tinta-500 hover:bg-tinta-200'
+                          }`}
+                        >
+                          <Car size={14} /> {cliente.frota > 0 ? `${cliente.frota} ${cliente.frota === 1 ? 'carro' : 'carros'}` : 'Sem carros'}
+                        </button>
                       </td>
                       <td>
-                        <div className="acoes-td">
-                          <button className="pc-btn-acao"><Edit2 size={16} /></button>
+                        <div className="flex justify-end gap-1">
+                          <button className="grid size-9 place-items-center rounded-lg text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" title="Editar" aria-label="Editar"><Edit2 size={16} /></button>
                           {perfilUsuario === 'administrador' && (
-                            <button className="pc-btn-acao" onClick={() => handleExcluir(cliente)}><Trash2 size={16} /></button>
+                            <button className="fw-btn-perigo" onClick={() => handleExcluir(cliente)} title="Desativar" aria-label="Desativar"><Trash2 size={16} /></button>
                           )}
                         </div>
                       </td>
                     </tr>
                   ))}
-                  {clientesFiltrados.length === 0 && (
-                    <tr>
-                      <td colSpan="6" style={{textAlign: 'center', padding: '2rem', color: '#64748b'}}>Nenhum cliente encontrado.</td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
-            )}
-          </div>
-        </div>
-      </main>
+            </div>
+          )}
+        </Secao>
+      </div>
 
       {clienteSelecionadoFrota && (
-        <ModalFrota 
-          cliente={clienteSelecionadoFrota} 
-          /* ALTERAÇÃO AQUI: Atualiza a lista principal ao fechar o modal */
+        <ModalFrota
+          cliente={clienteSelecionadoFrota}
+          /* Atualiza a lista principal ao fechar o modal */
           fecharModal={() => {
             setClienteSelecionadoFrota(null);
             buscarClientes();
-          }} 
+          }}
           abrirAlerta={abrirAlerta}
         />
       )}

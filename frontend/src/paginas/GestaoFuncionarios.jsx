@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
-import '../paginas_css/gestao_funcionarios.css';
+import { Search, UserPlus, Users, Trash2, Check, Loader2, Wrench } from 'lucide-react';
+import CabecalhoPagina, { Secao } from '../componentes/ui/CabecalhoPagina';
 
+// Os textos são gravados no banco como estão: não mudar a grafia sem migrar os dados
 const FUNCOES_DISPONIVEIS = [
   'Lavagem Geral',
   'Polimento / Estetica',
@@ -11,7 +13,21 @@ const FUNCOES_DISPONIVEIS = [
   'Atendimento / Patio'
 ];
 
-export default function GestaoFuncionarios() {
+// Só para exibir com acento (o valor salvo continua o de cima)
+const ROTULO_FUNCAO = {
+  'Polimento / Estetica': 'Polimento / Estética',
+  'Higienizacao Interna': 'Higienização Interna',
+  'Atendimento / Patio': 'Atendimento / Pátio'
+};
+const rotuloFuncao = (f) => ROTULO_FUNCAO[f] || f;
+
+export default function GestaoFuncionarios({ abrirAlerta }) {
+  // Avisos no modal do painel (cai no alert do navegador se a tela for usada fora dele)
+  const avisar = (titulo, mensagem, tipo = 'aviso') => {
+    if (abrirAlerta) abrirAlerta(titulo, mensagem, () => {}, tipo);
+    else alert(mensagem);
+  };
+
   // Mesma porta padrão do backend/server.js (8080) usada nas demais telas
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -75,7 +91,7 @@ export default function GestaoFuncionarios() {
     e.preventDefault();
 
     if (formulario.funcoes.length === 0) {
-      alert('Selecione pelo menos uma funcao para o funcionario.');
+      avisar('Atenção', 'Selecione pelo menos uma função para o funcionário.');
       return;
     }
 
@@ -99,7 +115,7 @@ export default function GestaoFuncionarios() {
       if (!resposta.ok) throw new Error(json.mensagem || 'Erro ao cadastrar funcionario');
 
       setFuncionarios((prev) => [...prev, json.dados]);
-      alert('Funcionario cadastrado com sucesso!');
+      avisar('Sucesso', 'Funcionário cadastrado com sucesso!');
       setFormulario({
         cpf: '',
         nome: '',
@@ -109,15 +125,13 @@ export default function GestaoFuncionarios() {
         senha: ''
       });
     } catch (erro) {
-      alert(erro.message);
+      avisar('Erro', erro.message, 'perigo');
     } finally {
       setEnviando(false);
     }
   };
 
-  const handleExcluir = async (id, nome) => {
-    if (!window.confirm(`Deseja remover o funcionario ${nome}?`)) return;
-
+  const excluirNoServidor = async (id) => {
     try {
       const resposta = await apiFetch(`${API_URL}/api/funcionarios/${id}`, {
         method: 'DELETE'
@@ -128,7 +142,15 @@ export default function GestaoFuncionarios() {
 
       setFuncionarios((prev) => prev.filter((item) => item.id !== id));
     } catch (erro) {
-      alert(erro.message);
+      avisar('Erro', erro.message, 'perigo');
+    }
+  };
+
+  const handleExcluir = (id, nome) => {
+    if (abrirAlerta) {
+      abrirAlerta('Remover funcionário', `Deseja remover o funcionário ${nome}?`, () => excluirNoServidor(id), 'perigo');
+    } else if (window.confirm(`Deseja remover o funcionário ${nome}?`)) {
+      excluirNoServidor(id);
     }
   };
 
@@ -141,200 +163,141 @@ export default function GestaoFuncionarios() {
     return buscaNomeCpf && buscaFuncao;
   });
 
+  const campo = (name, rotulo, props = {}) => (
+    <div>
+      <label htmlFor={`gf-${name}`} className="fw-label">{rotulo}</label>
+      <input id={`gf-${name}`} name={name} className="fw-input" value={formulario[name]} onChange={handleInputChange} required {...props} />
+    </div>
+  );
+
   return (
-    <div className="gf-grid-container">
-      {/* Coluna Esquerda: Cadastro */}
-      <div className="gf-card-formulario">
-        <h2 className="gf-titulo-card">Cadastrar Funcionario</h2>
-        <p className="gf-subtitulo-card">
-          Insira um colaborador e atribua uma ou mais funcoes operacionais. As comissoes sao calculadas por servico executado.
-        </p>
+    <div className="mx-auto max-w-7xl">
+      <CabecalhoPagina
+        titulo="Funcionários"
+        subtitulo="Cadastre a equipe e as funções de cada um. As comissões são calculadas por serviço executado."
+      />
 
-        <form onSubmit={handleSubmit} className="gf-form">
-          <div className="gf-form-group">
-            <label>CPF (UNICO / CHAVE)</label>
-            <input
-              type="text"
-              name="cpf"
-              placeholder="000.000.000-00"
-              value={formulario.cpf}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
+      <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
+        <Secao titulo="Novo funcionário" icone={UserPlus} className="self-start">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {campo('nome', 'Nome completo', { type: 'text', placeholder: 'Ex: Marcos Souza' })}
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+              {campo('cpf', 'CPF', { type: 'text', placeholder: '000.000.000-00', inputMode: 'numeric' })}
+              {campo('telefone', 'Telefone', { type: 'text', placeholder: '(11) 99999-9999', inputMode: 'tel' })}
+            </div>
+            {campo('email', 'E-mail', { type: 'email', placeholder: 'marcos@flexwash.com' })}
 
-          <div className="gf-form-group">
-            <label>NOME COMPLETO</label>
-            <input
-              type="text"
-              name="nome"
-              placeholder="Ex: Marcos Souza"
-              value={formulario.nome}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
+            <div>
+              <span className="fw-label">Funções <span className="font-normal text-tinta-400">(uma ou mais)</span></span>
+              <div className="flex flex-wrap gap-2">
+                {FUNCOES_DISPONIVEIS.map((funcao) => {
+                  const selecionado = formulario.funcoes.includes(funcao);
+                  return (
+                    <button
+                      type="button"
+                      key={funcao}
+                      onClick={() => toggleFuncao(funcao)}
+                      aria-pressed={selecionado}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                        selecionado ? 'border-marca-500 bg-marca-50 text-marca-800' : 'border-tinta-200 bg-white text-tinta-600 hover:border-marca-300'
+                      }`}
+                    >
+                      {selecionado && <Check size={14} className="text-marca-600" />}
+                      {rotuloFuncao(funcao)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-          <div className="gf-form-group">
-            <label>E-MAIL</label>
-            <input
-              type="email"
-              name="email"
-              placeholder="Ex: marcos@flexwash.com"
-              value={formulario.email}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
+            {campo('senha', 'Senha de acesso', { type: 'password', placeholder: 'Mínimo 6 caracteres', autoComplete: 'new-password' })}
 
-          <div className="gf-form-group">
-            <label>TELEFONE</label>
-            <input
-              type="text"
-              name="telefone"
-              placeholder="Ex: (11) 99999-9999"
-              value={formulario.telefone}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
+            <button type="submit" className="fw-btn-primario w-full" disabled={enviando}>
+              {enviando ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />}
+              {enviando ? 'Cadastrando...' : 'Cadastrar funcionário'}
+            </button>
+          </form>
+        </Secao>
 
-          <div className="gf-form-group">
-            <label>FUNCOES ATRIBUIDAS (SELECIONE UMA OU MAIS)</label>
-            <div className="gf-funcoes-grid">
-              {FUNCOES_DISPONIVEIS.map((funcao) => {
-                const selecionado = formulario.funcoes.includes(funcao);
-                return (
-                  <label
-                    key={funcao}
-                    className={selecionado ? 'gf-checkbox-card ativo' : 'gf-checkbox-card'}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selecionado}
-                      onChange={() => toggleFuncao(funcao)}
-                    />
-                    <span>{funcao}</span>
-                  </label>
-                );
-              })}
+        <Secao
+          titulo="Equipe"
+          icone={Users}
+          acoes={!carregando && <span className="rounded-full bg-marca-50 px-2.5 py-1 text-xs font-bold text-marca-700">{funcionariosFiltrados.length}</span>}
+          semPadding
+        >
+          <div className="grid gap-3 border-b border-tinta-100 p-4 sm:grid-cols-2 sm:px-5">
+            <div className="relative">
+              <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-tinta-400" />
+              <input className="fw-input pl-10" type="text" placeholder="Buscar por nome ou CPF" value={filtroNomeCpf} onChange={(e) => setFiltroNomeCpf(e.target.value)} aria-label="Buscar por nome ou CPF" />
+            </div>
+            <div className="relative">
+              <Wrench size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-tinta-400" />
+              <input className="fw-input pl-10" type="text" placeholder="Filtrar por função" value={filtroFuncao} onChange={(e) => setFiltroFuncao(e.target.value)} aria-label="Filtrar por função" />
             </div>
           </div>
 
-          <div className="gf-form-group">
-            <label>SENHA DE ACESSO</label>
-            <input
-              type="password"
-              name="senha"
-              placeholder="Minimo 6 caracteres"
-              value={formulario.senha}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
-
-          <button type="submit" className="gf-btn-confirmar" disabled={enviando}>
-            {enviando ? 'Cadastrando...' : 'Confirmar Cadastro'}
-          </button>
-        </form>
-      </div>
-
-      {/* Coluna Direita: Listagem */}
-      <div className="gf-card-listagem">
-        <h2 className="gf-titulo-card">Funcionarios Cadastrados</h2>
-        <p className="gf-subtitulo-card">
-          Busca, gerenciamento de contatos e controle de funcoes habilitadas para comissionamento por servico.
-        </p>
-
-        <div className="gf-barra-filtros">
-          <div className="gf-filtro-item">
-            <label>FILTRO POR FUNCIONARIO (NOME / CPF)</label>
-            <input
-              type="text"
-              placeholder="Buscar por Nome ou CPF..."
-              value={filtroNomeCpf}
-              onChange={(e) => setFiltroNomeCpf(e.target.value)}
-            />
-          </div>
-
-          <div className="gf-filtro-item">
-            <label>FILTRO POR FUNCAO ATRIBUIDA</label>
-            <input
-              type="text"
-              placeholder="DIGITE A FUNCAO (EX: POLIMENTO, MOTOR)..."
-              value={filtroFuncao}
-              onChange={(e) => setFiltroFuncao(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="gf-tabela-wrapper">
           {carregando ? (
-            <div className="gf-aviso-vazio">Carregando equipe...</div>
+            <div className="space-y-3 p-5">{[0, 1, 2].map(i => <div key={i} className="h-14 animate-pulse rounded-xl bg-tinta-100" />)}</div>
+          ) : funcionariosFiltrados.length === 0 ? (
+            <p className="px-5 py-12 text-center text-sm text-tinta-500">Nenhum funcionário encontrado.</p>
           ) : (
-            <table className="gf-tabela">
-              <thead>
-                <tr>
-                  <th>CPF</th>
-                  <th>NOME</th>
-                  <th>CONTATO / E-MAIL</th>
-                  <th>FUNCOES HABILITADAS</th>
-                  <th>REGRA DE COMISSAO</th>
-                  <th>ACOES</th>
-                </tr>
-              </thead>
-              <tbody>
-                {funcionariosFiltrados.length === 0 ? (
+            <div className="overflow-x-auto">
+              <table className="fw-tabela">
+                <thead>
                   <tr>
-                    <td colSpan="6" className="gf-aviso-vazio">
-                      Nenhum funcionario cadastrado no banco de dados.
-                    </td>
+                    <th>Funcionário</th>
+                    <th className="hidden sm:table-cell">Contato</th>
+                    <th>Funções</th>
+                    <th className="hidden md:table-cell">Comissão</th>
+                    <th />
                   </tr>
-                ) : (
-                  funcionariosFiltrados.map((func) => {
+                </thead>
+                <tbody>
+                  {funcionariosFiltrados.map((func) => {
                     const listaFuncoes = Array.isArray(func.funcoes)
                       ? func.funcoes
                       : String(func.funcoes || '').split(',').map((f) => f.trim()).filter(Boolean);
 
                     return (
                       <tr key={func.id}>
-                        <td className="gf-td-cpf">{func.cpf}</td>
-                        <td className="gf-td-nome">
-                          <strong>{func.nome}</strong>
+                        <td>
+                          <div className="flex items-center gap-3">
+                            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-tinta-950 text-xs font-bold text-ouro-300">
+                              {func.nome.split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase()}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="truncate font-semibold text-tinta-900">{func.nome}</p>
+                              <p className="whitespace-nowrap text-xs text-tinta-500">{func.cpf}</p><p className="whitespace-nowrap text-xs text-tinta-500 sm:hidden">{func.telefone}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="hidden sm:table-cell">
+                          <p className="whitespace-nowrap font-medium text-tinta-800">{func.telefone}</p>
+                          <p className="text-xs text-tinta-500">{func.email}</p>
                         </td>
                         <td>
-                          <div className="gf-contato-tel">{func.telefone}</div>
-                          <div className="gf-contato-email">{func.email}</div>
-                        </td>
-                        <td>
-                          <div className="gf-tags-funcoes">
+                          <div className="flex max-w-xs flex-wrap gap-1">
                             {listaFuncoes.map((fn, idx) => (
-                              <span key={idx} className="gf-tag-funcao">
-                                {fn}
-                              </span>
+                              <span key={idx} className="rounded-md bg-tinta-100 px-2 py-0.5 text-xs font-medium text-tinta-700">{rotuloFuncao(fn)}</span>
                             ))}
                           </div>
                         </td>
-                        <td>
-                          <span className="gf-badge-comissao">Por Servico</span>
+                        <td className="hidden md:table-cell">
+                          <span className="whitespace-nowrap rounded-full bg-ouro-50 px-2.5 py-1 text-xs font-semibold text-ouro-700 ring-1 ring-inset ring-ouro-200">Por serviço</span>
                         </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="gf-btn-acao"
-                            onClick={() => handleExcluir(func.id, func.nome)}
-                          >
-                            Excluir
+                        <td className="text-right">
+                          <button type="button" className="fw-btn-perigo" onClick={() => handleExcluir(func.id, func.nome)} title="Remover" aria-label={`Remover ${func.nome}`}>
+                            <Trash2 size={16} />
                           </button>
                         </td>
                       </tr>
                     );
-                  })
-                )}
-              </tbody>
-            </table>
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
-        </div>
+        </Secao>
       </div>
     </div>
   );
