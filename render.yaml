@@ -1,0 +1,33 @@
+# Blueprint do Render: cria o backend (API Node/Express) a partir deste repositório.
+# No Render: New > Blueprint > escolha o repositório. Os valores com "sync: false"
+# são pedidos na tela (segredos não ficam no Git).
+services:
+  - type: web
+    name: flexwash-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/saude
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_SSL_CA
+        sync: false
+      - key: DB_POOL_LIMIT
+        value: "5"
+      - key: CORS_ORIGIN
+        sync: false

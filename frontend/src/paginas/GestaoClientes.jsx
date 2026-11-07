@@ -3,12 +3,11 @@ import { Search, Edit2, Trash2, Car, UserPlus, Users, Check } from 'lucide-react
 import CabecalhoPagina, { Secao } from '../componentes/ui/CabecalhoPagina';
 import { aplicarMascaraCPF, aplicarMascaraTelefone, aplicarMascaraPlaca } from '../utils/mascaras';
 import ModalFrota from '../componentes/ModalFrota';
-import { apiFetch } from '../utils/api';
+import { apiFetch, API_URL } from '../utils/api';
 import { obterPerfil } from '../utils/sessao';
 
 export default function GestaoClientes({ abrirAlerta }) {
   const perfilUsuario = obterPerfil() || 'funcionario'; // lido do token
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
   // Estados dos inputs
   const [cpf, setCpf] = useState('');

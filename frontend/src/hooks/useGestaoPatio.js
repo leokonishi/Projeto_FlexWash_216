@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { apiFetch } from '../utils/api';
+import { apiFetch, API_URL } from '../utils/api';
 
 export function useGestaoPatio(abrirAlerta) {
   const [metricas, setMetricas] = useState({
@@ -11,7 +11,6 @@ export function useGestaoPatio(abrirAlerta) {
   const [carregando, setCarregando] = useState(true);
   const mudandoStatusRef = useRef(new Set()); // ids com mudança de status em andamento (evita clique duplo)
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
   const alertar = (tit, msg, func, tipo) => {
     if (abrirAlerta) abrirAlerta(tit, msg, func, tipo);

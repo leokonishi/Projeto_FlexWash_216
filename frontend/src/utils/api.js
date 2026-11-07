@@ -1,6 +1,8 @@
 import { lerToken, obterPerfil, encerrarSessao, rotaDeLogin } from './sessao';
 
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+// Endereço do backend. Em produção vem de VITE_API_URL (definida no painel da Vercel/Netlify
+// ANTES do build); no computador cai no localhost. A barra final é removida para não gerar "//api".
+export const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8080').trim().replace(/\/+$/, '');
 
 // Substituto do fetch para chamadas à NOSSA API:
 //  - anexa o token (Authorization: Bearer) automaticamente;

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
 import LayoutAcesso from '../componentes/ui/LayoutAcesso';
+import { API_URL } from '../utils/api';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -20,8 +21,6 @@ export default function Login() {
     setErro(null);
     setEnviando(true);
 
-    // Define a URL base da API (pega da Vercel em produção ou usa o localhost para testes)
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
     try {
       const resposta = await fetch(`${API_URL}/api/login/cliente`, {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trash2, Car, Plus } from 'lucide-react';
 import ModalPasso from './ui/ModalPasso';
 import { aplicarMascaraPlaca } from '../utils/mascaras';
-import { apiFetch } from '../utils/api';
+import { apiFetch, API_URL } from '../utils/api';
 
 // Adicionámos a prop 'atualizarClientes' aqui em cima
 export default function ModalFrota({ cliente, fecharModal, abrirAlerta, atualizarClientes }) {
@@ -18,7 +18,6 @@ export default function ModalFrota({ cliente, fecharModal, abrirAlerta, atualiza
   const [cor, setCor] = useState('');
   const [porte, setPorte] = useState('Médio');
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
   useEffect(() => {
     const buscarDados = async () => {
@@ -46,7 +45,7 @@ export default function ModalFrota({ cliente, fecharModal, abrirAlerta, atualiza
     };
     
     buscarDados();
-  }, [cliente.id, API_URL]);
+  }, [cliente.id]);
 
   const handleAdicionarVeiculo = async () => {
     if (!modelo || !placaInput || !cor) {
