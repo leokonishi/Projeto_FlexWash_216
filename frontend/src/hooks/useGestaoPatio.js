@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../utils/api';
 
 export function useGestaoPatio(abrirAlerta) {
@@ -9,6 +9,7 @@ export function useGestaoPatio(abrirAlerta) {
   const [listaPatio, setListaPatio] = useState([]);
   const [proximosAgendamentos, setProximosAgendamentos] = useState([]); // a partir de amanhã
   const [carregando, setCarregando] = useState(true);
+  const mudandoStatusRef = useRef(new Set()); // ids com mudança de status em andamento (evita clique duplo)
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -71,7 +72,8 @@ export function useGestaoPatio(abrirAlerta) {
     // Agendado -> Aguardando (carro chegou) -> Em Andamento -> Finalizado
     const proximoStatus = { 'Agendado': 'Aguardando', 'Aguardando': 'Em Andamento', 'Em Andamento': 'Finalizado' };
     const novoStatus = proximoStatus[statusAtual];
-    if (!novoStatus) return;
+    if (!novoStatus || mudandoStatusRef.current.has(idServico)) return;
+    mudandoStatusRef.current.add(idServico);
     try {
       const res = await apiFetch(`${API_URL}/api/execucoes/${idServico}/status`, {
         method: 'PUT',
@@ -87,6 +89,8 @@ export function useGestaoPatio(abrirAlerta) {
       buscarDadosDoPatio();
     } catch (erro) {
       console.error(erro);
+    } finally {
+      mudandoStatusRef.current.delete(idServico);
     }
   };
 

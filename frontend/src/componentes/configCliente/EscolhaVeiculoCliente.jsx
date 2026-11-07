@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { apiFetch, API_URL } from "../../utils/api";
 import { PlusCircle, Car, Trash2, ArrowRight, Check, Loader2 } from 'lucide-react';
 import ModalPasso, { Marcador } from '../ui/ModalPasso';
@@ -25,6 +25,7 @@ export default function EscolhaVeiculoCliente({ veiculosIniciais = [], aoAvancar
         porte: 'Médio'
     });
     const [salvando, setSalvando] = useState(false);
+    const salvandoRef = useRef(false); // trava imediata contra clique duplo
     const [erroCadastro, setErroCadastro] = useState(null);
 
     // Veículos do cliente logado (o backend usa o id do token)
@@ -68,7 +69,19 @@ export default function EscolhaVeiculoCliente({ veiculosIniciais = [], aoAvancar
 
     const lidarComCadastroVeiculo = async (e) => {
         e.preventDefault();
+        if (salvandoRef.current) return;
         setErroCadastro(null);
+
+        // Campos obrigatórios (só espaços não conta)
+        const faltando = [['marca', 'marca'], ['modelo', 'modelo'], ['placa', 'placa'], ['cor', 'cor'], ['porte', 'porte']]
+            .filter(([campo]) => !String(novoVeiculo[campo] || '').trim())
+            .map(([, nome]) => nome);
+        if (faltando.length > 0) {
+            setErroCadastro(`Preencha: ${faltando.join(', ')}.`);
+            return;
+        }
+
+        salvandoRef.current = true;
         setSalvando(true);
 
         try {
@@ -92,6 +105,7 @@ export default function EscolhaVeiculoCliente({ veiculosIniciais = [], aoAvancar
         } catch (erro) {
             setErroCadastro('Erro de conexão ao salvar o veículo.');
         } finally {
+            salvandoRef.current = false;
             setSalvando(false);
         }
     };

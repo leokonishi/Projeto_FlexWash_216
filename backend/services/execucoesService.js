@@ -5,6 +5,11 @@ const { avaliarLevaTras } = require('./logistica');
 const MAX_VEICULOS_POR_ENTRADA = 20;
 const TIPOS_LOGISTICA = ['cliente_leva', 'leva_tras'];
 
+// Status de um carro que está no pátio (chegou e ainda não foi finalizado).
+// Regra: cada carro só pode ter UM serviço nesses status por vez. Agendamentos
+// futuros ('Agendado') podem ser vários.
+const STATUS_NO_PATIO = ['Aguardando', 'Em Andamento'];
+
 // Aceita número inteiro positivo ou string só com dígitos (o <select> do frontend envia string).
 function inteiroPositivo(valor) {
   if (typeof valor === 'number') return Number.isInteger(valor) && valor > 0 ? valor : null;
@@ -50,11 +55,12 @@ function normalizarEntrada(corpo) {
     if (vistos.has(veiculoId)) throw new ErroNegocio('O mesmo veículo foi enviado mais de uma vez.');
     vistos.add(veiculoId);
 
-    let pacoteId = null;
-    if (v.pacote_id !== undefined && v.pacote_id !== null && v.pacote_id !== '') {
-      pacoteId = inteiroPositivo(v.pacote_id);
-      if (pacoteId === null) throw new ErroNegocio('Pacote inválido na entrada.');
+    // O pacote é obrigatório para cada carro (mesma regra do agendamento do cliente)
+    if (v.pacote_id === undefined || v.pacote_id === null || v.pacote_id === '') {
+      throw new ErroNegocio('Escolha o pacote de cada veículo.');
     }
+    const pacoteId = inteiroPositivo(v.pacote_id);
+    if (pacoteId === null) throw new ErroNegocio('Pacote inválido na entrada.');
 
     return {
       veiculoId,
@@ -80,6 +86,37 @@ async function buscarPorIds(conn, sql, ids, paramsAntes = []) {
 function exigirTodos(mapa, ids, status, mensagem) {
   const faltando = ids.filter((id) => !mapa.has(id));
   if (faltando.length > 0) throw new ErroNegocio(`${mensagem}: ${faltando.join(', ')}.`, status);
+}
+
+const nomeDoCarro = (v) => `${v.marca} ${v.modelo}${v.placa ? ` (${v.placa})` : ''}`;
+
+// Garante que nenhum dos veículos já está no pátio (Aguardando / Em Andamento).
+// Deve rodar dentro de uma transação: trava as linhas dos veículos (FOR UPDATE), então
+// duas entradas do mesmo carro ao mesmo tempo (ex.: clique duplo) ficam uma na fila da
+// outra, e a segunda já enxerga a primeira e é recusada.
+// `ignorarExecucaoId`: a própria execução que está mudando de status.
+async function exigirForaDoPatio(conn, veiculoIds, { ignorarExecucaoId = null } = {}) {
+  if (veiculoIds.length === 0) return;
+  await conn.execute(`SELECT id FROM veiculos WHERE id IN (${marcadores(veiculoIds)}) FOR UPDATE`, veiculoIds);
+
+  const [abertas] = await conn.execute(
+    `SELECT e.id, e.status, v.marca, v.modelo, v.placa
+       FROM execucoes e
+       JOIN veiculos v ON v.id = e.veiculo_id
+      WHERE e.veiculo_id IN (${marcadores(veiculoIds)})
+        AND e.status IN (${marcadores(STATUS_NO_PATIO)})
+        AND e.id <> ?
+      LIMIT 1
+      FOR UPDATE`,
+    [...veiculoIds, ...STATUS_NO_PATIO, ignorarExecucaoId ?? 0]
+  );
+  if (abertas.length > 0) {
+    const a = abertas[0];
+    throw new ErroNegocio(
+      `O ${nomeDoCarro(a)} já está no pátio (${a.status}). Finalize o serviço atual antes de abrir outro para ele.`,
+      409
+    );
+  }
 }
 
 // Registra a entrada de 1..N veículos no pátio.
@@ -110,7 +147,7 @@ async function registrarEntrada(db, corpo) {
     await conn.beginTransaction();
 
     const veiculoIds = itens.map((i) => i.veiculoId);
-    const pacoteIds = [...new Set(itens.map((i) => i.pacoteId).filter((id) => id !== null))];
+    const pacoteIds = [...new Set(itens.map((i) => i.pacoteId))];
     const extraIds = [...new Set(itens.flatMap((i) => i.extraIds))];
     const funcionarioIds = [...new Set(itens.flatMap((i) => i.funcionarioIds))];
 
@@ -121,6 +158,9 @@ async function registrarEntrada(db, corpo) {
       [clienteId]
     );
     exigirTodos(veiculos, veiculoIds, 404, 'Veículo(s) não encontrado(s) para este cliente');
+
+    // Um carro só pode ter um serviço aberto no pátio por vez
+    await exigirForaDoPatio(conn, veiculoIds);
 
     const pacotes = await buscarPorIds(
       conn,
@@ -154,7 +194,7 @@ async function registrarEntrada(db, corpo) {
     for (const item of itens) {
       const centavos = calcularValorCentavos({
         porte: veiculos.get(item.veiculoId).porte,
-        pacote: item.pacoteId === null ? null : pacotes.get(item.pacoteId),
+        pacote: pacotes.get(item.pacoteId),
         extras: item.extraIds.map((id) => extras.get(id))
       }) + taxaCentavos;
       const valorTotal = centavosParaDecimal(centavos);
@@ -195,6 +235,9 @@ async function registrarEntrada(db, corpo) {
 module.exports = {
   registrarEntrada,
   normalizarEntrada,
+  exigirForaDoPatio,
+  nomeDoCarro,
+  STATUS_NO_PATIO,
   MAX_VEICULOS_POR_ENTRADA,
   // reaproveitados pelo agendamento do cliente (services/agendamentoService.js)
   inteiroPositivo,
