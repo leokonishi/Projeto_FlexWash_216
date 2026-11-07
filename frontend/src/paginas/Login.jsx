@@ -1,15 +1,25 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import '../paginas_css/login.css';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
+import LayoutAcesso from '../componentes/ui/LayoutAcesso';
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState(null);
+
+  // Vindo do cadastro concluído
+  const recemCadastrado = location.state?.cadastrado;
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    
+    setErro(null);
+    setEnviando(true);
+
     // Define a URL base da API (pega da Vercel em produção ou usa o localhost para testes)
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -24,63 +34,72 @@ export default function Login() {
 
       if (resposta.ok) {
         localStorage.setItem('token_flexwash', resultado.token);
-
-        alert(resultado.mensagem || 'Login realizado com sucesso!');
         navigate('/PaginaCliente');
       } else {
-        alert(resultado.mensagem || 'E-mail ou senha inválidos.');
+        setErro(resultado.mensagem || 'E-mail ou senha inválidos.');
       }
     } catch (erro) {
       console.error('Erro na requisição:', erro);
-      alert('Não foi possível conectar ao servidor.');
+      setErro('Não foi possível conectar ao servidor.');
+    } finally {
+      setEnviando(false);
     }
-
   };
 
   return (
-    <div className="container-login">
-      <div className="cartao-login">
-        
-        <div className="cabecalho-login">
-          <h1 className="titulo-login">Flex<span>Wash</span></h1>
-          <p className="subtitulo-login">Faça login para acessar o painel</p>
+    <LayoutAcesso
+      titulo="Bem-vindo de volta"
+      subtitulo="Entre para agendar e acompanhar a lavagem do seu carro."
+      rodape={<>Ainda não tem conta? <Link to="/cadastro" className="font-semibold text-marca-600 hover:text-marca-700">Criar conta</Link></>}
+    >
+      <form onSubmit={handleLogin} className="space-y-4">
+        {recemCadastrado && !erro && (
+          <div className="fw-alerta-sucesso">Conta criada! Agora é só entrar com o seu e-mail e senha.</div>
+        )}
+        {erro && <div className="fw-alerta-erro" role="alert">{erro}</div>}
+
+        <div>
+          <label htmlFor="login-email" className="fw-label">E-mail</label>
+          <input
+            id="login-email"
+            type="email"
+            required
+            autoComplete="email"
+            className="fw-input"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="seu.email@exemplo.com"
+          />
         </div>
 
-        <form onSubmit={handleLogin} className="formulario-login">
-          <div className="grupo-campo-login">
-            <label>E-mail</label>
-            <input 
-              type="email" 
+        <div>
+          <label htmlFor="login-senha" className="fw-label">Senha</label>
+          <div className="relative">
+            <input
+              id="login-senha"
+              type={mostrarSenha ? 'text' : 'password'}
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu.email@exemplo.com"
-            />
-          </div>
-
-          <div className="grupo-campo-login">
-            <label>Senha</label>
-            <input 
-              type="password" 
-              required
+              autoComplete="current-password"
+              className="fw-input pr-11"
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
               placeholder="••••••••"
             />
+            <button
+              type="button"
+              onClick={() => setMostrarSenha((v) => !v)}
+              className="absolute inset-y-0 right-0 grid w-11 place-items-center text-tinta-400 hover:text-tinta-700"
+              aria-label={mostrarSenha ? 'Esconder senha' : 'Mostrar senha'}
+            >
+              {mostrarSenha ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
-
-          <button type="submit" className="botao-entrar">
-            Entrar
-          </button>
-        </form>
-
-        <div className="rodape-login">
-          <p>
-            Não tem uma conta? <Link to="/cadastro">Cadastre-se</Link>
-          </p>
         </div>
 
-      </div>
-    </div>
+        <button type="submit" disabled={enviando} className="fw-btn-primario mt-2 h-12 w-full text-[15px]">
+          {enviando ? <Loader2 size={18} className="animate-spin" /> : <>Entrar <ArrowRight size={18} /></>}
+        </button>
+      </form>
+    </LayoutAcesso>
   );
 }

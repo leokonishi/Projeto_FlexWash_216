@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import '../paginas_css/cadastro_cliente.css';
+import { Loader2, ArrowRight, MapPin } from 'lucide-react';
 import { aplicarMascaraCPF, aplicarMascaraTelefone } from '../utils/mascaras'; // Importando as máscaras reutilizáveis!
 import FormEnderecoCep from '../componentes/FormEnderecoCep';
+import LayoutAcesso from '../componentes/ui/LayoutAcesso';
 import { ENDERECO_VAZIO, enderecoCompleto, enderecoVazio, partesParaApi } from '../utils/endereco';
 
 export default function CadastroCliente() {
   const navigate = useNavigate();
-  
-  // 1. Atualizamos o estado para incluir CPF e Endereço
+
   const [formulario, setFormulario] = useState({
     cpf: '',
     nome: '',
@@ -18,29 +18,34 @@ export default function CadastroCliente() {
   });
   // Endereço (opcional no cadastro, usado no leva e traz), com busca pelo CEP
   const [endereco, setEndereco] = useState(ENDERECO_VAZIO);
+  const [mostrarEndereco, setMostrarEndereco] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState(null);
 
-  // 2. Intercetamos a digitação para aplicar as máscaras em tempo real
+  // Aplica as máscaras em tempo real
   const aoMudarCampo = (e) => {
     let { name, value } = e.target;
-    
+
     if (name === 'cpf') value = aplicarMascaraCPF(value);
     if (name === 'telefone') value = aplicarMascaraTelefone(value);
-    
+
     setFormulario({ ...formulario, [name]: value });
   };
 
   const aoEnviarFormulario = async (e) => {
     e.preventDefault();
+    setErro(null);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
     // Endereço é opcional, mas se começou a preencher, precisa estar completo
     if (!enderecoVazio(endereco) && !enderecoCompleto(endereco)) {
-      alert('Complete o endereço (CEP, rua, número, bairro, cidade e UF) ou deixe todos os campos em branco.');
+      setErro('Complete o endereço (CEP, rua, número, bairro, cidade e UF) ou deixe todos os campos em branco.');
       return;
     }
     const dados = { ...formulario, ...(enderecoCompleto(endereco) ? { endereco_partes: partesParaApi(endereco) } : {}) };
 
+    setEnviando(true);
     try {
       const resposta = await fetch(`${API_URL}/api/clientes`, {
         method: 'POST',
@@ -53,102 +58,74 @@ export default function CadastroCliente() {
       const resultado = await resposta.json();
 
       if (resposta.ok) {
-        alert(resultado.mensagem || 'Cliente cadastrado com sucesso!');
-        navigate('/Login');
+        navigate('/login', { state: { cadastrado: true } });
       } else {
-        // Agora, se o cliente tentar usar um e-mail ou CPF já existente, ele verá o alerta formatado do backend!
-        alert(resultado.erro || 'Erro ao realizar cadastro.');
+        // E-mail ou CPF já existente: mostra a mensagem do backend
+        setErro(resultado.erro || 'Erro ao realizar cadastro.');
       }
     } catch (erro) {
       console.error('Erro na conexão com o servidor:', erro);
-      alert('Não foi possível conectar ao servidor backend.');
+      setErro('Não foi possível conectar ao servidor.');
+    } finally {
+      setEnviando(false);
     }
   };
 
-  return (
-    <div className="container-cadastro-cliente">
-      <div className="cartao-cadastro-cliente">
-        <h1 className="titulo-cadastro-cliente">Flex Wash Cliente</h1>
-        <p className="subtitulo-cadastro-cliente">Gestão Inteligente de Estética Automotiva</p>
-
-        <form onSubmit={aoEnviarFormulario}>
-          
-          {/* NOVO CAMPO: CPF */}
-          <div className="grupo-campo">
-            <label>CPF</label>
-            <input
-              type="text"
-              name="cpf"
-              required
-              value={formulario.cpf}
-              onChange={aoMudarCampo}
-              placeholder="000.000.000-00"
-            />
-          </div>
-
-          <div className="grupo-campo">
-            <label>Nome Completo</label>
-            <input
-              type="text"
-              name="nome"
-              required
-              value={formulario.nome}
-              onChange={aoMudarCampo}
-              placeholder="Digite seu nome completo"
-            />
-          </div>
-
-          <div className="grupo-campo">
-            <label>E-mail</label>
-            <input
-              type="email"
-              name="email"
-              required
-              value={formulario.email}
-              onChange={aoMudarCampo}
-              placeholder="seu.email@exemplo.com"
-            />
-          </div>
-
-          <div className="grupo-campo">
-            <label>Telefone / WhatsApp</label>
-            <input
-              type="text"
-              name="telefone"
-              required
-              value={formulario.telefone}
-              onChange={aoMudarCampo}
-              placeholder="(11) 99999-9999"
-            />
-          </div>
-
-          {/* Endereço (para o leva e traz): opcional, com busca pelo CEP */}
-          <div className="grupo-campo">
-            <label>Endereço <span style={{ textTransform: 'none', fontWeight: 500, color: '#64748b' }}>(opcional, para o leva e traz)</span></label>
-            <FormEnderecoCep valor={endereco} aoMudar={setEndereco} tema="escuro" />
-          </div>
-
-          <div className="grupo-campo">
-            <label>Senha de Acesso</label>
-            <input
-              type="password"
-              name="senha"
-              required
-              value={formulario.senha}
-              onChange={aoMudarCampo}
-              placeholder="••••••••"
-            />
-          </div>
-
-          <button type="submit" className="botao-cadastrar-cliente">
-            Cadastrar Cliente &rarr;
-          </button>
-        </form>
-
-        <p className="rodape-cliente">
-          Já tem uma conta? <Link to="/Login">Faça login</Link>
-        </p>
-      </div>
+  const campo = (name, rotulo, { wrapper = '', ...props } = {}) => (
+    <div className={wrapper}>
+      <label htmlFor={`cad-${name}`} className="fw-label">{rotulo}</label>
+      <input
+        id={`cad-${name}`}
+        name={name}
+        required
+        className="fw-input"
+        value={formulario[name]}
+        onChange={aoMudarCampo}
+        {...props}
+      />
     </div>
+  );
+
+  return (
+    <LayoutAcesso
+      titulo="Crie sua conta"
+      subtitulo="Leva menos de um minuto. Depois é só agendar."
+      rodape={<>Já tem uma conta? <Link to="/login" className="font-semibold text-marca-600 hover:text-marca-700">Entrar</Link></>}
+    >
+      <form onSubmit={aoEnviarFormulario} className="grid grid-cols-2 gap-4">
+        {erro && <div className="fw-alerta-erro col-span-2" role="alert">{erro}</div>}
+
+        {campo('nome', 'Nome completo', { placeholder: 'Como podemos te chamar?', autoComplete: 'name', wrapper: 'col-span-2' })}
+        {campo('cpf', 'CPF', { placeholder: '000.000.000-00', inputMode: 'numeric', wrapper: 'col-span-2 sm:col-span-1' })}
+        {campo('telefone', 'WhatsApp', { placeholder: '(11) 99999-9999', inputMode: 'tel', autoComplete: 'tel', wrapper: 'col-span-2 sm:col-span-1' })}
+        {campo('email', 'E-mail', { type: 'email', placeholder: 'seu.email@exemplo.com', autoComplete: 'email', wrapper: 'col-span-2' })}
+        {campo('senha', 'Senha', { type: 'password', placeholder: 'Crie uma senha', autoComplete: 'new-password', wrapper: 'col-span-2' })}
+
+        {/* Endereço (para o leva e traz): opcional, com busca pelo CEP */}
+        <div className="col-span-2 rounded-2xl border border-dashed border-tinta-200 bg-tinta-50/60 p-4">
+          {mostrarEndereco ? (
+            <>
+              <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-tinta-800">
+                <MapPin size={16} className="text-marca-600" /> Endereço para o leva e traz
+                <span className="font-normal text-tinta-400">(opcional)</span>
+              </p>
+              <FormEnderecoCep valor={endereco} aoMudar={setEndereco} />
+            </>
+          ) : (
+            <button type="button" onClick={() => setMostrarEndereco(true)} className="flex w-full items-center gap-3 text-left">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-marca-50 text-marca-600"><MapPin size={18} /></span>
+              <span>
+                <span className="block text-sm font-semibold text-tinta-800">Adicionar endereço</span>
+                <span className="block text-xs text-tinta-500">Opcional. Usado quando buscamos o carro na sua casa.</span>
+              </span>
+            </button>
+          )}
+        </div>
+
+        <button type="submit" disabled={enviando} className="fw-btn-primario col-span-2 mt-1 h-12 w-full text-[15px]">
+          {enviando ? <Loader2 size={18} className="animate-spin" /> : <>Criar conta <ArrowRight size={18} /></>}
+        </button>
+      </form>
+    </LayoutAcesso>
   );
 }

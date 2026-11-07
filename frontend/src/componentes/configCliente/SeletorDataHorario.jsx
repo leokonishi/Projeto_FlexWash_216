@@ -15,8 +15,6 @@ export const formatarDataBr = (dataIso) => {
     return `${dia}/${mes}/${ano}`;
 };
 
-const rotulo = { display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' };
-
 // Data + grade de horários com as vagas de GET /api/agendamentos/horarios.
 // `ocupadosNoPedido` (Map 'HH:MM' -> n) desconta as vagas que outros carros deste mesmo
 // agendamento já escolheram nessa data.
@@ -63,28 +61,27 @@ export default function SeletorDataHorario({ data, horario, onChange, ocupadosNo
     }, [data]);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: compacto ? '0.6rem' : '1.25rem' }}>
+        <div className={compacto ? 'space-y-3' : 'space-y-5'}>
             <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                    <label style={rotulo}><Calendar size={14} /> Data do Atendimento</label>
-                    {!compacto && <span style={{ fontSize: '0.8rem', fontWeight: '600', color: '#2563eb' }}>Selecionada: {formatarDataBr(data)}</span>}
-                </div>
+                <label className="fw-rotulo-secao mb-2 flex items-center gap-1.5"><Calendar size={13} /> Data</label>
                 <input
                     type="date"
                     min={hoje}
                     value={data}
                     onChange={(e) => onChange({ data: e.target.value, horario })}
-                    style={{ width: '100%', padding: compacto ? '0.55rem' : '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.95rem', backgroundColor: '#f8fafc', boxSizing: 'border-box' }}
+                    className="fw-input"
                 />
             </div>
 
             <div>
-                {!compacto && <label style={{ ...rotulo, marginBottom: '0.5rem' }}><Clock size={14} /> Horário de início</label>}
-                {erro && <p style={{ margin: 0, fontSize: '0.85rem', color: '#dc2626' }}>{erro}</p>}
+                {!compacto && <label className="fw-rotulo-secao mb-2 flex items-center gap-1.5"><Clock size={13} /> Horário de início</label>}
+                {erro && <p className="text-sm text-red-600">{erro}</p>}
                 {carregando ? (
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Buscando vagas...</p>
+                    <div className={`grid gap-2 ${compacto ? 'grid-cols-4 sm:grid-cols-5' : 'grid-cols-3 sm:grid-cols-4'}`}>
+                        {Array.from({ length: compacto ? 5 : 8 }).map((_, i) => <div key={i} className="h-14 animate-pulse rounded-xl bg-tinta-100" />)}
+                    </div>
                 ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${compacto ? 5 : 3}, 1fr)`, gap: '0.4rem' }}>
+                    <div className={`grid gap-2 ${compacto ? 'grid-cols-4 sm:grid-cols-5' : 'grid-cols-3 sm:grid-cols-4'}`}>
                         {horarios.map((h) => {
                             const selecionado = horario === h.horario;
                             const livres = vagasLivres(h);
@@ -95,19 +92,17 @@ export default function SeletorDataHorario({ data, horario, onChange, ocupadosNo
                                     type="button"
                                     disabled={!livre}
                                     onClick={() => onChange({ data, horario: h.horario })}
-                                    style={{
-                                        padding: compacto ? '0.4rem 0.2rem' : '0.55rem', borderRadius: '8px', border: '1px solid', fontWeight: '600',
-                                        fontSize: compacto ? '0.8rem' : '0.9rem',
-                                        cursor: livre ? 'pointer' : 'not-allowed',
-                                        backgroundColor: selecionado ? '#eff6ff' : livre ? '#ffffff' : '#f1f5f9',
-                                        borderColor: selecionado ? '#3b82f6' : '#e2e8f0',
-                                        color: selecionado ? '#1e40af' : livre ? '#475569' : '#94a3b8',
-                                        transition: 'all 0.2s'
-                                    }}
+                                    className={`flex flex-col items-center justify-center rounded-xl border py-2 transition-all ${
+                                        selecionado
+                                            ? 'border-marca-600 bg-marca-600 text-white shadow-md shadow-marca-600/25'
+                                            : livre
+                                                ? 'border-tinta-200 bg-white text-tinta-800 hover:border-marca-300 hover:bg-marca-50'
+                                                : 'cursor-not-allowed border-tinta-100 bg-tinta-50 text-tinta-300'
+                                    }`}
                                 >
-                                    {h.horario}
-                                    <span style={{ display: 'block', fontSize: '0.68rem', fontWeight: '500' }}>
-                                        {h.passado ? 'Encerrado' : selecionado ? 'Escolhido' : livres > 0 ? `${livres} vaga(s)` : 'Lotado'}
+                                    <span className={`font-semibold ${compacto ? 'text-sm' : 'text-[15px]'}`}>{h.horario}</span>
+                                    <span className={`text-[11px] ${selecionado ? 'text-marca-100' : livre ? (livres === 1 ? 'text-ouro-600' : 'text-verde-600') : ''}`}>
+                                        {h.passado ? 'Encerrado' : selecionado ? 'Escolhido' : livres > 0 ? `${livres} ${livres === 1 ? 'vaga' : 'vagas'}` : 'Lotado'}
                                     </span>
                                 </button>
                             );

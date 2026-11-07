@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch, API_URL } from "../../utils/api";
-import { PlusCircle, Car, Trash2 } from 'lucide-react';
+import { PlusCircle, Car, Trash2, ArrowRight, Check, Loader2 } from 'lucide-react';
+import ModalPasso, { Marcador } from '../ui/ModalPasso';
 
 // Passo 1 do agendamento: o cliente escolhe UM OU MAIS veículos (o preço depende do porte de cada um)
 export default function EscolhaVeiculoCliente({ veiculosIniciais = [], aoAvancar, aoCancelar }) {
@@ -130,291 +131,178 @@ export default function EscolhaVeiculoCliente({ veiculosIniciais = [], aoAvancar
     const veiculosSelecionados = veiculos.filter(v => idsSelecionados.includes(v.id));
     const podeAvancar = veiculosSelecionados.length > 0;
 
+    const campoVeiculo = (rotulo, conteudo) => (
+        <div>
+            <label className="fw-label">{rotulo}</label>
+            {conteudo}
+        </div>
+    );
+
     return (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', padding: '1rem' }}>
-            
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', maxWidth: '650px', width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                
-                {/* Cabeçalho */}
-                <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc' }}>
-                    <div>
-                        <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '800', color: '#0f172a' }}>
-                            {modoCadastro ? 'Cadastrar Novo Veículo' : 'Quais veículos vamos lavar?'}
-                        </h2>
-                        <span style={{ fontSize: '0.8rem', color: '#2563eb', fontWeight: '600' }}>
-                            Passo 1 de 4 • Pode escolher mais de um veículo
-                        </span>
-                    </div>
-                    <button 
-                        onClick={aoCancelar}
-                        style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '1.5rem', cursor: 'pointer', fontWeight: 'bold' }}
-                    >
-                        &times;
+        <ModalPasso
+            passo={1}
+            titulo={modoCadastro ? 'Novo veículo' : 'Quais carros vamos lavar?'}
+            subtitulo={modoCadastro ? 'Cadastre o carro uma vez e ele fica salvo na sua garagem.' : 'Pode escolher mais de um.'}
+            aoFechar={aoCancelar}
+            aoVoltar={modoCadastro ? () => setModoCadastro(false) : null}
+            rodape={!modoCadastro && (
+                <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-medium text-tinta-500">
+                        {veiculosSelecionados.length === 0
+                            ? 'Nenhum selecionado'
+                            : `${veiculosSelecionados.length} ${veiculosSelecionados.length === 1 ? 'carro selecionado' : 'carros selecionados'}`}
+                    </span>
+                    <button disabled={!podeAvancar} onClick={() => aoAvancar(veiculosSelecionados)} className="fw-btn-primario px-6">
+                        Continuar <ArrowRight size={17} />
                     </button>
                 </div>
-
-                {/* Conteúdo */}
-                <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
-                    
-                    {!modoCadastro && (
-                        <>
-                            {carregando && (
-                                <div style={{ textAlign: 'center', padding: '2.5rem', color: '#64748b' }}>
-                                    <p>Carregando os seus veículos...</p>
-                                </div>
-                            )}
-                            
-                            {erro && (
-                                <div style={{ backgroundColor: '#fef2f2', color: '#dc2626', padding: '1rem', borderRadius: '8px', border: '1px solid #fecaca', marginBottom: '1rem', fontSize: '0.9rem' }}>
-                                    {erro}
-                                </div>
-                            )}
-
-                            {!carregando && !erro && (
-                                <div>
-                                    {veiculos.length === 0 ? (
-                                        <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
-                                            <p style={{ color: '#475569', fontWeight: '600', marginBottom: '0.5rem' }}>Ainda não tem nenhum veículo cadastrado.</p>
-                                            <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Cadastre o seu carro agora mesmo para prosseguir com o agendamento.</p>
-                                        </div>
-                                    ) : (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                                            {veiculos.map((veiculo) => {
-                                                const isSelecionado = idsSelecionados.includes(veiculo.id);
-
-                                                return (
-                                                    <div 
-                                                        key={veiculo.id}
-                                                        onClick={() => alternarSelecao(veiculo.id)}
-                                                        style={{ 
-                                                            display: 'flex', 
-                                                            justifyContent: 'space-between', 
-                                                            alignItems: 'center', 
-                                                            padding: '1.25rem', 
-                                                            borderRadius: '12px', 
-                                                            cursor: 'pointer', 
-                                                            border: '1px solid',
-                                                            backgroundColor: isSelecionado ? '#eff6ff' : '#ffffff',
-                                                            borderColor: isSelecionado ? '#3b82f6' : '#e2e8f0',
-                                                            boxShadow: isSelecionado ? '0 1px 3px rgba(59, 130, 246, 0.2)' : 'none',
-                                                            transition: 'all 0.2s'
-                                                        }}
-                                                    >
-                                                        <div>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                                                                <Car size={18} color={isSelecionado ? '#2563eb' : '#64748b'} />
-                                                                <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1rem', fontWeight: '600' }}>
-                                                                    {veiculo.marca} {veiculo.modelo}
-                                                                </h4>
-                                                            </div>
-                                                            <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem' }}>
-                                                                <span>Cor: <strong style={{ color: '#334155' }}>{veiculo.cor}</strong></span>
-                                                                <span>PLACA: <strong style={{ color: '#334155', textTransform: 'uppercase' }}>{veiculo.placa}</strong></span>
-                                                                <span>Porte: <strong style={{ color: '#334155', textTransform: 'capitalize' }}>{veiculo.porte || 'Médio'}</strong></span>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Botões à direita: Tag de seleção e Botão de Excluir */}
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                                            <button 
-                                                                type="button"
-                                                                onClick={(e) => lidarComExclusaoVeiculo(e, veiculo.id, `${veiculo.marca} ${veiculo.modelo}`)}
-                                                                title="Remover veículo"
-                                                                style={{ padding: '0.45rem', backgroundColor: '#ffe4e6', border: '1px solid #fecdd3', color: '#e11d48', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}
-                                                            >
-                                                                <Trash2 size={16} />
-                                                            </button>
-
-                                                            <div style={{ 
-                                                                width: '24px', 
-                                                                height: '24px', 
-                                                                borderRadius: '6px', 
-                                                                border: '2px solid', 
-                                                                borderColor: isSelecionado ? '#2563eb' : '#cbd5e1',
-                                                                backgroundColor: isSelecionado ? '#2563eb' : 'transparent',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center',
-                                                                color: '#ffffff',
-                                                                fontSize: '0.75rem',
-                                                                fontWeight: 'bold'
-                                                            }}>
-                                                                {isSelecionado && '✓'}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-
-                                    <button 
-                                        onClick={() => setModoCadastro(true)}
-                                        style={{ 
-                                            width: '100%', 
-                                            padding: '0.85rem', 
-                                            border: '1px dashed #cbd5e1', 
-                                            backgroundColor: '#f8fafc', 
-                                            color: '#2563eb', 
-                                            fontWeight: '600', 
-                                            borderRadius: '10px', 
-                                            cursor: 'pointer', 
-                                            display: 'flex', 
-                                            alignItems: 'center', 
-                                            justifyContent: 'center', 
-                                            gap: '0.5rem', 
-                                            fontSize: '0.9rem',
-                                            transition: 'background 0.2s'
-                                        }}
-                                    >
-                                        <PlusCircle size={18} />
-                                        Cadastrar Novo Veículo
-                                    </button>
-                                </div>
-                            )}
-                        </>
+            )}
+        >
+            {!modoCadastro && (
+                <>
+                    {carregando && (
+                        <div className="space-y-3">
+                            {[0, 1].map(i => <div key={i} className="h-[76px] animate-pulse rounded-xl bg-tinta-100" />)}
+                        </div>
                     )}
 
-                    {/* Formulário de Cadastro */}
-                    {modoCadastro && (
-                        <form onSubmit={lidarComCadastroVeiculo} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {erroCadastro && (
-                                <div style={{ backgroundColor: '#fef2f2', color: '#dc2626', padding: '0.75rem', borderRadius: '8px', border: '1px solid #fecaca', fontSize: '0.85rem' }}>
-                                    {erroCadastro}
+                    {erro && <div className="fw-alerta-erro mb-4">{erro}</div>}
+
+                    {!carregando && !erro && (
+                        <div className="space-y-3">
+                            {veiculos.length === 0 ? (
+                                <div className="flex flex-col items-center px-4 py-8 text-center">
+                                    <span className="grid size-14 place-items-center rounded-2xl bg-marca-50 text-marca-600"><Car size={26} /></span>
+                                    <p className="mt-4 font-semibold text-tinta-900">Sua garagem está vazia</p>
+                                    <p className="mt-1 text-sm text-tinta-500">Cadastre o seu carro para continuar o agendamento.</p>
                                 </div>
+                            ) : (
+                                veiculos.map((veiculo) => {
+                                    const isSelecionado = idsSelecionados.includes(veiculo.id);
+                                    return (
+                                        <div
+                                            key={veiculo.id}
+                                            role="checkbox"
+                                            aria-checked={isSelecionado}
+                                            tabIndex={0}
+                                            data-ativo={isSelecionado}
+                                            onClick={() => alternarSelecao(veiculo.id)}
+                                            onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); alternarSelecao(veiculo.id); } }}
+                                            className="fw-opcao"
+                                        >
+                                            <span className={`grid size-11 shrink-0 place-items-center rounded-xl transition-colors ${isSelecionado ? 'bg-marca-600 text-white' : 'bg-tinta-100 text-tinta-500'}`}>
+                                                <Car size={20} />
+                                            </span>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate font-semibold text-tinta-900">{veiculo.marca} {veiculo.modelo}</p>
+                                                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-tinta-500">
+                                                    <span className="rounded-md border border-tinta-300 bg-white px-1.5 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-tinta-800">{veiculo.placa}</span>
+                                                    <span>{veiculo.cor}</span>
+                                                    <span className="text-tinta-300">•</span>
+                                                    <span>Porte {veiculo.porte || 'Médio'}</span>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => lidarComExclusaoVeiculo(e, veiculo.id, `${veiculo.marca} ${veiculo.modelo}`)}
+                                                title="Remover veículo"
+                                                aria-label={`Remover ${veiculo.marca} ${veiculo.modelo}`}
+                                                className="fw-btn-perigo"
+                                            >
+                                                <Trash2 size={17} />
+                                            </button>
+                                            <Marcador ativo={isSelecionado} />
+                                        </div>
+                                    );
+                                })
                             )}
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.3rem', textTransform: 'uppercase' }}>Marca</label>
-                                    <select 
-                                        value={novoVeiculo.marca}
-                                        onChange={(e) => setNovoVeiculo({...novoVeiculo, marca: e.target.value})}
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', backgroundColor: '#f8fafc', cursor: 'pointer', boxSizing: 'border-box' }}
-                                    >
-                                        {listaMarcas.length > 0 ? (
-                                            listaMarcas.map(m => (
-                                                <option key={m.codigo} value={m.nome}>{m.nome}</option>
-                                            ))
-                                        ) : (
-                                            <>
-                                                <option>Audi</option><option>BMW</option><option>Chevrolet</option>
-                                                <option>Fiat</option><option>Ford</option><option>Honda</option>
-                                                <option>Hyundai</option><option>Jeep</option><option>Toyota</option>
-                                                <option>Volkswagen</option>
-                                            </>
-                                        )}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.3rem', textTransform: 'uppercase' }}>Modelo</label>
-                                    <input 
-                                        type="text" 
-                                        required
-                                        placeholder="Ex: Civic LX 2003"
-                                        value={novoVeiculo.modelo}
-                                        onChange={(e) => setNovoVeiculo({...novoVeiculo, modelo: e.target.value})}
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', backgroundColor: '#f8fafc', boxSizing: 'border-box' }}
-                                    />
-                                </div>
-                            </div>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.3rem', textTransform: 'uppercase' }}>Placa</label>
-                                    <input 
-                                        type="text" 
-                                        required
-                                        placeholder="ABC1D23"
-                                        value={novoVeiculo.placa}
-                                        onChange={(e) => setNovoVeiculo({...novoVeiculo, placa: e.target.value})}
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', textTransform: 'uppercase', backgroundColor: '#f8fafc', boxSizing: 'border-box' }}
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.3rem', textTransform: 'uppercase' }}>Cor</label>
-                                    <input 
-                                        type="text" 
-                                        required
-                                        placeholder="Ex: Prata"
-                                        value={novoVeiculo.cor}
-                                        onChange={(e) => setNovoVeiculo({...novoVeiculo, cor: e.target.value})}
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', backgroundColor: '#f8fafc', boxSizing: 'border-box' }}
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.3rem', textTransform: 'uppercase' }}>Porte do Veículo</label>
-                                <select 
-                                    value={novoVeiculo.porte}
-                                    onChange={(e) => setNovoVeiculo({...novoVeiculo, porte: e.target.value})}
-                                    style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', backgroundColor: '#f8fafc', cursor: 'pointer', boxSizing: 'border-box' }}
-                                >
-                                    <option value="Pequeno">Pequeno (hatch, compacto)</option>
-                                    <option value="Médio">Médio (sedã, SUV compacto)</option>
-                                    <option value="Grande">Grande (SUV, picape, van)</option>
-                                </select>
-                            </div>
-
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
-                                <button 
-                                    type="button"
-                                    onClick={() => setModoCadastro(false)}
-                                    style={{ padding: '0.75rem 1.25rem', backgroundColor: '#e2e8f0', color: '#334155', fontWeight: '600', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}
-                                >
-                                    Cancelar
-                                </button>
-                                <button 
-                                    type="submit"
-                                    disabled={salvando}
-                                    style={{ padding: '0.75rem 1.5rem', backgroundColor: '#0f172a', color: '#ffffff', fontWeight: '700', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '0.85rem', opacity: salvando ? 0.7 : 1 }}
-                                >
-                                    {salvando ? 'Salvando...' : 'Salvar e Selecionar'}
-                                </button>
-                            </div>
-                        </form>
-                    )}
-
-                </div>
-
-                {/* Rodapé padrão */}
-                {!modoCadastro && (
-                    <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e2e8f0', backgroundColor: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.85rem', color: '#475569', fontWeight: '600' }}>
-                            {veiculosSelecionados.length === 0
-                                ? 'Nenhum veículo selecionado'
-                                : `${veiculosSelecionados.length} veículo(s) selecionado(s)`}
-                        </span>
-                        
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button 
-                                onClick={aoCancelar}
-                                style={{ padding: '0.75rem 1rem', borderRadius: '8px', fontWeight: '600', color: '#64748b', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}
+                            <button
+                                type="button"
+                                onClick={() => setModoCadastro(true)}
+                                className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-tinta-200 py-3.5 text-sm font-semibold text-marca-600 transition-colors hover:border-marca-300 hover:bg-marca-50/50"
                             >
-                                Cancelar
-                            </button>
-                            <button 
-                                disabled={!podeAvancar}
-                                onClick={() => aoAvancar(veiculosSelecionados)}
-                                style={{ 
-                                    padding: '0.75rem 1.5rem', 
-                                    borderRadius: '8px', 
-                                    fontWeight: '700', 
-                                    color: '#ffffff', 
-                                    backgroundColor: podeAvancar ? '#0f172a' : '#cbd5e1', 
-                                    cursor: podeAvancar ? 'pointer' : 'not-allowed', 
-                                    border: 'none',
-                                    fontSize: '0.85rem',
-                                    transition: 'background 0.2s'
-                                }}
-                            >
-                                Próximo
+                                <PlusCircle size={18} /> Cadastrar novo veículo
                             </button>
                         </div>
+                    )}
+                </>
+            )}
+
+            {/* Formulário de Cadastro */}
+            {modoCadastro && (
+                <form onSubmit={lidarComCadastroVeiculo} className="grid grid-cols-2 gap-4">
+                    {erroCadastro && <div className="fw-alerta-erro col-span-2">{erroCadastro}</div>}
+
+                    <div className="col-span-2 sm:col-span-1">
+                        {campoVeiculo('Marca', (
+                            <select
+                                value={novoVeiculo.marca}
+                                onChange={(e) => setNovoVeiculo({...novoVeiculo, marca: e.target.value})}
+                                className="fw-input cursor-pointer"
+                            >
+                                {listaMarcas.length > 0 ? (
+                                    listaMarcas.map(m => (
+                                        <option key={m.codigo} value={m.nome}>{m.nome}</option>
+                                    ))
+                                ) : (
+                                    <>
+                                        <option>Audi</option><option>BMW</option><option>Chevrolet</option>
+                                        <option>Fiat</option><option>Ford</option><option>Honda</option>
+                                        <option>Hyundai</option><option>Jeep</option><option>Toyota</option>
+                                        <option>Volkswagen</option>
+                                    </>
+                                )}
+                            </select>
+                        ))}
                     </div>
-                )}
-            </div>
-        </div>
+                    <div className="col-span-2 sm:col-span-1">
+                        {campoVeiculo('Modelo', (
+                            <input type="text" required placeholder="Ex: Civic LX 2003" className="fw-input"
+                                value={novoVeiculo.modelo}
+                                onChange={(e) => setNovoVeiculo({...novoVeiculo, modelo: e.target.value})} />
+                        ))}
+                    </div>
+                    {campoVeiculo('Placa', (
+                        <input type="text" required placeholder="ABC1D23" className="fw-input font-mono uppercase tracking-wider"
+                            value={novoVeiculo.placa}
+                            onChange={(e) => setNovoVeiculo({...novoVeiculo, placa: e.target.value})} />
+                    ))}
+                    {campoVeiculo('Cor', (
+                        <input type="text" required placeholder="Ex: Prata" className="fw-input"
+                            value={novoVeiculo.cor}
+                            onChange={(e) => setNovoVeiculo({...novoVeiculo, cor: e.target.value})} />
+                    ))}
+
+                    <div className="col-span-2">
+                        <span className="fw-label">Porte do veículo</span>
+                        <div className="grid grid-cols-3 gap-2">
+                            {[['Pequeno', 'Hatch, compacto'], ['Médio', 'Sedã, SUV compacto'], ['Grande', 'SUV, picape, van']].map(([porte, exemplo]) => (
+                                <button
+                                    key={porte}
+                                    type="button"
+                                    data-ativo={novoVeiculo.porte === porte}
+                                    onClick={() => setNovoVeiculo({ ...novoVeiculo, porte })}
+                                    className="fw-opcao flex-col items-start gap-0.5 p-3"
+                                >
+                                    <span className="text-sm font-semibold text-tinta-900">{porte}</span>
+                                    <span className="text-[11px] leading-tight text-tinta-500">{exemplo}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="col-span-2 mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <button type="button" onClick={() => setModoCadastro(false)} className="fw-btn-contorno">
+                            Cancelar
+                        </button>
+                        <button type="submit" disabled={salvando} className="fw-btn-primario">
+                            {salvando ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />}
+                            {salvando ? 'Salvando...' : 'Salvar e selecionar'}
+                        </button>
+                    </div>
+                </form>
+            )}
+        </ModalPasso>
     );
 }
