@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { MapPin, Car, Check, Truck, Loader2 } from 'lucide-react';
 import ModalPasso from '../ui/ModalPasso';
 import { apiFetch, API_URL } from '../../utils/api';
@@ -25,6 +25,9 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
     const [horariosVeiculos, setHorariosVeiculos] = useState({});
 
     const [carregando, setCarregando] = useState(false);
+    // Trava imediata contra cliques repetidos: o estado `carregando` só chega no próximo
+    // render, então dois cliques rápidos ainda passariam por ele.
+    const enviandoRef = useRef(false);
     const [erro, setErro] = useState(null);
     const [sugestao, setSugestao] = useState(null);
     const [confirmado, setConfirmado] = useState(null);
@@ -73,6 +76,7 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
         : Boolean(horario);
 
     const lidarComFinalizacao = async () => {
+        if (enviandoRef.current || confirmado) return;
         setErro(null);
         setSugestao(null);
 
@@ -80,11 +84,16 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
             setErro(porVeiculo ? 'Escolha um horário para cada carro.' : 'Escolha um horário.');
             return;
         }
+        if (resumo.length === 0 || resumo.some(item => !item.veiculo?.id || !item.pacote?.id)) {
+            setErro('Volte ao início e escolha o veículo e o serviço de cada carro.');
+            return;
+        }
         if (ehLevaTras && !enderecoCliente) {
             setErro('Volte ao passo anterior e informe o endereço de busca do veículo.');
             return;
         }
 
+        enviandoRef.current = true;
         setCarregando(true);
         try {
             const resposta = await apiFetch(`${API_URL}/api/agendamentos`, {
@@ -113,6 +122,7 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
             console.error(err);
             setErro('Erro de conexão ao finalizar o agendamento.');
         } finally {
+            enviandoRef.current = false;
             setCarregando(false);
         }
     };

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../bd');
-const { registrarEntrada } = require('../services/execucoesService');
+const { registrarEntrada, exigirForaDoPatio, STATUS_NO_PATIO } = require('../services/execucoesService');
 const { ErroNegocio } = require('../services/erros');
 const agenda = require('../services/agenda');
 const { avaliarLevaTras } = require('../services/logistica');
@@ -102,29 +102,49 @@ router.get('/execucoes/agendados', async (req, res) => {
 });
 
 // 3. AVANÇAR STATUS (PUT) - só nas transições do fluxo (ver TRANSICOES)
+// Quando o carro chega (Agendado -> Aguardando), confere que ele não tem outro serviço
+// aberto no pátio: cada carro só pode ter um por vez.
 router.put('/execucoes/:id/status', async (req, res) => {
     const { id } = req.params;
     const { novoStatus } = req.body;
+    const conn = await db.getConnection();
     try {
-        const [[execucao]] = await db.execute('SELECT status FROM execucoes WHERE id = ?', [id]);
-        if (!execucao) return res.status(404).json({ erro: 'Serviço não encontrado.' });
+        await conn.beginTransaction();
+        const [[execucao]] = await conn.execute('SELECT status, veiculo_id FROM execucoes WHERE id = ? FOR UPDATE', [id]);
+        if (!execucao) {
+            await conn.rollback();
+            return res.status(404).json({ erro: 'Serviço não encontrado.' });
+        }
 
         if (!(TRANSICOES[execucao.status] || []).includes(novoStatus)) {
+            await conn.rollback();
             return res.status(409).json({ erro: `Não é possível mudar de "${execucao.status}" para "${novoStatus}".` });
         }
 
+        if (STATUS_NO_PATIO.includes(novoStatus) && !STATUS_NO_PATIO.includes(execucao.status)) {
+            await exigirForaDoPatio(conn, [execucao.veiculo_id], { ignorarExecucaoId: Number(id) });
+        }
+
         // O "AND status = ?" evita que dois cliques ao mesmo tempo avancem duas vezes
-        const [resultado] = await db.execute(
+        const [resultado] = await conn.execute(
             'UPDATE execucoes SET status = ? WHERE id = ? AND status = ?',
             [novoStatus, id, execucao.status]
         );
         if (resultado.affectedRows === 0) {
+            await conn.rollback();
             return res.status(409).json({ erro: 'O status mudou enquanto isso. Atualize a tela.' });
         }
+        await conn.commit();
         res.status(200).json({ mensagem: 'Status atualizado!' });
     } catch (erro) {
+        await conn.rollback().catch(() => {});
+        if (erro instanceof ErroNegocio) {
+            return res.status(erro.status).json({ erro: erro.message, ...(erro.detalhes || {}) });
+        }
         console.error('Erro ao atualizar status:', erro);
         res.status(500).json({ erro: 'Erro ao atualizar o status.' });
+    } finally {
+        conn.release();
     }
 });
 

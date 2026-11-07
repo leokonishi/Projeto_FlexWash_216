@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Car, Check, MapPin, Truck, Loader2 } from 'lucide-react';
 import ModalPasso, { Marcador } from './ui/ModalPasso';
 import ConfiguracaoVeiculo from './ConfiguracaoVeiculo';
@@ -24,6 +24,8 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
   const [avaliacaoLevaTras, setAvaliacaoLevaTras] = useState(null); // resposta de /execucoes/leva-e-traz/:id
   const [verificandoLevaTras, setVerificandoLevaTras] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  // Trava imediata contra cliques repetidos (o estado `enviando` só muda no próximo render)
+  const enviandoRef = useRef(false);
 
   // 1. Busca inicial: Clientes, Pacotes, Extras e Funcionários
   useEffect(() => {
@@ -121,14 +123,31 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
   const valorTotalGeral = Object.values(configuracoes).reduce((acc, curr) => acc + (curr.valor_total || 0), 0) + totalLevaTras;
   const moeda = (valor) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+  // Campos obrigatórios: cliente, pelo menos um carro, o pacote de cada carro e,
+  // no leva e traz, o endereço do cliente dentro do raio.
+  const carrosSemPacote = veiculosSelecionados
+    .filter(vId => !configuracoes[vId]?.pacote_id)
+    .map(vId => veiculosDoCliente.find(v => v.id === vId))
+    .filter(Boolean);
+  let pendencia = null;
+  if (!clienteId) pendencia = 'Selecione o cliente.';
+  else if (veiculosSelecionados.length === 0) pendencia = 'Selecione pelo menos um veículo.';
+  else if (carrosSemPacote.length > 0) {
+    pendencia = `Escolha o pacote de: ${carrosSemPacote.map(v => `${v.marca} ${v.modelo}`).join(', ')}.`;
+  } else if (tipoLogistica === 'leva_tras' && !levaTrasDisponivel) {
+    pendencia = avaliacaoLevaTras?.endereco_cliente
+      ? 'O leva e traz não está disponível para este cliente.'
+      : 'O cliente não tem endereço cadastrado para o leva e traz.';
+  }
+
   // 3. ENVIAR PARA O BANCO DE DADOS (POST) - Versão Blindada
   const handleConfirmar = async () => {
-    if (veiculosSelecionados.length === 0) {
-      if(abrirAlerta) abrirAlerta('Atenção', 'Selecione pelo menos um veículo.', () => {}, 'aviso');
-      else alert('Selecione pelo menos um veículo.');
+    if (enviandoRef.current) return;
+    if (pendencia) {
+      if(abrirAlerta) abrirAlerta('Atenção', pendencia, () => {}, 'aviso');
+      else alert(pendencia);
       return;
     }
-    if (enviando) return;
 
     // Monta o "Payload" extraindo dados de forma segura (impede crash se faltar info).
     // O valor NÃO é enviado: o servidor calcula o preço pelo pacote, extras e porte do veículo.
@@ -147,6 +166,7 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
       })
     };
 
+    enviandoRef.current = true;
     setEnviando(true);
     try {
       const res = await apiFetch(`${API_URL}/api/execucoes`, {
@@ -171,6 +191,7 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
       if(abrirAlerta) abrirAlerta('Erro', 'Falha de conexão com o servidor.', () => {}, 'perigo');
       else alert('Falha de conexão com o servidor.');
     } finally {
+      enviandoRef.current = false;
       setEnviando(false);
     }
   };
@@ -225,13 +246,17 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
             <p className="font-display text-xl font-extrabold text-tinta-950">
               {moeda(valorTotalGeral)}
             </p>
+            {pendencia && clienteId && veiculosSelecionados.length > 0 && (
+              <p className="mt-0.5 text-xs font-medium text-red-600">{pendencia}</p>
+            )}
           </div>
           <button
             onClick={handleConfirmar}
-            disabled={veiculosSelecionados.length === 0 || enviando || (tipoLogistica === 'leva_tras' && !levaTrasDisponivel)}
+            disabled={Boolean(pendencia) || enviando}
+            title={pendencia || undefined}
             className="fw-btn-primario px-6"
           >
-            {enviando ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />} Confirmar entrada
+            {enviando ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />} {enviando ? 'Registrando...' : 'Confirmar entrada'}
           </button>
         </div>
       }

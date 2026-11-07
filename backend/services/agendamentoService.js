@@ -1,8 +1,9 @@
 const { ErroNegocio } = require('./erros');
 const { calcularValorCentavos, centavosParaDecimal } = require('./precoExecucao');
-const { inteiroPositivo, listaDeIds, buscarPorIds, exigirTodos } = require('./execucoesService');
+const { inteiroPositivo, listaDeIds, buscarPorIds, exigirTodos, nomeDoCarro } = require('./execucoesService');
 const agenda = require('./agenda');
 const { configAtiva, avaliarLevaTras } = require('./logistica');
+const { separarEndereco } = require('./mapa');
 
 const MAX_VEICULOS_POR_AGENDAMENTO = 10;
 const TIPOS_LOGISTICA = ['cliente_leva', 'leva_tras'];
@@ -151,6 +152,37 @@ async function conferirHorariosIndividuais(conn, itens, veiculos) {
   });
 }
 
+// Um carro não pode ter dois agendamentos em aberto ('Agendado') no mesmo dia.
+// Isso barra o pedido repetido (vários cliques em "Confirmar" enquanto a tela
+// esperava a resposta), sem impedir agendamentos do mesmo carro em outros dias.
+// Carro já no pátio (Aguardando / Em Andamento) pode ter agendamentos futuros.
+// Roda com a agenda travada, então o segundo pedido já enxerga o primeiro.
+async function exigirSemAgendamentoNoDia(conn, itens, vagas, veiculos) {
+  const veiculoIds = itens.map((i) => i.veiculoId);
+  const dias = [...new Set(vagas.map((v) => v.data))].sort();
+  const [linhas] = await conn.execute(
+    `SELECT veiculo_id,
+            DATE_FORMAT(data_agendamento, '%Y-%m-%d') AS dia,
+            TIME_FORMAT(data_agendamento, '%H:%i') AS horario
+       FROM execucoes
+      WHERE status = 'Agendado'
+        AND veiculo_id IN (${veiculoIds.map(() => '?').join(', ')})
+        AND data_agendamento >= ? AND data_agendamento < ?`,
+    [...veiculoIds, `${dias[0]} 00:00:00`, `${agenda.somarDias(dias[dias.length - 1], 1)} 00:00:00`]
+  );
+
+  itens.forEach((item, indice) => {
+    const existente = linhas.find((l) => Number(l.veiculo_id) === item.veiculoId && l.dia === vagas[indice].data);
+    if (existente) {
+      const [ano, mes, dia] = existente.dia.split('-');
+      throw new ErroNegocio(
+        `O ${nomeDoCarro(veiculos.get(item.veiculoId))} já tem um agendamento em ${dia}/${mes}/${ano} às ${existente.horario}. Escolha outro dia para ele.`,
+        409
+      );
+    }
+  });
+}
+
 // ---------------------------------------------------------------------
 // Gravação
 // ---------------------------------------------------------------------
@@ -182,6 +214,12 @@ async function registrarAgendamento(db, clienteId, corpo) {
   if (tipoLogistica === 'leva_tras') {
     const avaliacao = await avaliarLevaTras(db, clienteId);
     if (!avaliacao.disponivel) throw new ErroNegocio(avaliacao.mensagem, 409, { motivo: avaliacao.motivo });
+    // Endereço de busca completo (CEP, rua, número, bairro, cidade e UF), como a tela exige
+    if (!separarEndereco(avaliacao.endereco_cliente)) {
+      throw new ErroNegocio('Confirme o endereço de busca pelo CEP (rua, número, bairro, cidade e UF) antes de agendar.', 400, {
+        motivo: 'endereco_incompleto'
+      });
+    }
     taxaCentavos = Math.round(Number(avaliacao.taxa_por_veiculo) * 100);
     enderecoBusca = avaliacao.endereco_cliente;
     distanciaKm = avaliacao.distancia_km;
@@ -202,7 +240,7 @@ async function registrarAgendamento(db, clienteId, corpo) {
 
     const veiculos = await buscarPorIds(
       conn,
-      'SELECT id, porte, marca, modelo FROM veiculos WHERE cliente_id = ? AND id IN (#)',
+      'SELECT id, porte, marca, modelo, placa FROM veiculos WHERE cliente_id = ? AND id IN (#)',
       veiculoIds,
       [clienteId]
     );
@@ -236,6 +274,8 @@ async function registrarAgendamento(db, clienteId, corpo) {
       }
       vagas = horarios.map((h) => ({ data, horario: h }));
     }
+
+    await exigirSemAgendamentoNoDia(conn, itens, vagas, veiculos);
 
     const [resAgendamento] = await conn.execute(
       'INSERT INTO agendamentos (cliente_id, tipo_logistica, endereco_busca, distancia_km) VALUES (?, ?, ?, ?)',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Truck, MapPin, Edit3, Check, Loader2, ArrowRight } from 'lucide-react';
 import ModalPasso, { Marcador } from '../ui/ModalPasso';
 import { apiFetch, API_URL } from '../../utils/api';
@@ -25,6 +25,7 @@ export default function EscolhaLevaTrasCliente({ resumo, levaTras, tipoInicial, 
     const [editandoEndereco, setEditandoEndereco] = useState(false);
     const [novoEndereco, setNovoEndereco] = useState(ENDERECO_VAZIO); // partes do formulário com CEP
     const [salvandoEndereco, setSalvandoEndereco] = useState(false);
+    const salvandoRef = useRef(false); // trava imediata contra clique duplo
     const [erroEndereco, setErroEndereco] = useState(null);
 
     const verificar = useCallback(async () => {
@@ -57,11 +58,12 @@ export default function EscolhaLevaTrasCliente({ resumo, levaTras, tipoInicial, 
     }, [servicoAtivo, verificar]);
 
     const salvarNovoEndereco = async () => {
-        if (salvandoEndereco) return;
+        if (salvandoRef.current) return;
         if (!enderecoCompleto(novoEndereco)) {
             setErroEndereco('Preencha CEP, rua, número, bairro, cidade e UF.');
             return;
         }
+        salvandoRef.current = true;
         setSalvandoEndereco(true);
         setErroEndereco(null);
         try {
@@ -80,6 +82,7 @@ export default function EscolhaLevaTrasCliente({ resumo, levaTras, tipoInicial, 
         } catch {
             setErroEndereco('Falha de conexão ao salvar o endereço.');
         } finally {
+            salvandoRef.current = false;
             setSalvandoEndereco(false);
         }
     };
