@@ -185,7 +185,9 @@ async function avaliarLevaTras(db, clienteId) {
 
   let destino;
   try {
-    destino = await mapa.geocodificar(enderecoCliente);
+    // Endereço preenchido pelo CEP: busca estruturada (mais precisa); antigo: texto livre
+    const partes = mapa.separarEndereco(enderecoCliente);
+    destino = partes ? await mapa.geocodificarPartes(partes) : await mapa.geocodificar(enderecoCliente);
   } catch (erro) {
     if (!(erro instanceof ErroNegocio)) throw erro;
     const motivo = erro.status === 422 ? 'endereco_nao_encontrado' : 'mapa_indisponivel';

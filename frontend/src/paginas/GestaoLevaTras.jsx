@@ -4,6 +4,9 @@ import {
 } from 'lucide-react';
 import { apiFetch, API_URL } from '../utils/api';
 import MapaRaio3D from '../componentes/levaTras/MapaRaio3D';
+import {
+  ENDERECO_VAZIO, CAMPOS_OBRIGATORIOS, soDigitos, mascaraCep, montarEndereco, separarEndereco, buscarCep as consultarViaCep
+} from '../utils/endereco';
 import '../paginas_css/gestao_leva_tras.css';
 
 // Tela do gerente: endereço do lava-rápido (com busca pelo CEP), raio máximo atendido (km)
@@ -11,27 +14,10 @@ import '../paginas_css/gestao_leva_tras.css';
 // O cliente só vê o leva e traz (com o valor) quando a distância de carro até o endereço
 // dele cabe no raio.
 
-const VIACEP_URL = 'https://viacep.com.br/ws';
 const RAIO_MAX_SLIDER = 50;
-const ENDERECO_VAZIO = { cep: '', rua: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '' };
 
-const soDigitos = (v) => String(v || '').replace(/\D/g, '');
-const mascaraCep = (v) => soDigitos(v).slice(0, 8).replace(/^(\d{5})(\d)/, '$1-$2');
 const fmtNumero = (n, casas = 1) => Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: casas });
 const fmtMoeda = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-// Partes -> texto salvo no banco. Ex.: "Rua X, 123, Sala 2 - Centro, Osasco - SP, 06010-000"
-function montarEndereco(e) {
-  const linha1 = [e.rua, e.numero, e.complemento].map((s) => s.trim()).filter(Boolean).join(', ');
-  return `${linha1} - ${e.bairro.trim()}, ${e.cidade.trim()} - ${e.uf.trim().toUpperCase()}, ${mascaraCep(e.cep)}`;
-}
-
-// Texto salvo -> partes (para editar). Devolve null se o texto não estiver nesse formato.
-function separarEndereco(texto) {
-  const m = String(texto || '').match(/^(.+?), ([^,]+?)(?:, (.+?))? - (.+?), (.+?) - ([A-Za-z]{2}), (\d{5}-?\d{3})$/);
-  if (!m) return null;
-  return { rua: m[1], numero: m[2], complemento: m[3] || '', bairro: m[4], cidade: m[5], uf: m[6].toUpperCase(), cep: mascaraCep(m[7]) };
-}
 
 export default function GestaoLevaTras() {
   const [carregando, setCarregando] = useState(true);
@@ -100,31 +86,25 @@ export default function GestaoLevaTras() {
     }
     setBuscandoCep(true);
     try {
-      const res = await fetch(`${VIACEP_URL}/${cep}/json/`);
-      const dados = await res.json();
-      if (!res.ok || dados.erro) {
-        setErroCep('CEP não encontrado. Confira os números ou preencha o endereço à mão.');
-        return;
-      }
+      const dados = await consultarViaCep(cep);
       setEndereco((atual) => ({
         ...atual,
         cep: mascaraCep(cep),
-        rua: dados.logradouro || atual.rua,
+        rua: dados.rua || atual.rua,
         bairro: dados.bairro || atual.bairro,
-        cidade: dados.localidade || atual.cidade,
+        cidade: dados.cidade || atual.cidade,
         uf: dados.uf || atual.uf
       }));
       setEnderecoAntigo('');
       document.getElementById('lt-numero')?.focus();
-    } catch {
-      setErroCep('Não foi possível consultar o CEP agora. Preencha o endereço à mão.');
+    } catch (erro) {
+      setErroCep(erro.message);
     } finally {
       setBuscandoCep(false);
     }
   };
 
-  const camposObrigatorios = ['cep', 'rua', 'numero', 'bairro', 'cidade', 'uf'];
-  const enderecoCompleto = camposObrigatorios.every((c) => endereco[c].trim()) && soDigitos(endereco.cep).length === 8;
+  const enderecoCompleto = CAMPOS_OBRIGATORIOS.every((c) => endereco[c].trim()) && soDigitos(endereco.cep).length === 8;
   const partesParaApi = () => ({
     cep: soDigitos(endereco.cep), rua: endereco.rua, numero: endereco.numero,
     bairro: endereco.bairro, cidade: endereco.cidade, uf: endereco.uf
