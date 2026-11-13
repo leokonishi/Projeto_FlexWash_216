@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
 import { Search, UserPlus, Users, Trash2, Check, Loader2, Wrench, Edit2, UserCog } from 'lucide-react';
 import CabecalhoPagina, { Secao } from '../componentes/ui/CabecalhoPagina';
+import { aplicarMascaraCPF, aplicarMascaraTelefone, aplicarMascaraEmail, validarContato } from '../utils/mascaras';
+
+const MASCARAS = { cpf: aplicarMascaraCPF, telefone: aplicarMascaraTelefone, email: aplicarMascaraEmail };
 
 // Os textos são gravados no banco como estão: não mudar a grafia sem migrar os dados
 const FUNCOES_DISPONIVEIS = [
@@ -49,10 +52,10 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
       : String(func.funcoes || '').split(',').map((f) => f.trim()).filter(Boolean);
     setEditandoId(func.id);
     setFormulario({
-      cpf: func.cpf || '',
+      cpf: aplicarMascaraCPF(func.cpf || ''),
       nome: func.nome || '',
       email: func.email || '',
-      telefone: func.telefone || '',
+      telefone: aplicarMascaraTelefone(func.telefone || ''),
       funcoes: listaFuncoes,
       senha: ''
     });
@@ -90,7 +93,8 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormulario((prev) => ({ ...prev, [name]: value }));
+    const mascara = MASCARAS[name];
+    setFormulario((prev) => ({ ...prev, [name]: mascara ? mascara(value) : value }));
   };
 
   const toggleFuncao = (funcaoNome) => {
@@ -109,6 +113,15 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
 
     if (formulario.funcoes.length === 0) {
       avisar('Atenção', 'Selecione pelo menos uma função para o funcionário.');
+      return;
+    }
+
+    // CPF de quem já existia só é conferido se for alterado
+    const original = editando ? funcionarios.find((f) => f.id === editandoId) : null;
+    const cpfMudou = !original || aplicarMascaraCPF(original.cpf || '') !== formulario.cpf;
+    const erroContato = validarContato(formulario, { telefoneObrigatorio: true, emailObrigatorio: true, validarCpf: cpfMudou });
+    if (erroContato) {
+      avisar('Atenção', erroContato);
       return;
     }
 
