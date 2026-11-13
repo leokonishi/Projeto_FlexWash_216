@@ -1,12 +1,13 @@
 import React, { useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LayoutGrid, Users, History, Package, Truck, BadgeDollarSign, LogOut } from 'lucide-react';
+import { LayoutGrid, Users, History, Package, Truck, BadgeDollarSign, LogOut, Ticket } from 'lucide-react';
 
 // Importação dos Componentes Filhos (Padrão de Arquitetura Limpa)
 import DashboardInicio from '../componentes/DashboardInicio';
 import GestaoClientes from './GestaoClientes';
 import GestaoFuncionarios from './GestaoFuncionarios';
 import GestaoServicos from './GestaoServicos';
+import GestaoPromocoes from './GestaoPromocoes';
 // Carregada só quando a aba é aberta: o mapa 3D (MapLibre) é pesado
 const GestaoLevaTras = lazy(() => import('./GestaoLevaTras'));
 import Historico from './Historico';
@@ -20,6 +21,7 @@ const ABAS = [
   { id: 'clientes', nome: 'Clientes', icone: Users },
   { id: 'historico', nome: 'Histórico', nomeLongo: 'Histórico / Relatórios', icone: History },
   { id: 'servicos', nome: 'Serviços', icone: Package, admin: true },
+  { id: 'promocoes', nome: 'Promoções', nomeLongo: 'Fidelidade e promoções', icone: Ticket, admin: true },
   { id: 'levatras', nome: 'Leva e Traz', icone: Truck, admin: true },
   { id: 'funcionarios', nome: 'Equipe', nomeLongo: 'Funcionários', icone: BadgeDollarSign, admin: true },
 ];
@@ -135,6 +137,8 @@ export default function PaginaAdmin() {
           {abaAtiva === 'funcionarios' && ehAdmin && <GestaoFuncionarios abrirAlerta={abrirAlerta} />}
 
           {abaAtiva === 'servicos' && ehAdmin && <GestaoServicos abrirAlerta={abrirAlerta} />}
+
+          {abaAtiva === 'promocoes' && ehAdmin && <GestaoPromocoes abrirAlerta={abrirAlerta} />}
 
           {abaAtiva === 'levatras' && ehAdmin && (
             <Suspense fallback={<div className="p-8 text-center text-tinta-500">Carregando o mapa...</div>}>

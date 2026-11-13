@@ -4,6 +4,7 @@ const { inteiroPositivo, listaDeIds, buscarPorIds, exigirTodos, nomeDoCarro } = 
 const agenda = require('./agenda');
 const { configAtiva, avaliarLevaTras } = require('./logistica');
 const { separarEndereco } = require('./mapa');
+const promocoes = require('./promocoes');
 
 const MAX_VEICULOS_POR_AGENDAMENTO = 10;
 const TIPOS_LOGISTICA = ['cliente_leva', 'leva_tras'];
@@ -125,7 +126,9 @@ function normalizarPedido(corpo) {
     return item;
   });
 
-  return { horarioPorVeiculo, data, horario, tipoLogistica, itens };
+  const cupom = typeof corpo?.cupom === 'string' && corpo.cupom.trim() ? corpo.cupom.trim().toUpperCase() : null;
+
+  return { horarioPorVeiculo, data, horario, tipoLogistica, itens, cupom };
 }
 
 // Modo "horário por veículo": confere se cada horário escolhido ainda tem vaga,
@@ -199,7 +202,7 @@ async function exigirSemAgendamentoNoDia(conn, itens, vagas, veiculos) {
 //   raio, o pedido é recusado.
 // - Tudo é gravado numa transação, com a agenda travada enquanto isso.
 async function registrarAgendamento(db, clienteId, corpo) {
-  const { horarioPorVeiculo, data, horario, tipoLogistica, itens } = normalizarPedido(corpo);
+  const { horarioPorVeiculo, data, horario, tipoLogistica, itens, cupom: codigoCupom } = normalizarPedido(corpo);
 
   const agora = agenda.agoraLocal();
   const pedidos = horarioPorVeiculo ? itens : [{ data, horario }];
@@ -283,21 +286,51 @@ async function registrarAgendamento(db, clienteId, corpo) {
     );
     const agendamentoId = resAgendamento.insertId;
 
-    const criados = [];
-    let totalCentavos = 0;
-    for (const [indice, item] of itens.entries()) {
-      const lavagemCentavos = calcularValorCentavos({
+    // Preço de cada carro (sem desconto)
+    const calculados = itens.map((item) => ({
+      porte: veiculos.get(item.veiculoId).porte,
+      extraIds: [...item.extraIds],
+      lavagemCentavos: calcularValorCentavos({
         porte: veiculos.get(item.veiculoId).porte,
         pacote: pacotes.get(item.pacoteId),
         extras: item.extraIds.map((id) => extras.get(id))
+      })
+    }));
+
+    // Cupom (fidelidade, promoção relâmpago ou manual): validado e travado aqui dentro da transação
+    let cupom = null;
+    let descontos = itens.map(() => 0);
+    if (codigoCupom) {
+      cupom = await promocoes.validarCupom(conn, {
+        codigo: codigoCupom,
+        clienteId,
+        datas: vagas.map((v) => v.data),
+        travar: true
       });
-      const totalItem = lavagemCentavos + taxaCentavos;
+      const resultado = await promocoes.calcularDescontos(conn, cupom, calculados);
+      descontos = resultado.descontos;
+      if (resultado.extraIncluido) {
+        // Extra grátis que o cliente não tinha escolhido: entra no primeiro carro
+        const alvo = calculados[resultado.extraIncluido.indice];
+        alvo.extraIds.push(Number(resultado.extraIncluido.extra.id));
+        alvo.lavagemCentavos += descontos[resultado.extraIncluido.indice];
+      }
+    }
+
+    const criados = [];
+    let totalCentavos = 0;
+    let descontoTotalCentavos = 0;
+    for (const [indice, item] of itens.entries()) {
+      const { lavagemCentavos, extraIds: extrasDoCarro } = calculados[indice];
+      const descontoCentavos = Math.min(descontos[indice], lavagemCentavos);
+      const totalItem = lavagemCentavos + taxaCentavos - descontoCentavos;
       totalCentavos += totalItem;
+      descontoTotalCentavos += descontoCentavos;
 
       const [resExecucao] = await conn.execute(
         `INSERT INTO execucoes
-           (cliente_id, veiculo_id, pacote_id, agendamento_id, data_agendamento, valor_total, valor_logistica, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'Agendado')`,
+           (cliente_id, veiculo_id, pacote_id, agendamento_id, data_agendamento, valor_total, valor_logistica, valor_desconto, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Agendado')`,
         [
           clienteId,
           item.veiculoId,
@@ -305,11 +338,12 @@ async function registrarAgendamento(db, clienteId, corpo) {
           agendamentoId,
           agenda.paraDatetime(vagas[indice].data, vagas[indice].horario),
           centavosParaDecimal(totalItem),
-          centavosParaDecimal(taxaCentavos)
+          centavosParaDecimal(taxaCentavos),
+          centavosParaDecimal(descontoCentavos)
         ]
       );
 
-      for (const extraId of item.extraIds) {
+      for (const extraId of extrasDoCarro) {
         await conn.execute('INSERT INTO execucao_extras (execucao_id, extra_id) VALUES (?, ?)', [
           resExecucao.insertId,
           extraId
@@ -323,7 +357,17 @@ async function registrarAgendamento(db, clienteId, corpo) {
         horario: vagas[indice].horario,
         valor_lavagem: centavosParaDecimal(lavagemCentavos),
         valor_logistica: centavosParaDecimal(taxaCentavos),
+        valor_desconto: centavosParaDecimal(descontoCentavos),
         valor_total: centavosParaDecimal(totalItem)
+      });
+    }
+
+    if (cupom) {
+      await promocoes.registrarUso(conn, {
+        cupomId: cupom.id,
+        clienteId,
+        agendamentoId,
+        descontoCentavos: descontoTotalCentavos
       });
     }
 
@@ -333,6 +377,8 @@ async function registrarAgendamento(db, clienteId, corpo) {
       tipo_logistica: tipoLogistica,
       distancia_km: distanciaKm,
       valor_total: centavosParaDecimal(totalCentavos),
+      valor_desconto: centavosParaDecimal(descontoTotalCentavos),
+      cupom: cupom ? promocoes.formatarCupom(cupom) : null,
       veiculos: criados
     };
   } catch (erro) {
