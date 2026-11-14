@@ -5,6 +5,7 @@ import EscolhaServicoCliente from '../componentes/configCliente/EscolhaServicoCl
 import EscolhaVeiculoCliente from '../componentes/configCliente/EscolhaVeiculoCliente';
 import EscolhaLevaTrasCliente from '../componentes/configCliente/EscolhaLevaTrasCliente';
 import EscolhaHorarioCliente from '../componentes/configCliente/EscolhaHorarioCliente';
+import FidelidadeCliente from '../componentes/configCliente/FidelidadeCliente';
 import Logo from '../componentes/ui/Logo';
 import BadgeStatus from '../componentes/ui/BadgeStatus';
 import { apiFetch } from '../utils/api';
@@ -57,6 +58,7 @@ export default function PaginaCliente() {
   const [passoAgendamento, setPassoAgendamento] = useState(null);
   const [dadosAgendamento, setDadosAgendamento] = useState(AGENDAMENTO_VAZIO);
   const [configAgendamento, setConfigAgendamento] = useState(null); // horários, vagas e taxa do leva e traz
+  const [cupomSugerido, setCupomSugerido] = useState(''); // vem do botão "usar" da fidelidade/promoção
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -115,7 +117,8 @@ export default function PaginaCliente() {
   const formatarValor = (valor) => Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   // FLUXO DE AGENDAMENTO
-  const iniciarAgendamento = async () => {
+  const iniciarAgendamento = async (codigoCupom = '') => {
+      setCupomSugerido(typeof codigoCupom === 'string' ? codigoCupom : '');
       setDadosAgendamento(AGENDAMENTO_VAZIO);
       setPassoAgendamento('veiculos');
       try {
@@ -228,7 +231,7 @@ export default function PaginaCliente() {
               )}
             </div>
 
-            <button onClick={iniciarAgendamento} className="fw-btn-ouro h-12 w-full shrink-0 px-6 text-[15px] md:w-auto">
+            <button onClick={() => iniciarAgendamento()} className="fw-btn-ouro h-12 w-full shrink-0 px-6 text-[15px] md:w-auto">
               <CalendarPlus size={18} /> Agendar lavagem
             </button>
           </div>
@@ -257,6 +260,9 @@ export default function PaginaCliente() {
             </ul>
           )}
         </section>
+
+        {/* Promoção relâmpago e programa de fidelidade */}
+        <FidelidadeCliente aoUsarCupom={iniciarAgendamento} />
 
         {/* Resumo rápido */}
         <section className="grid grid-cols-2 gap-3 sm:gap-4">
@@ -405,6 +411,7 @@ export default function PaginaCliente() {
               tipoLogistica={dadosAgendamento.levaTras}
               levaTras={dadosAgendamento.avaliacaoLevaTras}
               enderecoLavaRapido={configAgendamento?.endereco_lava_rapido}
+              cupomInicial={cupomSugerido}
               aoConcluir={concluirAgendamentoComSucesso}
               aoVoltar={() => setPassoAgendamento('modalidade')}
               aoCancelar={cancelarAgendamento}

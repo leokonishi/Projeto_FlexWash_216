@@ -1,4 +1,5 @@
 const db = require('../bd');
+const { estornarCuponsSeVazio } = require('../services/promocoes');
 
 exports.adicionarVeiculo = async (req, res) => {
     const { cliente_id } = req.params;
@@ -111,7 +112,12 @@ exports.removerVeiculo = async (req, res) => {
                     erro: `Este veículo tem ${totalHistorico} lavagem(ns) no histórico.`
                 });
             }
+            const [agendamentos] = await conn.execute(
+                'SELECT DISTINCT agendamento_id FROM execucoes WHERE veiculo_id = ? AND agendamento_id IS NOT NULL',
+                [veiculo_id]
+            );
             await conn.execute('DELETE FROM execucoes WHERE veiculo_id = ?', [veiculo_id]);
+            for (const { agendamento_id } of agendamentos) await estornarCuponsSeVazio(conn, agendamento_id);
         }
 
         await conn.execute('DELETE FROM veiculos WHERE id = ?', [veiculo_id]);

@@ -1,8 +1,8 @@
-import React, { useRef, useState } from 'react';
-import { MapPin, Car, Check, Truck, Loader2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { MapPin, Car, Check, Truck, Loader2, Ticket, X } from 'lucide-react';
 import ModalPasso from '../ui/ModalPasso';
 import { apiFetch, API_URL } from '../../utils/api';
-import { formatarMoeda } from '../../utils/precos';
+import { formatarMoeda, precoCentavos } from '../../utils/precos';
 import SeletorDataHorario, { hojeLocal, formatarDataBr } from './SeletorDataHorario';
 
 // Passo 4 do agendamento: data, horário, endereço, resumo e confirmação.
@@ -12,11 +12,29 @@ import SeletorDataHorario, { hojeLocal, formatarDataBr } from './SeletorDataHora
 //  - todos no mesmo horário: se o horário não tiver vaga para todos, os demais ocupam os
 //    próximos horários do dia (o backend decide e devolve);
 //  - um horário para cada carro: cada um com a sua data e hora (horario_por_veiculo).
-export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras, enderecoLavaRapido, aoConcluir, aoVoltar, aoCancelar }) {
+export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras, enderecoLavaRapido, cupomInicial = '', aoConcluir, aoVoltar, aoCancelar }) {
     const hoje = hojeLocal();
     const ehLevaTras = tipoLogistica === 'leva_tras';
     const taxaCentavos = ehLevaTras ? Math.round(Number(levaTras?.taxa_por_veiculo || 0) * 100) : 0;
-    const totalCentavos = resumo.reduce((acc, item) => acc + item.subtotalCentavos + taxaCentavos, 0);
+    const totalSemDesconto = resumo.reduce((acc, item) => acc + item.subtotalCentavos + taxaCentavos, 0);
+
+    // Cupom (fidelidade ou promoção). A prévia do desconto segue a mesma regra do backend,
+    // que recalcula e confere tudo ao confirmar.
+    const [codigoCupom, setCodigoCupom] = useState(cupomInicial || '');
+    const [cupom, setCupom] = useState(null);
+    const [erroCupom, setErroCupom] = useState(null);
+    const [validandoCupom, setValidandoCupom] = useState(false);
+
+    let descontoCentavos = 0;
+    let extraGratisIncluido = false;
+    if (cupom?.tipo === 'percentual') {
+        descontoCentavos = resumo.reduce((acc, item) => acc + Math.round((item.subtotalCentavos * cupom.percentual) / 100), 0);
+    } else if (cupom?.tipo === 'extra_gratis' && resumo[0]) {
+        const extraNoCarro = resumo[0].extras.find(e => Number(e.id) === Number(cupom.extra_id));
+        if (extraNoCarro) descontoCentavos = precoCentavos(extraNoCarro, resumo[0].veiculo.porte);
+        else extraGratisIncluido = true; // entra no 1º carro sem custo
+    }
+    const totalCentavos = totalSemDesconto - descontoCentavos;
 
     const [data, setData] = useState(hoje);
     const [horario, setHorario] = useState(null);
@@ -36,6 +54,44 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
     const localLavaRapido = enderecoLavaRapido || 'nosso lava-rápido';
 
     const limparAvisos = () => { setErro(null); setSugestao(null); };
+
+    const datasEscolhidas = () => (porVeiculo
+        ? resumo.map(item => horariosVeiculos[item.veiculo.id]?.data).filter(Boolean)
+        : [data]);
+
+    const aplicarCupom = async () => {
+        const codigo = codigoCupom.trim().toUpperCase();
+        if (!codigo) { setErroCupom('Digite o código do cupom.'); return; }
+        setValidandoCupom(true);
+        setErroCupom(null);
+        try {
+            const resposta = await apiFetch(`${API_URL}/api/me/cupons/validar`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ codigo, datas: datasEscolhidas() })
+            });
+            const json = await resposta.json().catch(() => ({}));
+            if (resposta.ok) {
+                setCupom(json.cupom);
+                setCodigoCupom(json.cupom.codigo);
+            } else {
+                setCupom(null);
+                setErroCupom(json.erro || 'Cupom inválido.');
+            }
+        } catch {
+            setErroCupom('Erro de conexão ao validar o cupom.');
+        } finally {
+            setValidandoCupom(false);
+        }
+    };
+
+    const removerCupom = () => { setCupom(null); setErroCupom(null); setCodigoCupom(''); };
+
+    // Veio do botão "Usar no agendamento": já aplica o cupom ao abrir
+    useEffect(() => {
+        if (cupomInicial) aplicarCupom();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const mudarGeral = ({ data: novaData, horario: novoHorario }) => {
         limparAvisos();
@@ -102,6 +158,7 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
                 body: JSON.stringify({
                     ...(porVeiculo ? { horario_por_veiculo: true } : { data, horario }),
                     tipo_logistica: tipoLogistica,
+                    ...(cupom ? { cupom: cupom.codigo } : {}),
                     veiculos: resumo.map(item => ({
                         veiculo_id: item.veiculo.id,
                         pacote_id: item.pacote.id,
@@ -171,6 +228,12 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
                             <span className="font-semibold text-tinta-900">{formatarMoeda(Math.round(Number(v.valor_total) * 100))}</span>
                         </div>
                     ))}
+                    {Number(confirmado.valor_desconto) > 0 && (
+                        <div className="mt-2 flex justify-between border-t border-tinta-200 pt-3 text-sm font-semibold text-verde-700">
+                            <span>Desconto do cupom {confirmado.cupom?.codigo}</span>
+                            <span>- {formatarMoeda(Math.round(Number(confirmado.valor_desconto) * 100))}</span>
+                        </div>
+                    )}
                     <div className="mt-2 flex justify-between border-t border-tinta-200 pt-3 font-bold text-tinta-950">
                         <span>Total</span>
                         <span>{formatarMoeda(Math.round(Number(confirmado.valor_total) * 100))}</span>
@@ -191,6 +254,7 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
                 <div className="flex items-center justify-between gap-3">
                     <div>
                         <p className="text-xs font-medium text-tinta-500">Total</p>
+                        {descontoCentavos > 0 && <p className="text-xs text-tinta-400 line-through">{formatarMoeda(totalSemDesconto)}</p>}
                         <p className="font-display text-xl font-extrabold text-tinta-950">{formatarMoeda(totalCentavos)}</p>
                     </div>
                     <button onClick={lidarComFinalizacao} disabled={carregando || !tudoEscolhido} className="fw-btn-ouro px-6">
@@ -305,6 +369,44 @@ export default function EscolhaHorarioCliente({ resumo, tipoLogistica, levaTras,
                             </li>
                         ))}
                     </ul>
+                    {cupom && (
+                        <div className="flex justify-between gap-3 border-t border-tinta-100 px-4 py-3 text-sm font-semibold text-verde-700">
+                            <span>{cupom.descricao}{extraGratisIncluido && ' (incluído no 1º carro)'}</span>
+                            {descontoCentavos > 0 && <span>- {formatarMoeda(descontoCentavos)}</span>}
+                        </div>
+                    )}
+                </div>
+
+                {/* Cupom */}
+                <div className="rounded-2xl border border-tinta-200 p-4">
+                    <label htmlFor="cupom-codigo" className="fw-label flex items-center gap-1.5"><Ticket size={15} className="text-marca-600" /> Cupom de desconto</label>
+                    {cupom ? (
+                        <div className="flex items-center justify-between gap-3 rounded-xl bg-verde-50 px-3 py-2.5 ring-1 ring-verde-200">
+                            <span className="min-w-0">
+                                <span className="block font-mono text-sm font-bold text-tinta-900">{cupom.codigo}</span>
+                                <span className="text-xs text-verde-700">{cupom.descricao}</span>
+                            </span>
+                            <button type="button" onClick={removerCupom} className="grid size-8 shrink-0 place-items-center rounded-lg text-tinta-500 hover:bg-white" aria-label="Remover cupom">
+                                <X size={16} />
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex gap-2">
+                            <input
+                                id="cupom-codigo"
+                                className="fw-input font-mono uppercase placeholder:font-sans placeholder:normal-case"
+                                placeholder="Ex: FIEL-AB12CD"
+                                value={codigoCupom}
+                                onChange={(e) => { setCodigoCupom(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '')); setErroCupom(null); }}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); aplicarCupom(); } }}
+                                maxLength={30}
+                            />
+                            <button type="button" onClick={aplicarCupom} disabled={validandoCupom} className="fw-btn-contorno shrink-0 px-4">
+                                {validandoCupom ? <Loader2 size={16} className="animate-spin" /> : 'Aplicar'}
+                            </button>
+                        </div>
+                    )}
+                    {erroCupom && <p className="mt-2 text-sm text-red-600">{erroCupom}</p>}
                 </div>
             </div>
         </ModalPasso>

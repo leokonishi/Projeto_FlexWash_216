@@ -7,6 +7,7 @@ const db = require('../bd');
 const { normalizarPorte } = require('../services/precoExecucao');
 const { montarEndereco, validarPartes } = require('../services/mapa');
 const { ErroNegocio } = require('../services/erros');
+const promocoes = require('../services/promocoes');
 
 // Valores do enum veiculos.porte
 const PORTE_DO_BANCO = { pequeno: 'Pequeno', medio: 'Médio', grande: 'Grande' };
@@ -121,6 +122,47 @@ router.delete('/me/veiculos/:veiculo_id', async (req, res) => {
         }
         console.error('Erro ao remover veículo do cliente:', erro);
         res.status(500).json({ erro: 'Erro ao remover o veículo.' });
+    }
+});
+
+// ---------------------------------------------------------------------
+// FIDELIDADE E CUPONS (sprint 4)
+// ---------------------------------------------------------------------
+function responderErroPromo(res, erro, mensagemPadrao) {
+    if (erro instanceof ErroNegocio) {
+        return res.status(erro.status).json({ erro: erro.message, ...(erro.detalhes || {}) });
+    }
+    console.error(mensagemPadrao, erro);
+    return res.status(500).json({ erro: mensagemPadrao });
+}
+
+// Quantas visitas o cliente tem, quantas faltam para o benefício e os cupons que já ganhou
+router.get('/me/fidelidade', async (req, res) => {
+    try {
+        res.status(200).json(await promocoes.resumoFidelidade(db, idDoCliente(req)));
+    } catch (erro) {
+        responderErroPromo(res, erro, 'Erro ao consultar a fidelidade.');
+    }
+});
+
+// Promoção relâmpago de hoje (banner do painel), se houver e o cliente ainda não usou
+router.get('/me/promocoes', async (req, res) => {
+    try {
+        res.status(200).json({ promocao: await promocoes.promocaoParaCliente(db, idDoCliente(req)) });
+    } catch (erro) {
+        responderErroPromo(res, erro, 'Erro ao consultar as promoções.');
+    }
+});
+
+// Confere um cupom antes de confirmar o agendamento (o uso de verdade acontece no
+// POST /api/agendamentos, com o campo `cupom`). Corpo: { codigo, datas: ['AAAA-MM-DD', ...] }
+router.post('/me/cupons/validar', async (req, res) => {
+    try {
+        const datas = Array.isArray(req.body?.datas) ? req.body.datas.filter((d) => typeof d === 'string') : [];
+        const cupom = await promocoes.validarCupom(db, { codigo: req.body?.codigo, clienteId: idDoCliente(req), datas });
+        res.status(200).json({ valido: true, cupom: promocoes.formatarCupom(cupom) });
+    } catch (erro) {
+        responderErroPromo(res, erro, 'Erro ao validar o cupom.');
     }
 });
 

@@ -5,6 +5,7 @@ const { registrarEntrada, exigirForaDoPatio, STATUS_NO_PATIO } = require('../ser
 const { ErroNegocio } = require('../services/erros');
 const agenda = require('../services/agenda');
 const { avaliarLevaTras } = require('../services/logistica');
+const { estornarCuponsSeVazio } = require('../services/promocoes');
 
 // Campos comuns às listas do pátio e dos próximos agendamentos
 const CAMPOS_PATIO = `
@@ -110,7 +111,7 @@ router.put('/execucoes/:id/status', async (req, res) => {
     const conn = await db.getConnection();
     try {
         await conn.beginTransaction();
-        const [[execucao]] = await conn.execute('SELECT status, veiculo_id FROM execucoes WHERE id = ? FOR UPDATE', [id]);
+        const [[execucao]] = await conn.execute('SELECT status, veiculo_id, agendamento_id FROM execucoes WHERE id = ? FOR UPDATE', [id]);
         if (!execucao) {
             await conn.rollback();
             return res.status(404).json({ erro: 'Serviço não encontrado.' });
@@ -134,6 +135,8 @@ router.put('/execucoes/:id/status', async (req, res) => {
             await conn.rollback();
             return res.status(409).json({ erro: 'O status mudou enquanto isso. Atualize a tela.' });
         }
+        // Agendamento cancelado por inteiro: o cupom usado nele volta para o cliente
+        if (novoStatus === 'Cancelado') await estornarCuponsSeVazio(conn, execucao.agendamento_id);
         await conn.commit();
         res.status(200).json({ mensagem: 'Status atualizado!' });
     } catch (erro) {
@@ -151,11 +154,15 @@ router.put('/execucoes/:id/status', async (req, res) => {
 // 4. EXCLUIR SERVIÇO DO PÁTIO (DELETE) - Apenas Administrador
 router.delete('/execucoes/:id', async (req, res) => {
     try {
-        // execucao_extras e execucao_funcionarios saem junto (ON DELETE CASCADE)
-        const [resultado] = await db.execute('DELETE FROM execucoes WHERE id = ?', [req.params.id]);
-        if (resultado.affectedRows === 0) {
+        const [[execucao]] = await db.execute('SELECT agendamento_id FROM execucoes WHERE id = ?', [req.params.id]);
+        if (!execucao) {
             return res.status(404).json({ erro: 'Serviço não encontrado. Atualize a tela.' });
         }
+        // execucao_extras e execucao_funcionarios saem junto (ON DELETE CASCADE).
+        // A contagem de fidelidade é recalculada pelo trigger do banco.
+        await db.execute('DELETE FROM execucoes WHERE id = ?', [req.params.id]);
+        // Sem nenhum carro sobrando no agendamento, o cupom usado nele volta para o cliente
+        await estornarCuponsSeVazio(db, execucao.agendamento_id);
         res.status(200).json({ mensagem: 'Serviço removido!' });
     } catch (erro) {
         console.error('Erro ao remover serviço:', erro);
