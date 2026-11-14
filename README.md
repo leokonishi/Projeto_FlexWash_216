@@ -1,16 +1,35 @@
-# React + Vite
+#  FlexWash — Sistema de Gerenciamento de Lava-Rápido 
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+O **FlexWash** é uma aplicação web desenvolvida para automatizar e centralizar a operação de lava-rápidos e centros de estética automotiva. O sistema conta com controlo de acessos por perfil (Administrador, Funcionário e Cliente), gestão de cadastros, agendamentos/ordens de serviço e acompanhamento operacional.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+##  Arquitetura e Estrutura do Projeto
 
-## React Compiler
+O projeto utiliza **React + Vite** no frontend com estilização em **Tailwind CSS** e CSS modularizado por página, além de integração com API para persistência de dados e deploy configurado para a **Vercel**.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+```text
+Projeto_FlexWash_216/
+├── public/                  # Ficheiros estáticos (favicon, ícones SVG)
+├── src/
+│   ├── assets/              # Imagens e recursos visuais
+│   ├── backend/             # Lógica de servidor, rotas e regras de negócio
+│   ├── config/
+│   │   └── api.js           # Configuração de conexão e endpoints da API[cite: 1]
+│   ├── paginas/
+│   │   ├── gestao/          # Subpáginas e módulos administrativos[cite: 1]
+│   │   ├── cadastro_cliente.jsx[cite: 1]
+│   │   ├── Login.jsx[cite: 1]
+│   │   ├── pagina_admin.jsx[cite: 1]
+│   │   ├── pagina_cliente.jsx[cite: 1]
+│   │   └── PaginaCliente.jsx[cite: 1]
+│   ├── paginas_css/         # Folhas de estilo específicas por ecrã
+│   ├── App.jsx              # Componente principal e configuração de rotas
+│   ├── main.jsx             # Ponto de entrada da aplicação React
+│   └── rotas_protegidas.jsx # Controlo de autenticação e proteção de rotas
+├── index.html               # Estrutura HTML base[cite: 2]
+├── package.json             # Dependências e scripts do projeto[cite: 2]
+├── tailwind.config.js       # Configuração do Tailwind CSS[cite: 2]
+├── vercel.json              # Configuração de rotas e deploy na Vercel[cite: 2]
+├── vite.config.js           # Configuração do bundler Vite[cite: 2]
+└── README.md                # Documentação técnica do projeto[cite: 2]
