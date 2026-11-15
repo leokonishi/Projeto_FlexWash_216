@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Plus, Car, CalendarClock, ParkingSquare, Droplets, Wallet, Truck, Trash2, ArrowRight, CheckCircle2, User, RefreshCw, CalendarX } from 'lucide-react';
+import { Plus, Car, CalendarClock, ParkingSquare, Droplets, Wallet, Truck, Trash2, ArrowRight, CheckCircle2, User, Users, Pencil, RefreshCw, CalendarX } from 'lucide-react';
 import ModalNovaLavagem from '../componentes/ModalNovaLavagem';
+import ModalEquipe from '../componentes/ModalEquipe';
 import { useGestaoPatio } from '../hooks/useGestaoPatio'; // Importamos o "cérebro"
 
 // 'AAAA-MM-DD HH:MM' -> { data: 'DD/MM', hora: 'HH:MM' }
@@ -10,6 +11,19 @@ const separarAgendamento = (texto) => {
   const [, mes, d] = dia.split('-');
   return { data: `${d}/${mes}`, hora };
 };
+
+// Minutos de atraso de um agendado ('AAAA-MM-DD HH:MM', hora local) em relação a agora.
+// Tolerância de 15 min antes de marcar como atrasado.
+const TOLERANCIA_ATRASO_MIN = 15;
+const minutosDeAtraso = (texto) => {
+  if (!texto) return 0;
+  const [dia, hora] = texto.split(' ');
+  const [a, m, d] = dia.split('-').map(Number);
+  const [h, min] = hora.split(':').map(Number);
+  const diff = Math.floor((Date.now() - new Date(a, m - 1, d, h, min).getTime()) / 60000);
+  return diff > TOLERANCIA_ATRASO_MIN ? diff : 0;
+};
+const textoAtraso = (min) => (min >= 60 ? `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}` : `${min} min`);
 
 const moeda = (valor) => Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const horaDe = (dataIso) => (dataIso ? new Date(dataIso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '');
@@ -42,6 +56,7 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
     carregando,
     buscarDadosDoPatio,
     avancarStatusServico,
+    trocarEquipe,
     excluirServico,
     cancelarAgendamento
   } = useGestaoPatio(abrirAlerta);
@@ -50,6 +65,16 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
   const [modalLavagemAberto, setModalLavagemAberto] = useState(false);
   // No celular as colunas viram abas
   const [colunaCelular, setColunaCelular] = useState('Aguardando');
+  // Escolha da equipe: { item, modo: 'iniciar' | 'trocar' }
+  const [equipeAberta, setEquipeAberta] = useState(null);
+
+  const idsDaEquipe = (item) => String(item.responsaveis_ids || '').split(',').filter(Boolean).map(Number);
+
+  // "Iniciar lavagem" pergunta antes quem vai lavar (é quem recebe a comissão)
+  const clicarAvancar = (item) => {
+    if (item.status === 'Aguardando') setEquipeAberta({ item, modo: 'iniciar' });
+    else avancarStatusServico(item.id, item.status);
+  };
 
   const ehAdmin = perfilUsuario === 'administrador';
   const podeOperar = perfilUsuario !== 'cliente';
@@ -74,9 +99,10 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
 
   const cartao = (item, coluna) => {
     const agendado = separarAgendamento(item.data_agendamento);
+    const atraso = item.status === 'Agendado' ? minutosDeAtraso(item.data_agendamento) : 0;
     const Botao = coluna.botao.icone;
     return (
-      <article key={item.id} className="rounded-2xl border border-tinta-200/80 bg-white p-4 shadow-suave">
+      <article key={item.id} className={`rounded-2xl border bg-white p-4 shadow-suave ${atraso > 0 ? 'border-red-300' : 'border-tinta-200/80'}`}>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="truncate font-semibold text-tinta-950">{item.marca} {item.modelo}</p>
@@ -85,10 +111,18 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
               <span className="text-xs text-tinta-500">Porte {item.porte}</span>
             </div>
           </div>
-          <span className="shrink-0 text-xs font-semibold text-tinta-500">
-            {item.status === 'Agendado' ? agendado?.hora : `desde ${horaDe(item.data_entrada)}`}
+          <span className={`shrink-0 text-xs font-semibold ${atraso > 0 ? 'text-red-700' : 'text-tinta-500'}`}>
+            {/* Agendado: a hora marcada. Entrada de balcão: a hora em que entrou no pátio.
+                (criado_em de um agendado é a hora em que o cliente marcou, então não serve aqui) */}
+            {item.status === 'Agendado' ? agendado?.hora : agendado ? `marcado ${agendado.hora}` : `entrou ${horaDe(item.data_entrada)}`}
           </span>
         </div>
+
+        {atraso > 0 && (
+          <p className="mt-2 inline-flex rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-bold text-red-700 ring-1 ring-red-200">
+            Atrasado {textoAtraso(atraso)}
+          </p>
+        )}
 
         <div className="mt-3 space-y-1.5 text-sm">
           <p className="flex items-center gap-2 text-tinta-700"><User size={14} className="shrink-0 text-tinta-400" /><span className="truncate">{item.cliente_nome}</span></p>
@@ -96,6 +130,17 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
             <span className="font-medium">{item.pacote_nome || 'Sem pacote'}</span>
             {item.servicos_extras && <span className="text-verde-700"> + {item.servicos_extras}</span>}
           </p>
+          {item.status !== 'Agendado' && (
+            <p className="flex items-center gap-2 text-xs text-tinta-600">
+              <Users size={14} className="shrink-0 text-tinta-400" />
+              <span className="truncate">{item.responsaveis || <span className="italic text-tinta-400">Equipe não definida</span>}</span>
+              {podeOperar && item.responsaveis && (
+                <button onClick={() => setEquipeAberta({ item, modo: 'trocar' })} className="ml-auto grid size-7 shrink-0 place-items-center rounded-md text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" title="Trocar equipe" aria-label="Trocar equipe">
+                  <Pencil size={13} />
+                </button>
+              )}
+            </p>
+          )}
           {item.tipo_logistica === 'leva_tras' && (
             <p className="flex items-start gap-2 rounded-lg bg-ouro-50 px-2.5 py-1.5 text-xs text-ouro-700">
               <Truck size={14} className="mt-px shrink-0" />
@@ -121,7 +166,7 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
         </div>
 
         {podeOperar && (
-          <button onClick={() => avancarStatusServico(item.id, item.status)} className={`${coluna.botao.classe} mt-3 h-10 w-full`}>
+          <button onClick={() => clicarAvancar(item)} className={`${coluna.botao.classe} mt-3 h-10 w-full`}>
             <Botao size={16} /> {coluna.botao.texto}
           </button>
         )}
@@ -288,6 +333,22 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
             </ul>
           )}
         </section>
+      )}
+
+      {equipeAberta && (
+        <ModalEquipe
+          titulo={equipeAberta.modo === 'iniciar' ? 'Quem vai lavar?' : 'Trocar equipe'}
+          descricao={`${equipeAberta.item.marca} ${equipeAberta.item.modelo} · ${equipeAberta.item.placa}`}
+          selecionadosIniciais={idsDaEquipe(equipeAberta.item)}
+          textoConfirmar={equipeAberta.modo === 'iniciar' ? 'Iniciar lavagem' : 'Salvar equipe'}
+          aoFechar={() => setEquipeAberta(null)}
+          aoConfirmar={async (ids) => {
+            const { item, modo } = equipeAberta;
+            setEquipeAberta(null);
+            if (modo === 'iniciar') await avancarStatusServico(item.id, item.status, ids);
+            else await trocarEquipe(item.id, ids);
+          }}
+        />
       )}
 
       {modalLavagemAberto && (

@@ -396,7 +396,68 @@ async function registrarAgendamento(db, clienteId, corpo) {
   }
 }
 
+// ---------------------------------------------------------------------
+// Cancelamento pelo próprio cliente
+// ---------------------------------------------------------------------
+
+// Até quantas horas antes do horário marcado o cliente pode cancelar pelo app.
+// Depois disso, só falando com o lava-rápido (a equipe cancela pelo pátio).
+const ANTECEDENCIA_CANCELAMENTO_HORAS = 2;
+
+// Cancela UM carro de um agendamento do cliente. Só vale para serviço "Agendado"
+// (o carro ainda não chegou). Se todos os carros do pedido ficarem cancelados,
+// o cupom usado volta para o cliente.
+async function cancelarPeloCliente(db, clienteId, execucaoId) {
+  const id = inteiroPositivo(execucaoId);
+  if (id === null) throw new ErroNegocio('Agendamento inválido.');
+
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [[execucao]] = await conn.execute(
+      `SELECT id, status, agendamento_id, DATE_FORMAT(data_agendamento, '%Y-%m-%d %H:%i') AS quando
+         FROM execucoes WHERE id = ? AND cliente_id = ? FOR UPDATE`,
+      [id, clienteId]
+    );
+    if (!execucao) throw new ErroNegocio('Agendamento não encontrado.', 404);
+    if (execucao.status !== 'Agendado') {
+      throw new ErroNegocio(
+        execucao.status === 'Cancelado'
+          ? 'Este agendamento já foi cancelado.'
+          : execucao.status === 'Finalizado'
+            ? 'Este serviço já foi concluído.'
+            : 'O carro já está com a gente; fale com o lava-rápido para cancelar.',
+        409
+      );
+    }
+
+    if (execucao.quando) {
+      const agora = agenda.agoraLocal();
+      const [dia, hora] = execucao.quando.split(' ');
+      const minutosAteHorario = (Date.parse(`${dia}T${hora}:00Z`) - Date.parse(`${agora.data}T${agora.hora}:00Z`)) / 60000;
+      if (minutosAteHorario < ANTECEDENCIA_CANCELAMENTO_HORAS * 60) {
+        throw new ErroNegocio(
+          `Pelo app, dá para cancelar até ${ANTECEDENCIA_CANCELAMENTO_HORAS} horas antes do horário. Fale com o lava-rápido.`,
+          409
+        );
+      }
+    }
+
+    await conn.execute("UPDATE execucoes SET status = 'Cancelado' WHERE id = ? AND status = 'Agendado'", [id]);
+    await promocoes.estornarCuponsSeVazio(conn, execucao.agendamento_id);
+    await conn.commit();
+    return { id, status: 'Cancelado' };
+  } catch (erro) {
+    await conn.rollback().catch(() => {});
+    throw erro;
+  } finally {
+    conn.release();
+  }
+}
+
 module.exports = {
+  cancelarPeloCliente,
+  ANTECEDENCIA_CANCELAMENTO_HORAS,
   registrarAgendamento,
   horariosDoDia,
   obterConfiguracao,

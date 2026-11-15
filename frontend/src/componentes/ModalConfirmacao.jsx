@@ -9,7 +9,10 @@ export default function ModalConfirmacao({
   mensagem,
   onConfirm,
   onCancel,
-  tipo = 'aviso'
+  tipo = 'aviso',
+  textoConfirmar = 'Confirmar',
+  textoCancelar = 'Cancelar',
+  soAviso = false // só um botão "OK" (mensagem informativa, nada a confirmar)
 }) {
   if (!isOpen) return null;
   const perigo = tipo === 'perigo';
@@ -25,15 +28,17 @@ export default function ModalConfirmacao({
         <h3 className="mt-4 font-display text-lg font-bold text-tinta-950">{titulo}</h3>
         <p className="mt-1.5 text-sm text-tinta-500">{mensagem}</p>
 
-        <div className="mt-6 grid grid-cols-2 gap-2">
-          <button className="fw-btn-contorno" onClick={onCancel}>
-            Cancelar
-          </button>
+        <div className={`mt-6 grid gap-2 ${soAviso ? 'grid-cols-1' : 'grid-cols-2'}`}>
+          {!soAviso && (
+            <button className="fw-btn-contorno" onClick={onCancel}>
+              {textoCancelar}
+            </button>
+          )}
           <button
             className={perigo ? 'fw-btn bg-red-600 text-white hover:bg-red-700' : 'fw-btn-primario'}
             onClick={onConfirm}
           >
-            Confirmar
+            {soAviso ? 'OK' : textoConfirmar}
           </button>
         </div>
       </div>

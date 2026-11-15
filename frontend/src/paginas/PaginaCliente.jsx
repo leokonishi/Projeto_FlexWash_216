@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, CalendarPlus, CalendarClock, Car, Droplets, Sparkles, CheckCircle2, ParkingSquare, History } from 'lucide-react';
+import { LogOut, CalendarPlus, CalendarClock, Car, Droplets, Sparkles, CheckCircle2, ParkingSquare, History, CalendarX } from 'lucide-react';
 import EscolhaServicoCliente from '../componentes/configCliente/EscolhaServicoCliente';
 import EscolhaVeiculoCliente from '../componentes/configCliente/EscolhaVeiculoCliente';
 import EscolhaLevaTrasCliente from '../componentes/configCliente/EscolhaLevaTrasCliente';
@@ -10,6 +10,8 @@ import Logo from '../componentes/ui/Logo';
 import BadgeStatus from '../componentes/ui/BadgeStatus';
 import { apiFetch } from '../utils/api';
 import { obterSessao, encerrarSessao } from '../utils/sessao';
+import { useAtualizacaoAutomatica } from '../hooks/useAtualizacaoAutomatica';
+import ModalConfirmacao from '../componentes/ModalConfirmacao';
 
 const AGENDAMENTO_VAZIO = { veiculos: [], selecoes: {}, resumo: [], levaTras: null, avaliacaoLevaTras: null };
 
@@ -62,29 +64,56 @@ export default function PaginaCliente() {
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
-  useEffect(() => {
-    async function buscarDadosClienteBackend() {
-      try {
-        const sessao = obterSessao();
-        if (!sessao) {
-          navigate('/login');
-          return;
-        }
-
-        const resposta = await apiFetch(`${API_URL}/api/execucoes/cliente/${sessao.id}`);
-
-        if (resposta.ok) {
-          setUltimosAgendamentos(await resposta.json());
-        }
-      } catch (erro) {
-        console.error("Erro ao buscar dados do painel do cliente:", erro);
-      } finally {
-        setCarregando(false);
+  const buscarDadosClienteBackend = async () => {
+    try {
+      const sessao = obterSessao();
+      if (!sessao) {
+        navigate('/login');
+        return;
       }
-    }
 
+      const resposta = await apiFetch(`${API_URL}/api/execucoes/cliente/${sessao.id}`);
+
+      if (resposta.ok) {
+        setUltimosAgendamentos(await resposta.json());
+      }
+    } catch (erro) {
+      console.error("Erro ao buscar dados do painel do cliente:", erro);
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  useEffect(() => {
     buscarDadosClienteBackend();
   }, [navigate, API_URL]);
+
+  // Acompanhamento em tempo real: o status do carro muda sozinho na tela (a cada 15 s
+  // e ao voltar para a aba). Pausa enquanto o cliente está no meio de um agendamento.
+  useAtualizacaoAutomatica(buscarDadosClienteBackend, 15000, passoAgendamento === null);
+
+  // Cancelamento de um carro agendado pelo próprio cliente
+  const [cancelando, setCancelando] = useState(null); // item a confirmar
+  const [aviso, setAviso] = useState(null); // { titulo, mensagem }
+
+  const confirmarCancelamento = async () => {
+    const item = cancelando;
+    setCancelando(null);
+    try {
+      const res = await apiFetch(`${API_URL}/api/agendamentos/servicos/${item.id}/cancelar`, { method: 'POST' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) setAviso({ titulo: 'Não foi possível cancelar', mensagem: json.erro || 'Tente de novo em instantes.' });
+    } catch {
+      setAviso({ titulo: 'Sem conexão', mensagem: 'Não conseguimos falar com o servidor. Tente de novo.' });
+    }
+    buscarDadosClienteBackend();
+  };
+
+  const botaoCancelar = (item, classe = '') => item.status === 'Agendado' && (
+    <button onClick={() => setCancelando(item)} className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 ${classe}`}>
+      <CalendarX size={13} /> Cancelar
+    </button>
+  );
 
   // O card de status olha só o que está no pátio (agendados e cancelados não contam).
   // Todos os carros em andamento aparecem: os que já estão lavando vêm primeiro.
@@ -332,6 +361,7 @@ export default function PaginaCliente() {
                         <span>{formatarDataTabela(item)}</span>
                         <span className="font-semibold text-tinta-800">{formatarValor(item.valor_total)}</span>
                       </div>
+                      {botaoCancelar(item, '-ml-2 mt-1')}
                     </div>
                   </li>
                 ))}
@@ -347,6 +377,7 @@ export default function PaginaCliente() {
                       <th className="px-6 py-3 font-semibold">Data</th>
                       <th className="px-6 py-3 text-right font-semibold">Valor</th>
                       <th className="px-6 py-3 font-semibold">Status</th>
+                      <th className="px-6 py-3" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-tinta-100">
@@ -362,6 +393,7 @@ export default function PaginaCliente() {
                         <td className="px-6 py-4 text-tinta-600">{formatarDataTabela(item)}</td>
                         <td className="px-6 py-4 text-right font-semibold text-tinta-900">{formatarValor(item.valor_total)}</td>
                         <td className="px-6 py-4"><BadgeStatus status={item.status} /></td>
+                        <td className="px-6 py-4 text-right">{botaoCancelar(item)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -418,6 +450,24 @@ export default function PaginaCliente() {
           />
       )}
 
+      <ModalConfirmacao
+        isOpen={!!cancelando}
+        titulo="Cancelar agendamento"
+        mensagem={cancelando ? `Cancelar a lavagem do ${cancelando.marca} ${cancelando.modelo} em ${formatarDataTabela(cancelando)}?` : ''}
+        onConfirm={confirmarCancelamento}
+        onCancel={() => setCancelando(null)}
+        tipo="perigo"
+        textoConfirmar="Cancelar lavagem"
+        textoCancelar="Manter"
+      />
+      <ModalConfirmacao
+        isOpen={!!aviso}
+        titulo={aviso?.titulo}
+        mensagem={aviso?.mensagem}
+        onConfirm={() => setAviso(null)}
+        onCancel={() => setAviso(null)}
+        soAviso
+      />
     </div>
   );
 }
