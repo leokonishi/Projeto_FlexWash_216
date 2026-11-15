@@ -42,11 +42,11 @@ export default function Historico({ abrirAlerta }) {
         setHistorico(dados);
       } else {
         const json = await resposta.json().catch(() => ({}));
-        if (abrirAlerta) abrirAlerta('Atenção', json.erro || 'Não foi possível carregar o histórico.', () => {}, 'perigo');
+        if (abrirAlerta) abrirAlerta('Atenção', json.erro || 'Não foi possível carregar o histórico.', () => {}, 'erro');
       }
     } catch (erro) {
       console.error("Erro ao buscar histórico:", erro);
-      if (abrirAlerta) abrirAlerta('Erro', 'Não foi possível carregar o histórico.', () => {}, 'perigo');
+      if (abrirAlerta) abrirAlerta('Erro', 'Não foi possível carregar o histórico.', () => {}, 'erro');
     } finally {
       setCarregando(false);
     }
@@ -83,7 +83,7 @@ export default function Historico({ abrirAlerta }) {
         });
         if (!res.ok) {
           const json = await res.json().catch(() => ({}));
-          abrirAlerta('Não foi possível reabrir', json.erro || 'Erro ao reabrir o serviço.', () => {}, 'perigo');
+          abrirAlerta('Não foi possível reabrir', json.erro || 'Erro ao reabrir o serviço.', () => {}, 'erro');
         }
         buscarHistorico();
       }
@@ -100,7 +100,7 @@ export default function Historico({ abrirAlerta }) {
     });
     if (!res.ok) {
       const json = await res.json().catch(() => ({}));
-      abrirAlerta('Não foi possível salvar', json.erro || 'Erro ao salvar a equipe.', () => {}, 'perigo');
+      abrirAlerta('Não foi possível salvar', json.erro || 'Erro ao salvar a equipe.', () => {}, 'erro');
     }
     buscarHistorico();
   };
@@ -117,10 +117,10 @@ export default function Historico({ abrirAlerta }) {
               setHistorico(prev => prev.filter(item => item.id !== id));
             } else {
               const json = await resposta.json().catch(() => ({}));
-              abrirAlerta('Não foi possível apagar', json.erro || json.mensagem || 'Erro ao apagar o registro.', () => {}, 'perigo');
+              abrirAlerta('Não foi possível apagar', json.erro || json.mensagem || 'Erro ao apagar o registro.', () => {}, 'erro');
             }
           } catch {
-            abrirAlerta('Erro', 'Falha na conexão com o servidor.', () => {}, 'perigo');
+            abrirAlerta('Erro', 'Falha na conexão com o servidor.', () => {}, 'erro');
           }
         },
         'perigo'

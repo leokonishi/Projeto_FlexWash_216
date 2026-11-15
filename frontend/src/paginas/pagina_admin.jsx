@@ -1,6 +1,6 @@
-import React, { useState, lazy, Suspense } from 'react';
+import React, { useState, useRef, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LayoutGrid, Users, History, Package, Truck, BadgeDollarSign, LogOut, Ticket, Wallet, CalendarDays } from 'lucide-react';
+import { LayoutGrid, Users, History, Package, Truck, BadgeDollarSign, LogOut, Ticket, Wallet, CalendarDays, CheckCircle2, X } from 'lucide-react';
 
 // Importação dos Componentes Filhos (Padrão de Arquitetura Limpa)
 import DashboardInicio from '../componentes/DashboardInicio';
@@ -15,7 +15,7 @@ import Comissoes from './Comissoes';
 import GestaoAgenda from './GestaoAgenda';
 import ModalConfirmacao from '../componentes/ModalConfirmacao';
 import Logo from '../componentes/ui/Logo';
-import { obterPerfil, encerrarSessao } from '../utils/sessao';
+import { obterPerfil, obterSessao, encerrarSessao } from '../utils/sessao';
 
 // Abas do painel. `admin`: só aparece para o administrador.
 const ABAS = [
@@ -35,14 +35,37 @@ export default function PaginaAdmin() {
   const [abaAtiva, setAbaAtiva] = useState('inicio');
   const perfilUsuario = obterPerfil() || 'funcionario'; // lido do token, não do localStorage editável
   const ehAdmin = perfilUsuario === 'administrador';
+  // Quem entrou (sessões antigas, sem nome no token, mostram o e-mail)
+  const sessao = obterSessao();
+  const nomeUsuario = sessao?.nome || sessao?.email || 'Equipe Flex';
+  const iniciais = (sessao?.nome || sessao?.email || 'F').split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('');
   const abasVisiveis = ABAS.filter(a => !a.admin || ehAdmin);
 
   // --- CONTROLE GLOBAL DO MODAL DE ALERTA ---
   // Fecha antes de executar a ação: assim a ação pode abrir outro alerta (erro, 2ª confirmação) sem ele sumir.
   const [alerta, setAlerta] = useState({ isOpen: false, titulo: '', mensagem: '', onConfirm: null, tipo: 'aviso' });
 
+  // tipo: 'aviso' e 'perigo' pedem confirmação; 'info' e 'erro' só informam (botão OK);
+  // 'sucesso' vira um aviso no canto que some sozinho, sem travar o trabalho.
+  const [toast, setToast] = useState(null);
+  const timerToast = useRef(null);
+  const mostrarToast = (mensagem) => {
+    clearTimeout(timerToast.current);
+    setToast({ mensagem, id: Date.now() });
+    timerToast.current = setTimeout(() => setToast(null), 3200);
+  };
+
   const abrirAlerta = (titulo, mensagem, onConfirm, tipo = 'aviso') => {
-    setAlerta({ isOpen: true, titulo, mensagem, onConfirm: () => { fecharAlerta(); onConfirm(); }, tipo });
+    if (tipo === 'sucesso') {
+      mostrarToast(mensagem);
+      return;
+    }
+    const soAviso = tipo === 'info' || tipo === 'erro';
+    setAlerta({
+      isOpen: true, titulo, mensagem, soAviso,
+      tipo: tipo === 'erro' ? 'perigo' : tipo === 'info' ? 'aviso' : tipo,
+      onConfirm: () => { fecharAlerta(); onConfirm?.(); }
+    });
   };
   const fecharAlerta = () => setAlerta(prev => ({ ...prev, isOpen: false }));
   // ------------------------------------------
@@ -85,7 +108,9 @@ export default function PaginaAdmin() {
   return (
     <div className="fw-app flex min-h-[100dvh]">
       {/* Menu lateral (computador) */}
-      <aside className="sticky top-0 hidden h-[100dvh] w-64 shrink-0 flex-col border-r border-tinta-200/70 bg-white px-4 py-5 lg:flex">
+      {/* O fundo branco ocupa a altura toda da página; o conteúdo do menu fica preso no topo */}
+      <div className="hidden w-64 shrink-0 border-r border-tinta-200/70 bg-white lg:block">
+      <aside className="sticky top-0 flex h-[100dvh] flex-col px-4 py-5">
         <div className="px-2"><Logo tamanho="sm" /></div>
 
         <nav className="mt-8 flex-1 space-y-1">
@@ -101,10 +126,10 @@ export default function PaginaAdmin() {
 
         <div className="flex items-center gap-3 rounded-2xl bg-tinta-50 p-3 ring-1 ring-tinta-200/70">
           <span className="grid size-9 shrink-0 place-items-center rounded-full bg-tinta-950 text-xs font-bold text-ouro-300">
-            {ehAdmin ? 'ADM' : 'OP'}
+            {iniciais}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-tinta-900">Equipe Flex</p>
+            <p className="truncate text-sm font-semibold text-tinta-900" title={nomeUsuario}>{nomeUsuario}</p>
             <p className="truncate text-xs text-tinta-500">{ehAdmin ? 'Administrador' : 'Operador de pátio'}</p>
           </div>
           <button onClick={handleLogout} className="grid size-8 place-items-center rounded-lg text-tinta-400 hover:bg-white hover:text-tinta-900" aria-label="Sair" title="Sair">
@@ -112,6 +137,7 @@ export default function PaginaAdmin() {
           </button>
         </div>
       </aside>
+      </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Topo (celular e tablet) */}
@@ -119,8 +145,8 @@ export default function PaginaAdmin() {
           <div className="flex h-14 items-center justify-between px-4">
             <Logo tamanho="sm" />
             <div className="flex items-center gap-2">
-              <span className="rounded-full bg-tinta-100 px-2.5 py-1 text-xs font-semibold text-tinta-600">
-                {ehAdmin ? 'Administrador' : 'Operador'}
+              <span className="max-w-40 truncate rounded-full bg-tinta-100 px-2.5 py-1 text-xs font-semibold text-tinta-600" title={ehAdmin ? 'Administrador' : 'Operador de pátio'}>
+                {sessao?.nome ? sessao.nome.split(' ')[0] : ehAdmin ? 'Administrador' : 'Operador'}
               </span>
               <button onClick={handleLogout} className="fw-btn-fantasma h-9 px-2" aria-label="Sair"><LogOut size={18} /></button>
             </div>
@@ -164,7 +190,21 @@ export default function PaginaAdmin() {
         onConfirm={alerta.onConfirm}
         onCancel={fecharAlerta}
         tipo={alerta.tipo}
+        soAviso={alerta.soAviso}
+        textoConfirmar={alerta.soAviso ? 'OK' : 'Confirmar'}
       />
+
+      {/* Aviso de sucesso: some sozinho */}
+      {toast && (
+        <div key={toast.id} role="status" aria-live="polite"
+          className="fixed inset-x-4 bottom-4 z-[320] mx-auto flex max-w-sm items-center gap-3 rounded-2xl bg-tinta-950 px-4 py-3 text-sm font-medium text-white shadow-elevada animate-subir sm:bottom-6 sm:left-auto sm:right-6 sm:mx-0">
+          <CheckCircle2 size={18} className="shrink-0 text-verde-400" />
+          <span className="min-w-0 flex-1">{toast.mensagem}</span>
+          <button onClick={() => setToast(null)} className="-mr-1 grid size-7 place-items-center rounded-full text-tinta-400 hover:bg-white/10 hover:text-white" aria-label="Fechar aviso">
+            <X size={15} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

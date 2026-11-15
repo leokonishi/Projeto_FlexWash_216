@@ -65,6 +65,22 @@ export default function CadastroCliente() {
       const resultado = await resposta.json();
 
       if (resposta.ok) {
+        // Já entra na conta: o cliente acabou de digitar o e-mail e a senha
+        try {
+          const login = await fetch(`${API_URL}/api/login/cliente`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: formulario.email, senha: formulario.senha }),
+          });
+          const sessao = await login.json().catch(() => ({}));
+          if (login.ok && sessao.token) {
+            localStorage.setItem('token_flexwash', sessao.token);
+            navigate('/PaginaCliente');
+            return;
+          }
+        } catch {
+          // segue para o login manual
+        }
         navigate('/login', { state: { cadastrado: true } });
       } else {
         // E-mail ou CPF já existente: mostra a mensagem do backend

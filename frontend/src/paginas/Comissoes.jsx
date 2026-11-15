@@ -32,12 +32,12 @@ export default function Comissoes({ abrirAlerta }) {
       const res = await apiFetch(`${API_URL}/api/${rota}?inicio=${periodo.inicio}&fim=${periodo.fim}`);
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        abrirAlerta?.('Atenção', json.erro || 'Não foi possível carregar as comissões.', () => {}, 'perigo');
+        abrirAlerta?.('Atenção', json.erro || 'Não foi possível carregar as comissões.', () => {}, 'erro');
         return;
       }
       setDados(json);
     } catch {
-      abrirAlerta?.('Erro', 'Falha ao conectar com o servidor.', () => {}, 'perigo');
+      abrirAlerta?.('Erro', 'Falha ao conectar com o servidor.', () => {}, 'erro');
     } finally {
       setCarregando(false);
     }
@@ -55,7 +55,7 @@ export default function Comissoes({ abrirAlerta }) {
     });
     if (!res.ok) {
       const json = await res.json().catch(() => ({}));
-      abrirAlerta?.('Não foi possível salvar', json.erro || 'Erro ao salvar a equipe.', () => {}, 'perigo');
+      abrirAlerta?.('Não foi possível salvar', json.erro || 'Erro ao salvar a equipe.', () => {}, 'erro');
     }
     buscar();
   };

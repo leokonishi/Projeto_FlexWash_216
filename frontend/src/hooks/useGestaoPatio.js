@@ -2,6 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../utils/api';
 import { useAtualizacaoAutomatica } from './useAtualizacaoAutomatica';
 
+// Texto do aviso depois de mover um carro no pátio
+const MENSAGEM_STATUS = {
+  'Aguardando': 'Carro na fila.',
+  'Em Andamento': 'Lavagem iniciada.',
+  'Finalizado': 'Carro pronto!',
+};
+
 export function useGestaoPatio(abrirAlerta) {
   const [metricas, setMetricas] = useState({
     veiculosDoDia: 0, portes: { pequeno: 0, medio: 0, grande: 0 },
@@ -89,10 +96,10 @@ export function useGestaoPatio(abrirAlerta) {
         body: JSON.stringify(funcionarios ? { novoStatus, funcionarios } : { novoStatus })
       });
       if (res.ok) {
-        alertar('Sucesso', `Serviço movido para: ${novoStatus}!`, () => {}, 'aviso');
+        alertar('Sucesso', MENSAGEM_STATUS[novoStatus] || `Serviço movido para: ${novoStatus}`, () => {}, 'sucesso');
       } else {
         const json = await res.json().catch(() => ({}));
-        alertar('Atenção', json.erro || 'Não foi possível mudar o status.', () => {}, 'perigo');
+        alertar('Atenção', json.erro || 'Não foi possível mudar o status.', () => {}, 'erro');
       }
       buscarDadosDoPatio();
     } catch (erro) {
@@ -112,11 +119,11 @@ export function useGestaoPatio(abrirAlerta) {
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        alertar('Não foi possível trocar a equipe', json.erro || 'Erro ao salvar a equipe.', () => {}, 'perigo');
+        alertar('Não foi possível trocar a equipe', json.erro || 'Erro ao salvar a equipe.', () => {}, 'erro');
       }
       buscarDadosDoPatio();
     } catch {
-      alertar('Erro', 'Falha ao conectar com o servidor.', () => {}, 'perigo');
+      alertar('Erro', 'Falha ao conectar com o servidor.', () => {}, 'erro');
     }
   };
 
@@ -130,11 +137,11 @@ export function useGestaoPatio(abrirAlerta) {
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        alertar('Atenção', json.erro || 'Não foi possível atualizar o leva e traz.', () => {}, 'perigo');
+        alertar('Atenção', json.erro || 'Não foi possível atualizar o leva e traz.', () => {}, 'erro');
       }
       buscarDadosDoPatio({ silencioso: true });
     } catch {
-      alertar('Erro', 'Falha ao conectar com o servidor.', () => {}, 'perigo');
+      alertar('Erro', 'Falha ao conectar com o servidor.', () => {}, 'erro');
     }
   };
 
@@ -144,11 +151,11 @@ export function useGestaoPatio(abrirAlerta) {
         const res = await apiFetch(`${API_URL}/api/execucoes/${idServico}`, { method: 'DELETE' });
         if (!res.ok) {
           const json = await res.json().catch(() => ({}));
-          alertar('Não foi possível excluir', json.erro || 'Erro ao remover o serviço.', () => {}, 'perigo');
+          alertar('Não foi possível excluir', json.erro || 'Erro ao remover o serviço.', () => {}, 'erro');
         }
         buscarDadosDoPatio();
       } catch {
-        alertar('Erro', 'Falha ao conectar com o servidor.', () => {}, 'perigo');
+        alertar('Erro', 'Falha ao conectar com o servidor.', () => {}, 'erro');
       }
     }, 'perigo');
   };
@@ -165,11 +172,11 @@ export function useGestaoPatio(abrirAlerta) {
         });
         if (!res.ok) {
           const json = await res.json().catch(() => ({}));
-          alertar('Não foi possível cancelar', json.erro || 'Erro ao cancelar o agendamento.', () => {}, 'perigo');
+          alertar('Não foi possível cancelar', json.erro || 'Erro ao cancelar o agendamento.', () => {}, 'erro');
         }
         buscarDadosDoPatio();
       } catch {
-        alertar('Erro', 'Falha ao conectar com o servidor.', () => {}, 'perigo');
+        alertar('Erro', 'Falha ao conectar com o servidor.', () => {}, 'erro');
       }
     }, 'perigo');
   };

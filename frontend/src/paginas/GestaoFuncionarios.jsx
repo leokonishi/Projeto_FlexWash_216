@@ -26,8 +26,9 @@ const rotuloFuncao = (f) => ROTULO_FUNCAO[f] || f;
 
 export default function GestaoFuncionarios({ abrirAlerta }) {
   // Avisos no modal do painel (cai no alert do navegador se a tela for usada fora dele)
-  const avisar = (titulo, mensagem, tipo = 'aviso') => {
-    if (abrirAlerta) abrirAlerta(titulo, mensagem, () => {}, tipo);
+  // Sucesso vira aviso que some sozinho; o resto é uma mensagem com um botão OK
+  const avisar = (titulo, mensagem, tipo = titulo === 'Sucesso' ? 'sucesso' : 'info') => {
+    if (abrirAlerta) abrirAlerta(titulo, mensagem, () => {}, tipo === 'perigo' ? 'erro' : tipo);
     else alert(mensagem);
   };
 
@@ -41,7 +42,7 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
   const [filtroNomeCpf, setFiltroNomeCpf] = useState('');
   const [filtroFuncao, setFiltroFuncao] = useState('');
 
-  const FORM_VAZIO = { cpf: '', nome: '', email: '', telefone: '', funcoes: ['Lavagem Geral'], senha: '' };
+  const FORM_VAZIO = { cpf: '', nome: '', email: '', telefone: '', funcoes: [], senha: '' };
   const [formulario, setFormulario] = useState(FORM_VAZIO);
   const [editandoId, setEditandoId] = useState(null); // null = cadastro novo
   const editando = editandoId !== null;

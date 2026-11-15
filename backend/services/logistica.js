@@ -176,7 +176,7 @@ async function avaliarLevaTras(db, clienteId) {
   const [[cliente]] = await db.execute('SELECT endereco FROM clientes WHERE id = ?', [clienteId]);
   const enderecoCliente = (cliente?.endereco || '').trim();
   if (!enderecoCliente) {
-    return indisponivel('sem_endereco', 'Cadastre o endereço de busca para ver se o leva e traz atende você.', {
+    return indisponivel('sem_endereco', 'Falta o endereço de busca. Cadastre para ver se o leva e traz atende.', {
       ...base,
       endereco_cliente: ''
     });
@@ -201,7 +201,7 @@ async function avaliarLevaTras(db, clienteId) {
     const fmt = (n) => n.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
     return indisponivel(
       'fora_do_raio',
-      `Seu endereço fica a ${fmt(km)} km do lava-rápido. O leva e traz atende até ${fmt(config.raio_km)} km.`,
+      `O endereço fica a ${fmt(km)} km do lava-rápido. O leva e traz atende até ${fmt(config.raio_km)} km.`,
       extra
     );
   }

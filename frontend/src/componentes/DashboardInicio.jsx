@@ -198,8 +198,8 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
           <span className="font-display text-lg font-extrabold text-tinta-950">{moeda(item.valor_total)}</span>
           <div className="flex gap-1">
             {podeOperar && item.status === 'Agendado' && (
-              <button onClick={() => cancelarAgendamento(item)} className="grid size-9 place-items-center rounded-lg text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" title="Cancelar agendamento" aria-label="Cancelar agendamento">
-                <CalendarX size={17} />
+              <button onClick={() => cancelarAgendamento(item)} className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold text-tinta-500 hover:bg-red-50 hover:text-red-700" title="Cancelar agendamento">
+                <CalendarX size={16} /> Cancelar
               </button>
             )}
             {ehAdmin && (
