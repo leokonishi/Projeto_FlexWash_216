@@ -3,7 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../bd');
-const { registrarAgendamento, horariosDoDia, obterConfiguracao } = require('../services/agendamentoService');
+const { registrarAgendamento, horariosDoDia, obterConfiguracao, cancelarPeloCliente } = require('../services/agendamentoService');
 const { avaliarLevaTras } = require('../services/logistica');
 const { ErroNegocio } = require('../services/erros');
 
@@ -51,6 +51,16 @@ router.post('/agendamentos', async (req, res) => {
         res.status(201).json({ mensagem: 'Agendamento confirmado!', ...resultado });
     } catch (erro) {
         responderErro(res, erro, 'Erro ao registrar o agendamento.');
+    }
+});
+
+// Cliente cancela um carro agendado (até a antecedência mínima; ver agendamentoService)
+router.post('/agendamentos/servicos/:execucao_id/cancelar', async (req, res) => {
+    try {
+        const resultado = await cancelarPeloCliente(db, req.usuarioLogado.id, req.params.execucao_id);
+        res.status(200).json({ mensagem: 'Agendamento cancelado.', ...resultado });
+    } catch (erro) {
+        responderErro(res, erro, 'Erro ao cancelar o agendamento.');
     }
 });
 

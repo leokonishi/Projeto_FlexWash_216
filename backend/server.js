@@ -12,10 +12,6 @@ const cadastroCliente = require('./endpoints/cadastroCliente');
 const loginGestao = require('./endpoints/loginGestao');
 const loginClienteRoutes = require('./endpoints/loginCliente');
 const funcionariosRoutes = require('./endpoints/funcionarios');
-const comissoesFuncionarioRoutes = require('./endpoints/comissoesFuncionario');
-const tarefasFuncionarioRoutes = require('./endpoints/tarefasFuncionario');
-const faturamentoAdminRoutes = require('./endpoints/faturamentoAdmin');
-const comissoesAdminRoutes = require('./endpoints/comissoesAdmin');
 
 // IMPORTAÇÕES DA PASTA 'routes'
 const veiculoRoutes = require('./routes/veiculoRoutes');
@@ -25,6 +21,7 @@ const meRoutes = require('./routes/meRoutes');
 const agendamentosRoutes = require('./routes/agendamentosRoutes');
 const logisticaRoutes = require('./routes/logisticaRoutes');
 const promocoesRoutes = require('./routes/promocoesRoutes');
+const comissoesRoutes = require('./routes/comissoesRoutes');
 
 // IMPORTAÇÃO DA PASTA 'endpoints' (Rota de serviços do cliente)
 const servicoClienteRoutes = require('./endpoints/servicos');
@@ -83,10 +80,7 @@ app.use('/api', agendamentosRoutes);
 app.use('/api', logisticaRoutes); // /api/admin/logistica (leva e traz: endereço, raio e valor)
 app.use('/api', promocoesRoutes); // /api/admin/promocoes e /api/admin/movimento-diario (fidelidade e cupons)
 app.use('/api', veiculoRoutes);
-app.use('/api', comissoesFuncionarioRoutes);
-app.use('/api', comissoesAdminRoutes);
-app.use('/api', tarefasFuncionarioRoutes);
-app.use('/api', faturamentoAdminRoutes);
+app.use('/api', comissoesRoutes); // /api/admin/comissoes e /api/funcionario/comissoes
 
 // Rota protegida de teste
 app.get('/api/protegida', verificarToken, (req, res) => {

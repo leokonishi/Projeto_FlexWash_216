@@ -306,7 +306,12 @@ async function movimentoDiario(db, data) {
 async function gerarPromocaoMovimento(db, { data, forcar = false } = {}) {
   const dia = data || agenda.agoraLocal().data;
   if (!agenda.dataValida(dia)) throw new ErroNegocio('Data inválida. Use o formato AAAA-MM-DD.');
-  if (dia < agenda.agoraLocal().data) throw new ErroNegocio('Não dá para criar promoção para um dia que já passou.');
+  const agora = agenda.agoraLocal();
+  if (dia < agora.data) throw new ErroNegocio('Não dá para criar promoção para um dia que já passou.');
+  // O cupom só vale no próprio dia: sem horário livre pela frente, ninguém consegue usar
+  if (dia === agora.data && agenda.HORARIOS.every((h) => agenda.horarioPassou(dia, h, agora))) {
+    throw new ErroNegocio('O expediente de hoje já acabou: não sobra horário para usar a promoção. Gere amanhã cedo.', 409);
+  }
 
   const config = await obterConfig(db);
   if (config.movimento_tipo === 'extra_gratis' && !config.movimento_extra_id) {

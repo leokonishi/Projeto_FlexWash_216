@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../utils/api';
+import { useAtualizacaoAutomatica } from './useAtualizacaoAutomatica';
 
 export function useGestaoPatio(abrirAlerta) {
   const [metricas, setMetricas] = useState({
@@ -18,9 +19,10 @@ export function useGestaoPatio(abrirAlerta) {
     else alert(`${tit}: ${msg}`);
   };
 
-  const buscarDadosDoPatio = async () => {
+  // silencioso: atualização automática, sem girar o botão nem trocar a tela
+  const buscarDadosDoPatio = async ({ silencioso = false } = {}) => {
     try {
-      setCarregando(true);
+      if (!silencioso) setCarregando(true);
       const [resposta, respostaProximos] = await Promise.all([
         apiFetch(`${API_URL}/api/execucoes/patio`),
         apiFetch(`${API_URL}/api/execucoes/agendados`)
@@ -36,11 +38,12 @@ export function useGestaoPatio(abrirAlerta) {
       
     } catch (erro) {
       console.error("Erro ao buscar pátio:", erro);
+      if (silencioso) return; // falha momentânea da atualização automática: mantém o que está na tela
       setListaPatio([]); 
       setProximosAgendamentos([]);
       calcularMetricas([]); 
     } finally {
-      setCarregando(false);
+      if (!silencioso) setCarregando(false);
     }
   };
 
@@ -68,7 +71,8 @@ export function useGestaoPatio(abrirAlerta) {
     });
   };
 
-  const avancarStatusServico = async (idServico, statusAtual) => {
+  // funcionarios (opcional): ids da equipe, enviados ao iniciar a lavagem
+  const avancarStatusServico = async (idServico, statusAtual, funcionarios) => {
     // Agendado -> Aguardando (carro chegou) -> Em Andamento -> Finalizado
     const proximoStatus = { 'Agendado': 'Aguardando', 'Aguardando': 'Em Andamento', 'Em Andamento': 'Finalizado' };
     const novoStatus = proximoStatus[statusAtual];
@@ -78,7 +82,7 @@ export function useGestaoPatio(abrirAlerta) {
       const res = await apiFetch(`${API_URL}/api/execucoes/${idServico}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ novoStatus })
+        body: JSON.stringify(funcionarios ? { novoStatus, funcionarios } : { novoStatus })
       });
       if (res.ok) {
         alertar('Sucesso', `Serviço movido para: ${novoStatus}!`, () => {}, 'aviso');
@@ -91,6 +95,24 @@ export function useGestaoPatio(abrirAlerta) {
       console.error(erro);
     } finally {
       mudandoStatusRef.current.delete(idServico);
+    }
+  };
+
+  // Corrige quem está lavando (muda a divisão da comissão)
+  const trocarEquipe = async (idServico, funcionarios) => {
+    try {
+      const res = await apiFetch(`${API_URL}/api/execucoes/${idServico}/equipe`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ funcionarios })
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        alertar('Não foi possível trocar a equipe', json.erro || 'Erro ao salvar a equipe.', () => {}, 'perigo');
+      }
+      buscarDadosDoPatio();
+    } catch {
+      alertar('Erro', 'Falha ao conectar com o servidor.', () => {}, 'perigo');
     }
   };
 
@@ -131,6 +153,8 @@ export function useGestaoPatio(abrirAlerta) {
   };
 
   useEffect(() => { buscarDadosDoPatio(); }, []);
+  // Pátio sempre em dia: outro funcionário mexeu, um cliente agendou para hoje, etc.
+  useAtualizacaoAutomatica(() => buscarDadosDoPatio({ silencioso: true }), 20000);
 
-  return { metricas, listaPatio, proximosAgendamentos, carregando, buscarDadosDoPatio, avancarStatusServico, excluirServico, cancelarAgendamento };
+  return { metricas, listaPatio, proximosAgendamentos, carregando, buscarDadosDoPatio, avancarStatusServico, trocarEquipe, excluirServico, cancelarAgendamento };
 }

@@ -1,6 +1,6 @@
 import React, { useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LayoutGrid, Users, History, Package, Truck, BadgeDollarSign, LogOut, Ticket } from 'lucide-react';
+import { LayoutGrid, Users, History, Package, Truck, BadgeDollarSign, LogOut, Ticket, Wallet } from 'lucide-react';
 
 // Importação dos Componentes Filhos (Padrão de Arquitetura Limpa)
 import DashboardInicio from '../componentes/DashboardInicio';
@@ -11,6 +11,7 @@ import GestaoPromocoes from './GestaoPromocoes';
 // Carregada só quando a aba é aberta: o mapa 3D (MapLibre) é pesado
 const GestaoLevaTras = lazy(() => import('./GestaoLevaTras'));
 import Historico from './Historico';
+import Comissoes from './Comissoes';
 import ModalConfirmacao from '../componentes/ModalConfirmacao';
 import Logo from '../componentes/ui/Logo';
 import { obterPerfil, encerrarSessao } from '../utils/sessao';
@@ -20,6 +21,7 @@ const ABAS = [
   { id: 'inicio', nome: 'Pátio', icone: LayoutGrid },
   { id: 'clientes', nome: 'Clientes', icone: Users },
   { id: 'historico', nome: 'Histórico', nomeLongo: 'Histórico / Relatórios', icone: History },
+  { id: 'comissoes', nome: 'Comissões', icone: Wallet },
   { id: 'servicos', nome: 'Serviços', icone: Package, admin: true },
   { id: 'promocoes', nome: 'Promoções', nomeLongo: 'Fidelidade e promoções', icone: Ticket, admin: true },
   { id: 'levatras', nome: 'Leva e Traz', icone: Truck, admin: true },
@@ -133,6 +135,8 @@ export default function PaginaAdmin() {
           {abaAtiva === 'clientes' && <GestaoClientes abrirAlerta={abrirAlerta} />}
 
           {abaAtiva === 'historico' && <Historico abrirAlerta={abrirAlerta} />}
+
+          {abaAtiva === 'comissoes' && <Comissoes abrirAlerta={abrirAlerta} />}
 
           {abaAtiva === 'funcionarios' && ehAdmin && <GestaoFuncionarios abrirAlerta={abrirAlerta} />}
 
