@@ -5,6 +5,7 @@ const agenda = require('./agenda');
 const { configAtiva, avaliarLevaTras } = require('./logistica');
 const { separarEndereco } = require('./mapa');
 const promocoes = require('./promocoes');
+const configAgenda = require('./configAgenda');
 
 const MAX_VEICULOS_POR_AGENDAMENTO = 10;
 const TIPOS_LOGISTICA = ['cliente_leva', 'leva_tras'];
@@ -35,9 +36,13 @@ async function ocupacaoDoDia(conn, data) {
 // GET /api/agendamentos/leva-e-traz, que mede a distância no mapa.
 async function obterConfiguracao(db) {
   const logistica = await configAtiva(db);
+  const cfg = await configAgenda.obter(db);
   return {
-    horarios: agenda.HORARIOS,
-    capacidade_por_horario: agenda.CAPACIDADE_POR_HORARIO,
+    horarios: cfg.horarios,
+    capacidade_por_horario: cfg.capacidade,
+    dias_semana: cfg.diasSemana,
+    dias_fechados: [...cfg.bloqueios].map(([data, motivo]) => ({ data, motivo })),
+    antecedencia_cancelamento_horas: cfg.antecedenciaCancelamentoHoras,
     max_veiculos: MAX_VEICULOS_POR_AGENDAMENTO,
     endereco_lava_rapido: logistica?.endereco_lava_rapido || null,
     leva_tras: {
@@ -48,29 +53,37 @@ async function obterConfiguracao(db) {
 }
 
 // Vagas de cada horário de um dia
+// Dia fechado (dia da semana sem atendimento ou feriado): lista vazia + `fechado` com o motivo.
 async function horariosDoDia(db, data) {
   if (!agenda.dataValida(data)) throw new ErroNegocio('Data inválida. Use o formato AAAA-MM-DD.');
 
+  const cfg = await configAgenda.obter(db);
+  const fechado = agenda.motivoFechado(data, cfg);
+  if (fechado) return { horarios: [], fechado };
+
   const agora = agenda.agoraLocal();
   const ocupacao = await ocupacaoDoDia(db, data);
-  return agenda.HORARIOS.map((horario) => {
+  const horarios = cfg.horarios.map((horario) => {
     const passado = agenda.horarioPassou(data, horario, agora);
-    const vagas = passado ? 0 : Math.max(0, agenda.CAPACIDADE_POR_HORARIO - (ocupacao.get(horario) || 0));
+    const vagas = passado ? 0 : Math.max(0, cfg.capacidade - (ocupacao.get(horario) || 0));
     return { horario, vagas, passado };
   });
+  return { horarios, fechado: null };
 }
 
 // Primeiro dia/horário (a partir de `data`) em que cabem `quantidade` carros
-async function buscarSugestao(conn, { data, horarioInicial, quantidade, agora }) {
+async function buscarSugestao(conn, { data, horarioInicial, quantidade, agora, cfg }) {
   for (let i = 0; i <= agenda.DIAS_BUSCA_SUGESTAO; i++) {
     const dia = agenda.somarDias(data, i);
+    if (agenda.motivoFechado(dia, cfg)) continue;
     const ocupacao = await ocupacaoDoDia(conn, dia);
     const alocados = agenda.distribuirNoDia({
       data: dia,
-      horarioInicial: i === 0 ? horarioInicial : agenda.HORARIOS[0],
+      horarioInicial: i === 0 ? horarioInicial : cfg.horarios[0],
       quantidade,
       ocupacao,
-      agora
+      agora,
+      cfg
     });
     if (alocados) return { data: dia, horario: alocados[0] };
   }
@@ -81,9 +94,22 @@ async function buscarSugestao(conn, { data, horarioInicial, quantidade, agora })
 // Validação do pedido
 // ---------------------------------------------------------------------
 
+// Formato aqui; se o dia abre e se o horário existe é conferido com a agenda configurada
+// (conferirAgendaAberta), depois de lê-la do banco.
 function validarDataHorario(data, horario) {
   if (!agenda.dataValida(data)) throw new ErroNegocio('Escolha uma data válida.');
-  if (!agenda.HORARIOS.includes(horario)) throw new ErroNegocio('Escolha um dos horários de atendimento.');
+  if (typeof horario !== 'string' || !/^\d{2}:\d{2}$/.test(horario)) throw new ErroNegocio('Escolha um dos horários de atendimento.');
+}
+
+function conferirAgendaAberta(pedidos, cfg) {
+  for (const { data, horario } of pedidos) {
+    const fechado = agenda.motivoFechado(data, cfg);
+    if (fechado) {
+      const [ano, mes, dia] = data.split('-');
+      throw new ErroNegocio(`Não atendemos em ${dia}/${mes}/${ano}: ${fechado.charAt(0).toLowerCase()}${fechado.slice(1)}. Escolha outro dia.`);
+    }
+    if (!cfg.horarios.includes(horario)) throw new ErroNegocio('Escolha um dos horários de atendimento.');
+  }
 }
 
 // Dois modos:
@@ -133,7 +159,7 @@ function normalizarPedido(corpo) {
 
 // Modo "horário por veículo": confere se cada horário escolhido ainda tem vaga,
 // contando os outros carros do mesmo pedido que escolheram o mesmo horário.
-async function conferirHorariosIndividuais(conn, itens, veiculos) {
+async function conferirHorariosIndividuais(conn, itens, veiculos, cfg) {
   const ocupacaoPorDia = new Map();
   for (const item of itens) {
     if (!ocupacaoPorDia.has(item.data)) ocupacaoPorDia.set(item.data, await ocupacaoDoDia(conn, item.data));
@@ -142,7 +168,7 @@ async function conferirHorariosIndividuais(conn, itens, veiculos) {
   return itens.map((item) => {
     const ocupacao = ocupacaoPorDia.get(item.data);
     const usados = ocupacao.get(item.horario) || 0;
-    if (usados >= agenda.CAPACIDADE_POR_HORARIO) {
+    if (usados >= cfg.capacidade) {
       const v = veiculos.get(item.veiculoId);
       const [ano, mes, dia] = item.data.split('-');
       throw new ErroNegocio(
@@ -206,6 +232,8 @@ async function registrarAgendamento(db, clienteId, corpo) {
 
   const agora = agenda.agoraLocal();
   const pedidos = horarioPorVeiculo ? itens : [{ data, horario }];
+  const cfg = await configAgenda.obter(db);
+  conferirAgendaAberta(pedidos, cfg);
   if (pedidos.some((p) => agenda.horarioPassou(p.data, p.horario, agora))) {
     throw new ErroNegocio('Esse horário já passou. Escolha um horário futuro.');
   }
@@ -266,12 +294,12 @@ async function registrarAgendamento(db, clienteId, corpo) {
     // Data e horário de cada carro: [{ data, horario }], na ordem de `itens`
     let vagas;
     if (horarioPorVeiculo) {
-      vagas = await conferirHorariosIndividuais(conn, itens, veiculos);
+      vagas = await conferirHorariosIndividuais(conn, itens, veiculos, cfg);
     } else {
       const ocupacao = await ocupacaoDoDia(conn, data);
-      const horarios = agenda.distribuirNoDia({ data, horarioInicial: horario, quantidade: itens.length, ocupacao, agora });
+      const horarios = agenda.distribuirNoDia({ data, horarioInicial: horario, quantidade: itens.length, ocupacao, agora, cfg });
       if (!horarios) {
-        const sugestao = await buscarSugestao(conn, { data, horarioInicial: horario, quantidade: itens.length, agora });
+        const sugestao = await buscarSugestao(conn, { data, horarioInicial: horario, quantidade: itens.length, agora, cfg });
         const qtd = itens.length === 1 ? 'o veículo' : `os ${itens.length} veículos`;
         throw new ErroNegocio(`Não há vagas para ${qtd} a partir desse horário nesse dia.`, 409, { sugestao });
       }
@@ -281,8 +309,8 @@ async function registrarAgendamento(db, clienteId, corpo) {
     await exigirSemAgendamentoNoDia(conn, itens, vagas, veiculos);
 
     const [resAgendamento] = await conn.execute(
-      'INSERT INTO agendamentos (cliente_id, tipo_logistica, endereco_busca, distancia_km) VALUES (?, ?, ?, ?)',
-      [clienteId, tipoLogistica, enderecoBusca, distanciaKm]
+      'INSERT INTO agendamentos (cliente_id, tipo_logistica, endereco_busca, distancia_km, logistica_status) VALUES (?, ?, ?, ?, ?)',
+      [clienteId, tipoLogistica, enderecoBusca, distanciaKm, tipoLogistica === 'leva_tras' ? 'a_buscar' : null]
     );
     const agendamentoId = resAgendamento.insertId;
 
@@ -400,8 +428,8 @@ async function registrarAgendamento(db, clienteId, corpo) {
 // Cancelamento pelo próprio cliente
 // ---------------------------------------------------------------------
 
-// Até quantas horas antes do horário marcado o cliente pode cancelar pelo app.
-// Depois disso, só falando com o lava-rápido (a equipe cancela pelo pátio).
+// Até quantas horas antes do horário marcado o cliente pode cancelar pelo app vem da
+// agenda configurada (padrão 2 h). Depois disso, só falando com o lava-rápido.
 const ANTECEDENCIA_CANCELAMENTO_HORAS = 2;
 
 // Cancela UM carro de um agendamento do cliente. Só vale para serviço "Agendado"
@@ -431,13 +459,14 @@ async function cancelarPeloCliente(db, clienteId, execucaoId) {
       );
     }
 
+    const { antecedenciaCancelamentoHoras: horasMinimas = ANTECEDENCIA_CANCELAMENTO_HORAS } = await configAgenda.obter(db);
     if (execucao.quando) {
       const agora = agenda.agoraLocal();
       const [dia, hora] = execucao.quando.split(' ');
       const minutosAteHorario = (Date.parse(`${dia}T${hora}:00Z`) - Date.parse(`${agora.data}T${agora.hora}:00Z`)) / 60000;
-      if (minutosAteHorario < ANTECEDENCIA_CANCELAMENTO_HORAS * 60) {
+      if (minutosAteHorario < horasMinimas * 60) {
         throw new ErroNegocio(
-          `Pelo app, dá para cancelar até ${ANTECEDENCIA_CANCELAMENTO_HORAS} horas antes do horário. Fale com o lava-rápido.`,
+          `Pelo app, dá para cancelar até ${horasMinimas} hora(s) antes do horário. Fale com o lava-rápido.`,
           409
         );
       }

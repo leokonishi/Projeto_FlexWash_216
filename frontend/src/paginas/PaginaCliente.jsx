@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, CalendarPlus, CalendarClock, Car, Droplets, Sparkles, CheckCircle2, ParkingSquare, History, CalendarX } from 'lucide-react';
+import { LogOut, CalendarPlus, CalendarClock, Car, Droplets, Sparkles, CheckCircle2, ParkingSquare, History, CalendarX, Truck } from 'lucide-react';
 import EscolhaServicoCliente from '../componentes/configCliente/EscolhaServicoCliente';
 import EscolhaVeiculoCliente from '../componentes/configCliente/EscolhaVeiculoCliente';
 import EscolhaLevaTrasCliente from '../componentes/configCliente/EscolhaLevaTrasCliente';
@@ -126,6 +126,21 @@ export default function PaginaCliente() {
   const proximoAgendado = ultimosAgendamentos
     .filter(item => item.status === 'Agendado' && item.data_agendamento)
     .sort((a, b) => a.data_agendamento.localeCompare(b.data_agendamento))[0];
+  // Leva e traz: motorista indo buscar ou trazendo o carro de volta
+  const primeiroNome = (nome) => String(nome || '').split(' ')[0];
+  const voltando = ultimosAgendamentos.find(item => item.tipo_logistica === 'leva_tras' && item.logistica_status === 'entregando');
+  const buscando = ultimosAgendamentos.find(item => item.status === 'Agendado' && item.tipo_logistica === 'leva_tras' && item.logistica_status === 'buscando');
+  const avisoLevaTras = voltando
+    ? `${primeiroNome(voltando.motorista_nome) || 'O motorista'} está trazendo seu carro de volta`
+    : buscando ? `${primeiroNome(buscando.motorista_nome) || 'O motorista'} está a caminho para buscar seu carro` : null;
+  const textoLogistica = (item) => {
+    if (item.tipo_logistica !== 'leva_tras') return null;
+    if (item.logistica_status === 'buscando') return `${primeiroNome(item.motorista_nome) || 'Motorista'} a caminho para buscar`;
+    if (item.logistica_status === 'entregando') return 'A caminho de volta';
+    if (item.logistica_status === 'entregue' && item.status === 'Finalizado') return 'Entregue';
+    if (item.logistica_status === 'coletado' && item.status === 'Finalizado') return 'Pronto, aguardando a entrega';
+    return null;
+  };
   const totalConcluidos = ultimosAgendamentos.filter(item => !['Agendado', 'Aguardando', 'Em Andamento', 'Cancelado'].includes(item.status)).length;
 
   const lidarComLogout = () => {
@@ -234,6 +249,12 @@ export default function PaginaCliente() {
               <p className="flex items-center gap-1.5 text-sm font-medium text-ouro-300">
                 <Sparkles size={15} /> Olá, que bom te ver por aqui
               </p>
+
+              {avisoLevaTras && (
+                <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-ouro-400/15 px-3 py-1.5 text-sm font-semibold text-ouro-200 ring-1 ring-ouro-300/30">
+                  <Truck size={16} /> {avisoLevaTras}
+                </p>
+              )}
 
               {noPatio.length > 0 ? (
                 <>
@@ -357,6 +378,7 @@ export default function PaginaCliente() {
                         <BadgeStatus status={item.status} />
                       </div>
                       <p className="mt-0.5 truncate text-sm text-tinta-500">{item.pacote_nome || 'Serviço avulso'}</p>
+                      {textoLogistica(item) && <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-ouro-700"><Truck size={12} /> {textoLogistica(item)}</p>}
                       <div className="mt-1 flex items-center justify-between text-xs text-tinta-500">
                         <span>{formatarDataTabela(item)}</span>
                         <span className="font-semibold text-tinta-800">{formatarValor(item.valor_total)}</span>
@@ -392,7 +414,10 @@ export default function PaginaCliente() {
                         <td className="px-6 py-4 text-tinta-600">{item.pacote_nome || 'Serviço avulso'}</td>
                         <td className="px-6 py-4 text-tinta-600">{formatarDataTabela(item)}</td>
                         <td className="px-6 py-4 text-right font-semibold text-tinta-900">{formatarValor(item.valor_total)}</td>
-                        <td className="px-6 py-4"><BadgeStatus status={item.status} /></td>
+                        <td className="px-6 py-4">
+                          <BadgeStatus status={item.status} />
+                          {textoLogistica(item) && <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-ouro-700"><Truck size={12} /> {textoLogistica(item)}</p>}
+                        </td>
                         <td className="px-6 py-4 text-right">{botaoCancelar(item)}</td>
                       </tr>
                     ))}

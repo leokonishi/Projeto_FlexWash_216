@@ -309,7 +309,8 @@ async function gerarPromocaoMovimento(db, { data, forcar = false } = {}) {
   const agora = agenda.agoraLocal();
   if (dia < agora.data) throw new ErroNegocio('Não dá para criar promoção para um dia que já passou.');
   // O cupom só vale no próprio dia: sem horário livre pela frente, ninguém consegue usar
-  if (dia === agora.data && agenda.HORARIOS.every((h) => agenda.horarioPassou(dia, h, agora))) {
+  const cfgAgenda = await require('./configAgenda').obter(db);
+  if (dia === agora.data && cfgAgenda.horarios.every((h) => agenda.horarioPassou(dia, h, agora))) {
     throw new ErroNegocio('O expediente de hoje já acabou: não sobra horário para usar a promoção. Gere amanhã cedo.', 409);
   }
 

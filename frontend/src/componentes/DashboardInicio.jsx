@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Car, CalendarClock, ParkingSquare, Droplets, Wallet, Truck, Trash2, ArrowRight, CheckCircle2, User, Users, Pencil, RefreshCw, CalendarX } from 'lucide-react';
+import { Plus, Car, CalendarClock, ParkingSquare, Droplets, Wallet, Truck, Trash2, ArrowRight, CheckCircle2, User, Users, Pencil, RefreshCw, CalendarX, Undo2, PackageCheck, MapPin, Phone } from 'lucide-react';
 import ModalNovaLavagem from '../componentes/ModalNovaLavagem';
 import ModalEquipe from '../componentes/ModalEquipe';
 import { useGestaoPatio } from '../hooks/useGestaoPatio'; // Importamos o "cérebro"
@@ -26,6 +26,16 @@ const minutosDeAtraso = (texto) => {
 const textoAtraso = (min) => (min >= 60 ? `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}` : `${min} min`);
 
 const moeda = (valor) => Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+// Etapas do leva e traz (por pedido)
+const ETAPA_LOGISTICA = {
+  a_buscar: { texto: 'A buscar', cor: 'bg-ouro-100 text-ouro-800' },
+  buscando: { texto: 'Buscando', cor: 'bg-marca-100 text-marca-800' },
+  coletado: { texto: 'No lava-rápido', cor: 'bg-verde-100 text-verde-800' },
+  entregando: { texto: 'Saiu para entregar', cor: 'bg-marca-100 text-marca-800' },
+  entregue: { texto: 'Entregue', cor: 'bg-verde-100 text-verde-800' },
+};
+const primeiroNome = (nome) => String(nome || '').split(' ')[0];
+
 const horaDe = (dataIso) => (dataIso ? new Date(dataIso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '');
 
 // Colunas do pátio, na ordem do fluxo, com o botão que leva o carro para a próxima
@@ -58,7 +68,9 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
     avancarStatusServico,
     trocarEquipe,
     excluirServico,
-    cancelarAgendamento
+    cancelarAgendamento,
+    entregas,
+    mudarLogistica
   } = useGestaoPatio(abrirAlerta);
 
   // 2. Estado apenas para controlar se a janelinha (modal) está aberta ou fechada
@@ -67,6 +79,8 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
   const [colunaCelular, setColunaCelular] = useState('Aguardando');
   // Escolha da equipe: { item, modo: 'iniciar' | 'trocar' }
   const [equipeAberta, setEquipeAberta] = useState(null);
+  // Escolha do motorista do leva e traz: { agendamentoId, etapa, descricao, motoristaId }
+  const [motoristaAberto, setMotoristaAberto] = useState(null);
 
   const idsDaEquipe = (item) => String(item.responsaveis_ids || '').split(',').filter(Boolean).map(Number);
 
@@ -114,7 +128,13 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
           <span className={`shrink-0 text-xs font-semibold ${atraso > 0 ? 'text-red-700' : 'text-tinta-500'}`}>
             {/* Agendado: a hora marcada. Entrada de balcão: a hora em que entrou no pátio.
                 (criado_em de um agendado é a hora em que o cliente marcou, então não serve aqui) */}
-            {item.status === 'Agendado' ? agendado?.hora : agendado ? `marcado ${agendado.hora}` : `entrou ${horaDe(item.data_entrada)}`}
+            {item.status === 'Agendado'
+              ? agendado?.hora
+              : item.status === 'Em Andamento' && item.inicio_em
+                ? `lavando desde ${horaDe(item.inicio_em)}`
+                : item.chegada_em
+                  ? `entrou ${horaDe(item.chegada_em)}`
+                  : agendado ? `marcado ${agendado.hora}` : `entrou ${horaDe(item.data_entrada)}`}
           </span>
         </div>
 
@@ -142,10 +162,35 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
             </p>
           )}
           {item.tipo_logistica === 'leva_tras' && (
-            <p className="flex items-start gap-2 rounded-lg bg-ouro-50 px-2.5 py-1.5 text-xs text-ouro-700">
-              <Truck size={14} className="mt-px shrink-0" />
-              <span>Leva e traz: {item.endereco_busca}{item.cliente_telefone && <><br />{item.cliente_telefone}</>}</span>
-            </p>
+            <div className="rounded-lg bg-ouro-50 px-2.5 py-2 text-xs text-ouro-800">
+              <p className="flex items-start gap-2">
+                <Truck size={14} className="mt-px shrink-0" />
+                <span className="min-w-0 flex-1">Leva e traz: {item.endereco_busca}{item.cliente_telefone && <><br />{item.cliente_telefone}</>}</span>
+                {ETAPA_LOGISTICA[item.logistica_status] && (
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${ETAPA_LOGISTICA[item.logistica_status].cor}`}>
+                    {ETAPA_LOGISTICA[item.logistica_status].texto}
+                  </span>
+                )}
+              </p>
+              {item.status === 'Agendado' && item.logistica_status === 'buscando' && (
+                <p className="mt-1.5 flex items-center gap-2 pl-[22px] font-semibold">
+                  {primeiroNome(item.motorista_nome) || 'Motorista'} a caminho do cliente
+                  {podeOperar && (
+                    <button onClick={() => mudarLogistica(item.agendamento_id, 'a_buscar')} className="ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-1 font-semibold text-ouro-700 hover:bg-ouro-100" title="Ainda não saiu">
+                      <Undo2 size={13} /> Desfazer
+                    </button>
+                  )}
+                </p>
+              )}
+              {podeOperar && item.status === 'Agendado' && item.logistica_status === 'a_buscar' && (
+                <button
+                  onClick={() => setMotoristaAberto({ agendamentoId: item.agendamento_id, etapa: 'buscando', descricao: `${item.cliente_nome} · ${item.endereco_busca || ''}`, motoristaId: item.motorista_id })}
+                  className="mt-2 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-white font-semibold text-ouro-800 ring-1 ring-ouro-200 hover:bg-ouro-100"
+                >
+                  <Truck size={14} /> Saiu para buscar
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -278,6 +323,48 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
         )}
       </section>
 
+      {/* Leva e traz: carros prontos para voltar ao cliente */}
+      {podeOperar && entregas.length > 0 && (
+        <section className="fw-card overflow-hidden">
+          <div className="flex items-center justify-between border-b border-tinta-100 px-4 py-4 sm:px-6">
+            <div>
+              <h2 className="flex items-center gap-2 text-lg font-bold text-tinta-950"><Truck size={18} className="text-ouro-600" /> Para devolver</h2>
+              <p className="text-sm text-tinta-500">Leva e traz com todos os carros prontos.</p>
+            </div>
+            <span className="rounded-full bg-ouro-50 px-2.5 py-1 text-xs font-bold text-ouro-700">{entregas.length}</span>
+          </div>
+          <ul className="divide-y divide-tinta-100">
+            {entregas.map((e) => (
+              <li key={e.agendamento_id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-6">
+                <div className="min-w-0 flex-1 space-y-1 text-sm">
+                  <p className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-tinta-950">{e.cliente_nome}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${ETAPA_LOGISTICA[e.logistica_status]?.cor || ''}`}>
+                      {e.logistica_status === 'entregando' ? `${primeiroNome(e.motorista_nome) || 'Motorista'} a caminho` : 'Pronto para sair'}
+                    </span>
+                  </p>
+                  <p className="text-tinta-700">{e.carros.join(', ')}</p>
+                  <p className="flex items-start gap-1.5 text-xs text-tinta-500"><MapPin size={13} className="mt-px shrink-0" />{e.endereco_busca}</p>
+                  {e.cliente_telefone && <p className="flex items-center gap-1.5 text-xs text-tinta-500"><Phone size={13} className="shrink-0" />{e.cliente_telefone}</p>}
+                </div>
+                {e.logistica_status === 'coletado' ? (
+                  <button
+                    onClick={() => setMotoristaAberto({ agendamentoId: e.agendamento_id, etapa: 'entregando', descricao: `${e.cliente_nome} · ${e.endereco_busca || ''}`, motoristaId: e.motorista_id })}
+                    className="fw-btn-escuro h-10 shrink-0"
+                  >
+                    <Truck size={16} /> Saiu para entregar
+                  </button>
+                ) : (
+                  <button onClick={() => mudarLogistica(e.agendamento_id, 'entregue')} className="fw-btn h-10 shrink-0 bg-verde-600 text-white hover:bg-verde-700">
+                    <PackageCheck size={16} /> Entregue
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* Próximos agendamentos (a partir de amanhã) */}
       {podeOperar && (
         <section className="fw-card overflow-hidden">
@@ -347,6 +434,24 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
             setEquipeAberta(null);
             if (modo === 'iniciar') await avancarStatusServico(item.id, item.status, ids);
             else await trocarEquipe(item.id, ids);
+          }}
+        />
+      )}
+
+      {motoristaAberto && (
+        <ModalEquipe
+          unico
+          icone={Truck}
+          titulo={motoristaAberto.etapa === 'buscando' ? 'Quem vai buscar?' : 'Quem vai entregar?'}
+          descricao={motoristaAberto.descricao}
+          selecionadosIniciais={motoristaAberto.motoristaId ? [motoristaAberto.motoristaId] : []}
+          textoConfirmar={motoristaAberto.etapa === 'buscando' ? 'Saiu para buscar' : 'Saiu para entregar'}
+          nota="O cliente vê o nome do motorista no app."
+          aoFechar={() => setMotoristaAberto(null)}
+          aoConfirmar={async ([id]) => {
+            const { agendamentoId, etapa } = motoristaAberto;
+            setMotoristaAberto(null);
+            await mudarLogistica(agendamentoId, etapa, id);
           }}
         />
       )}

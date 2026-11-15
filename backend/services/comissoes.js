@@ -11,7 +11,8 @@ const { precoEmCentavos, centavosParaDecimal } = require('./precoExecucao');
 
 // Dia do serviço no fuso do lava-rápido: o dia agendado, ou o dia da entrada no pátio
 // (criado_em é UTC; o Brasil não tem horário de verão, então -3h é exato).
-const SQL_DIA_SERVICO = "DATE(COALESCE(e.data_agendamento, e.criado_em - INTERVAL 3 HOUR))";
+// Com a hora de conclusão gravada (finalizado_em), vale o dia em que o carro ficou pronto.
+const SQL_DIA_SERVICO = "DATE(COALESCE(e.finalizado_em - INTERVAL 3 HOUR, e.data_agendamento, e.criado_em - INTERVAL 3 HOUR))";
 
 function validarPeriodo(inicio, fim) {
   const hoje = agenda.agoraLocal().data;
@@ -31,7 +32,7 @@ async function servicosComComissao(db, { inicio, fim, funcionarioId = null }) {
     ? 'AND EXISTS (SELECT 1 FROM execucao_funcionarios x WHERE x.execucao_id = e.id AND x.funcionario_id = ?)'
     : '';
   const [servicos] = await db.execute(
-    `SELECT e.id, e.valor_total, e.valor_logistica, e.valor_desconto, v.porte,
+    `SELECT e.id, e.valor_total, e.valor_logistica, e.valor_desconto, e.comissao_total AS comissao_congelada, v.porte,
             DATE_FORMAT(${SQL_DIA_SERVICO}, '%Y-%m-%d') AS dia,
             c.nome AS cliente_nome, v.marca, v.modelo, v.placa,
             p.id AS pacote_id, p.nome AS pacote_nome, p.preco_pequeno, p.preco_medio, p.preco_grande,
@@ -92,7 +93,10 @@ async function servicosComComissao(db, { inicio, fim, funcionarioId = null }) {
     if (tabela > 0 && cobrado < tabela) comissao = comissao * Math.max(cobrado, 0) / tabela;
 
     const equipe = (equipePor.get(s.id) || []).map((f) => ({ id: f.id, nome: f.nome }));
-    const comissaoTotal = Math.round(comissao);
+    // Comissão gravada na conclusão vale mais que o cálculo pelo catálogo de hoje
+    const comissaoTotal = s.comissao_congelada !== null && s.comissao_congelada !== undefined
+      ? Math.round(Number(s.comissao_congelada) * 100)
+      : Math.round(comissao);
     const porPessoa = equipe.length ? Math.floor(comissaoTotal / equipe.length) : 0;
 
     return {
@@ -167,4 +171,33 @@ async function extratoFuncionario(db, funcionarioId, filtros) {
   };
 }
 
-module.exports = { relatorioAdmin, extratoFuncionario, validarPeriodo, SQL_DIA_SERVICO };
+// Comissão de UM carro com os preços de agora, em reais ('12.34'). Gravada ao concluir.
+async function comissaoAtual(conn, execucaoId) {
+  const [[s]] = await conn.execute(
+    `SELECT e.valor_total, e.valor_logistica, v.porte, p.id AS pacote_id, p.nome,
+            p.preco_pequeno, p.preco_medio, p.preco_grande, p.comissao_porcentagem
+       FROM execucoes e JOIN veiculos v ON v.id = e.veiculo_id LEFT JOIN pacotes p ON p.id = e.pacote_id
+      WHERE e.id = ?`,
+    [execucaoId]
+  );
+  if (!s) return null;
+  const [extras] = await conn.execute(
+    `SELECT x.nome, x.preco_pequeno, x.preco_medio, x.preco_grande, x.comissao_porcentagem
+       FROM execucao_extras ee JOIN servicos_extras x ON x.id = ee.extra_id WHERE ee.execucao_id = ?`,
+    [execucaoId]
+  );
+  let tabela = 0;
+  let comissao = 0;
+  const somar = (item) => {
+    const preco = precoEmCentavos(item, s.porte);
+    tabela += preco;
+    comissao += preco * (Number(item.comissao_porcentagem) || 0) / 100;
+  };
+  if (s.pacote_id) somar(s);
+  extras.forEach(somar);
+  const cobrado = Math.round((Number(s.valor_total) - Number(s.valor_logistica || 0)) * 100);
+  if (tabela > 0 && cobrado < tabela) comissao = comissao * Math.max(cobrado, 0) / tabela;
+  return centavosParaDecimal(Math.round(comissao));
+}
+
+module.exports = { relatorioAdmin, extratoFuncionario, validarPeriodo, comissaoAtual, SQL_DIA_SERVICO };

@@ -6,13 +6,15 @@ const { ErroNegocio } = require('../services/erros');
 const agenda = require('../services/agenda');
 const { avaliarLevaTras } = require('../services/logistica');
 const { estornarCuponsSeVazio } = require('../services/promocoes');
-const { validarPeriodo, SQL_DIA_SERVICO } = require('../services/comissoes');
+const { validarPeriodo, comissaoAtual, SQL_DIA_SERVICO } = require('../services/comissoes');
 
 // Campos comuns às listas do pátio e dos próximos agendamentos
 const CAMPOS_PATIO = `
                 e.id, e.status, e.valor_total, e.valor_logistica, e.criado_em as data_entrada,
+                e.chegada_em, e.inicio_em, e.agendamento_id,
                 DATE_FORMAT(e.data_agendamento, '%Y-%m-%d %H:%i') AS data_agendamento,
-                a.tipo_logistica, a.endereco_busca,
+                a.tipo_logistica, a.endereco_busca, a.logistica_status, a.motorista_id,
+                (SELECT m.nome FROM funcionarios m WHERE m.id = a.motorista_id) AS motorista_nome,
                 c.nome as cliente_nome, c.telefone as cliente_telefone, v.marca, v.modelo, v.placa, v.porte,
                 p.nome as pacote_nome,
                 (SELECT GROUP_CONCAT(f.nome SEPARATOR ', ') FROM execucao_funcionarios ef JOIN funcionarios f ON ef.funcionario_id = f.id WHERE ef.execucao_id = e.id) as responsaveis,
@@ -168,10 +170,22 @@ router.put('/execucoes/:id/status', async (req, res) => {
             }
         }
 
+        // Hora de cada etapa e, ao concluir, a comissão congelada com os preços de agora.
+        // Reabrir (admin) apaga a conclusão: ela é gravada de novo quando concluir outra vez.
+        let extrasSql = '';
+        const extrasValores = [];
+        if (novoStatus === 'Aguardando') extrasSql = ', chegada_em = NOW()';
+        else if (novoStatus === 'Em Andamento' && execucao.status === 'Aguardando') extrasSql = ', inicio_em = NOW()';
+        else if (novoStatus === 'Em Andamento' && execucao.status === 'Finalizado') extrasSql = ', finalizado_em = NULL, comissao_total = NULL';
+        else if (novoStatus === 'Finalizado') {
+            extrasSql = ', finalizado_em = NOW(), comissao_total = ?';
+            extrasValores.push(await comissaoAtual(conn, id));
+        }
+
         // O "AND status = ?" evita que dois cliques ao mesmo tempo avancem duas vezes
         const [resultado] = await conn.execute(
-            'UPDATE execucoes SET status = ? WHERE id = ? AND status = ?',
-            [novoStatus, id, execucao.status]
+            `UPDATE execucoes SET status = ?${extrasSql} WHERE id = ? AND status = ?`,
+            [novoStatus, ...extrasValores, id, execucao.status]
         );
         if (resultado.affectedRows === 0) {
             await conn.rollback();
@@ -179,6 +193,14 @@ router.put('/execucoes/:id/status', async (req, res) => {
         }
         // Agendamento cancelado por inteiro: o cupom usado nele volta para o cliente
         if (novoStatus === 'Cancelado') await estornarCuponsSeVazio(conn, execucao.agendamento_id);
+        // Leva e traz: o carro chegou, então foi coletado
+        if (novoStatus === 'Aguardando' && execucao.agendamento_id) {
+            await conn.execute(
+                `UPDATE agendamentos SET logistica_status = 'coletado', logistica_atualizado_em = NOW()
+                  WHERE id = ? AND tipo_logistica = 'leva_tras' AND logistica_status IN ('a_buscar', 'buscando')`,
+                [execucao.agendamento_id]
+            );
+        }
         await conn.commit();
         res.status(200).json({ mensagem: 'Status atualizado!' });
     } catch (erro) {
@@ -233,6 +255,102 @@ router.put('/execucoes/:id/equipe', async (req, res) => {
     }
 });
 
+// 3c. LEVA E TRAZ: ETAPAS DO MOTORISTA (por pedido de agendamento)
+// a_buscar -> buscando (escolhe o motorista) -> coletado (automático no "Carro chegou")
+// -> entregando (todos os carros do pedido prontos) -> entregue
+const ETAPAS_LOGISTICA = {
+    buscando: ['a_buscar'],
+    a_buscar: ['buscando'], // desfaz uma saída marcada por engano
+    entregando: ['coletado'],
+    entregue: ['entregando']
+};
+
+router.put('/execucoes/agendamentos/:id/logistica', async (req, res) => {
+    const etapa = req.body?.etapa;
+    if (!ETAPAS_LOGISTICA[etapa]) return res.status(400).json({ erro: 'Etapa do leva e traz inválida.' });
+    const motoristaId = req.body?.motorista_id === undefined || req.body?.motorista_id === null ? null : Number(req.body.motorista_id);
+    if (motoristaId !== null && (!Number.isInteger(motoristaId) || motoristaId <= 0)) return res.status(400).json({ erro: 'Motorista inválido.' });
+
+    const conn = await db.getConnection();
+    try {
+        await conn.beginTransaction();
+        const [[ag]] = await conn.execute(
+            'SELECT id, tipo_logistica, logistica_status, motorista_id FROM agendamentos WHERE id = ? FOR UPDATE',
+            [req.params.id]
+        );
+        if (!ag || ag.tipo_logistica !== 'leva_tras') {
+            await conn.rollback();
+            return res.status(404).json({ erro: 'Pedido de leva e traz não encontrado.' });
+        }
+        if (!ETAPAS_LOGISTICA[etapa].includes(ag.logistica_status)) {
+            await conn.rollback();
+            return res.status(409).json({ erro: 'O leva e traz mudou enquanto isso. Atualize a tela.' });
+        }
+
+        let motorista = ag.motorista_id;
+        if (etapa === 'buscando' || etapa === 'entregando') {
+            motorista = motoristaId ?? ag.motorista_id;
+            if (!motorista) {
+                await conn.rollback();
+                return res.status(422).json({ erro: 'Escolha o motorista.', motivo: 'sem_motorista' });
+            }
+            const [[existe]] = await conn.execute('SELECT id FROM funcionarios WHERE id = ?', [motorista]);
+            if (!existe) {
+                await conn.rollback();
+                return res.status(404).json({ erro: 'Motorista não encontrado.' });
+            }
+        }
+        if (etapa === 'entregando') {
+            const [[abertos]] = await conn.execute(
+                "SELECT COUNT(*) AS total FROM execucoes WHERE agendamento_id = ? AND status IN ('Agendado', 'Aguardando', 'Em Andamento')",
+                [ag.id]
+            );
+            if (Number(abertos.total) > 0) {
+                await conn.rollback();
+                return res.status(409).json({ erro: 'Ainda há carro deste pedido sendo lavado. Conclua todos antes de sair para entregar.' });
+            }
+        }
+
+        await conn.execute(
+            'UPDATE agendamentos SET logistica_status = ?, motorista_id = ?, logistica_atualizado_em = NOW() WHERE id = ?',
+            [etapa, motorista, ag.id]
+        );
+        await conn.commit();
+        res.status(200).json({ mensagem: 'Leva e traz atualizado!', etapa });
+    } catch (erro) {
+        await conn.rollback().catch(() => {});
+        console.error('Erro ao atualizar o leva e traz:', erro);
+        res.status(500).json({ erro: 'Erro ao atualizar o leva e traz.' });
+    } finally {
+        conn.release();
+    }
+});
+
+// 3d. LEVA E TRAZ A DEVOLVER: pedidos com todos os carros prontos e ainda não entregues
+router.get('/execucoes/entregas', async (req, res) => {
+    try {
+        const [linhas] = await db.execute(`
+            SELECT a.id AS agendamento_id, a.logistica_status, a.endereco_busca, a.motorista_id,
+                   (SELECT m.nome FROM funcionarios m WHERE m.id = a.motorista_id) AS motorista_nome,
+                   c.nome AS cliente_nome, c.telefone AS cliente_telefone,
+                   GROUP_CONCAT(CONCAT(v.marca, ' ', v.modelo, ' · ', v.placa) ORDER BY e.id SEPARATOR '|') AS carros
+              FROM agendamentos a
+              JOIN clientes c ON c.id = a.cliente_id
+              JOIN execucoes e ON e.agendamento_id = a.id AND e.status = 'Finalizado'
+              JOIN veiculos v ON v.id = e.veiculo_id
+             WHERE a.tipo_logistica = 'leva_tras'
+               AND a.logistica_status IN ('coletado', 'entregando')
+               AND NOT EXISTS (SELECT 1 FROM execucoes x WHERE x.agendamento_id = a.id
+                                AND x.status IN ('Agendado', 'Aguardando', 'Em Andamento'))
+             GROUP BY a.id
+             ORDER BY a.logistica_atualizado_em ASC, a.id ASC`);
+        res.status(200).json(linhas.map((l) => ({ ...l, carros: l.carros ? l.carros.split('|') : [] })));
+    } catch (erro) {
+        console.error('Erro ao buscar as entregas:', erro);
+        res.status(500).json({ erro: 'Erro ao buscar as entregas do leva e traz.' });
+    }
+});
+
 // 4. EXCLUIR SERVIÇO DO PÁTIO (DELETE) - Apenas Administrador
 router.delete('/execucoes/:id', async (req, res) => {
     try {
@@ -276,6 +394,7 @@ router.get('/execucoes/historico', async (req, res) => {
         const query = `
             SELECT 
                 e.id, e.status, e.valor_total, e.valor_logistica, e.valor_desconto, e.criado_em as data_entrada,
+                TIMESTAMPDIFF(MINUTE, e.inicio_em, e.finalizado_em) AS minutos_lavagem,
                 DATE_FORMAT(${SQL_DIA_SERVICO}, '%Y-%m-%d') AS dia,
                 c.nome as cliente_nome, v.marca, v.modelo, v.placa, v.porte,
                 p.nome as pacote_nome,
@@ -316,14 +435,17 @@ router.get('/execucoes/cliente/:cliente_id', async (req, res) => {
     try {
         const query = `
             SELECT 
-                e.id, e.status, e.valor_total, e.valor_logistica, e.criado_em,
+                e.id, e.status, e.valor_total, e.valor_logistica, e.criado_em, e.agendamento_id,
                 DATE_FORMAT(e.data_agendamento, '%Y-%m-%d %H:%i') AS data_agendamento, -- texto, sem conversão de fuso
+                a.tipo_logistica, a.logistica_status,
+                (SELECT SUBSTRING_INDEX(m.nome, ' ', 1) FROM funcionarios m WHERE m.id = a.motorista_id) AS motorista_nome,
                 v.marca, v.modelo, v.placa,
                 p.nome as pacote_nome,
                 (SELECT GROUP_CONCAT(ex.nome SEPARATOR ', ') FROM execucao_extras eex JOIN servicos_extras ex ON eex.extra_id = ex.id WHERE eex.execucao_id = e.id) as servicos_extras
             FROM execucoes e
             JOIN veiculos v ON e.veiculo_id = v.id
             LEFT JOIN pacotes p ON e.pacote_id = p.id
+            LEFT JOIN agendamentos a ON a.id = e.agendamento_id
             WHERE e.cliente_id = ?
             ORDER BY e.id DESC
         `;

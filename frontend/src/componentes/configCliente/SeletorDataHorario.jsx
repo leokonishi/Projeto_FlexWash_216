@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Clock } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Calendar, Clock, CalendarOff } from 'lucide-react';
 import { apiFetch, API_URL } from '../../utils/api';
 
 // Data de hoje no fuso do navegador (toISOString usaria UTC e, à noite, já mostraria o dia seguinte)
@@ -9,6 +9,16 @@ export const hojeLocal = () => {
 };
 
 // AAAA-MM-DD -> DD/MM/AAAA
+// 'AAAA-MM-DD' + n dias
+const somarDias = (dataIso, n) => {
+    const [a, m, d] = dataIso.split('-').map(Number);
+    const x = new Date(a, m - 1, d + n);
+    return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+};
+
+// Quantos dias à frente a tela pula sozinha procurando o primeiro dia com vaga
+const DIAS_PULO_AUTOMATICO = 14;
+
 export const formatarDataBr = (dataIso) => {
     if (!dataIso) return '';
     const [ano, mes, dia] = dataIso.split('-');
@@ -25,6 +35,10 @@ export default function SeletorDataHorario({ data, horario, onChange, ocupadosNo
     const [horarios, setHorarios] = useState([]);
     const [carregando, setCarregando] = useState(false);
     const [erro, setErro] = useState(null);
+    const [fechado, setFechado] = useState(null); // motivo de o dia não ter atendimento
+    // Ao abrir, se o dia não tiver vaga (fechado, lotado ou já encerrado), pula para o
+    // próximo dia com vaga. Para de pular assim que a pessoa escolhe uma data.
+    const pulosRestantes = useRef(DIAS_PULO_AUTOMATICO);
 
     const vagasLivres = (h) => (h.vagas || 0) - (ocupadosNoPedido?.get(h.horario) || 0);
 
@@ -40,6 +54,14 @@ export default function SeletorDataHorario({ data, horario, onChange, ocupadosNo
                 if (cancelado) return;
                 if (resposta.ok) {
                     setHorarios(json.horarios);
+                    setFechado(json.fechado || null);
+                    const temVaga = json.horarios.some(h => vagasLivres(h) > 0);
+                    if (!temVaga && pulosRestantes.current > 0) {
+                        pulosRestantes.current -= 1;
+                        onChange({ data: somarDias(data, 1), horario: null });
+                        return;
+                    }
+                    pulosRestantes.current = 0;
                     // Mantém o horário já escolhido enquanto o dia tiver vaga nele (se outro carro do
                     // pedido disputar a mesma vaga, o servidor avisa ao confirmar); senão, o primeiro livre
                     const ainda = json.horarios.find(h => h.horario === horario && h.vagas > 0);
@@ -68,7 +90,7 @@ export default function SeletorDataHorario({ data, horario, onChange, ocupadosNo
                     type="date"
                     min={hoje}
                     value={data}
-                    onChange={(e) => onChange({ data: e.target.value, horario })}
+                    onChange={(e) => { pulosRestantes.current = 0; onChange({ data: e.target.value, horario }); }}
                     className="fw-input"
                 />
             </div>
@@ -76,6 +98,12 @@ export default function SeletorDataHorario({ data, horario, onChange, ocupadosNo
             <div>
                 {!compacto && <label className="fw-rotulo-secao mb-2 flex items-center gap-1.5"><Clock size={13} /> Horário de início</label>}
                 {erro && <p className="text-sm text-red-600">{erro}</p>}
+                {!carregando && fechado && (
+                    <p className="flex items-center gap-2 rounded-xl bg-tinta-50 px-3 py-3 text-sm text-tinta-600 ring-1 ring-tinta-200">
+                        <CalendarOff size={16} className="shrink-0 text-tinta-400" />
+                        Fechado em {formatarDataBr(data)}: {fechado}. Escolha outra data.
+                    </p>
+                )}
                 {carregando ? (
                     <div className={`grid gap-2 ${compacto ? 'grid-cols-4 sm:grid-cols-5' : 'grid-cols-3 sm:grid-cols-4'}`}>
                         {Array.from({ length: compacto ? 5 : 8 }).map((_, i) => <div key={i} className="h-14 animate-pulse rounded-xl bg-tinta-100" />)}
