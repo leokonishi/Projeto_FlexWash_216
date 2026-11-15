@@ -69,7 +69,7 @@ export default function CatalogoServicos({ abrirAlerta, rota, icone, textos }) {
     if (salvando) return;
     const { nome, descricao, precoPequeno, precoMedio, precoGrande, comissao } = form;
     if (!nome.trim() || precoPequeno === '' || precoMedio === '' || precoGrande === '') {
-      abrirAlerta('Atenção', 'Preencha o nome e os preços para os 3 portes.', () => {}, 'aviso');
+      abrirAlerta('Atenção', 'Preencha o nome e os preços para os 3 portes.', () => {}, 'info');
       return;
     }
 
@@ -93,14 +93,14 @@ export default function CatalogoServicos({ abrirAlerta, rota, icone, textos }) {
       const json = await res.json().catch(() => ({}));
 
       if (res.ok) {
-        abrirAlerta('Sucesso', editando ? textos.sucessoEdicao : textos.sucesso, () => {}, 'aviso');
+        abrirAlerta('Sucesso', editando ? textos.sucessoEdicao : textos.sucesso, () => {}, 'sucesso');
         fecharModal();
         buscarItens(); // Atualiza a lista na tela
       } else {
-        abrirAlerta('Atenção', json.erro || 'Não foi possível salvar.', () => {}, 'perigo');
+        abrirAlerta('Atenção', json.erro || 'Não foi possível salvar.', () => {}, 'erro');
       }
     } catch {
-      abrirAlerta('Erro', 'Falha ao conectar com o servidor.', () => {}, 'perigo');
+      abrirAlerta('Erro', 'Falha ao conectar com o servidor.', () => {}, 'erro');
     } finally {
       setSalvando(false);
     }
@@ -118,10 +118,10 @@ export default function CatalogoServicos({ abrirAlerta, rota, icone, textos }) {
             setItens(prev => prev.filter(i => i.id !== id));
           } else {
             const json = await res.json().catch(() => ({}));
-            abrirAlerta('Não foi possível excluir', json.erro || 'Erro ao excluir.', () => {}, 'perigo');
+            abrirAlerta('Não foi possível excluir', json.erro || 'Erro ao excluir.', () => {}, 'erro');
           }
         } catch {
-          abrirAlerta('Erro', 'Falha ao conectar com o servidor.', () => {}, 'perigo');
+          abrirAlerta('Erro', 'Falha ao conectar com o servidor.', () => {}, 'erro');
         }
       },
       'perigo'

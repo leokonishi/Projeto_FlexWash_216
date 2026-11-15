@@ -77,7 +77,7 @@ export default function ConfiguracaoVeiculo({
             <option value="">Selecione o pacote principal...</option>
             {pacotes && pacotes.map(p => (
               <option key={p.id} value={p.id}>
-                {p.nome} — R$ {obterPrecoPorPorte(p).toFixed(2)}
+                {p.nome} — {obterPrecoPorPorte(p).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </option>
             ))}
           </select>
@@ -103,7 +103,7 @@ export default function ConfiguracaoVeiculo({
                   >
                     {selecionado ? <Check size={15} className="text-marca-600" /> : <PlusCircle size={15} className="text-tinta-400" />}
                     {e.nome}
-                    <span className={selecionado ? 'text-marca-600' : 'text-verde-700'}>+R$ {obterPrecoPorPorte(e).toFixed(2)}</span>
+                    <span className={selecionado ? 'text-marca-600' : 'text-verde-700'}>+{obterPrecoPorPorte(e).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                   </button>
                 );
               })}

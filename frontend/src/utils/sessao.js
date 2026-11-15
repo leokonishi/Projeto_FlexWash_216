@@ -8,7 +8,7 @@ export function lerToken() {
   return localStorage.getItem(CHAVE_TOKEN);
 }
 
-// Retorna { id, email, perfil, exp } ou null se não houver token válido/não expirado.
+// Retorna { id, email, perfil, nome, exp } ou null se não houver token válido/não expirado.
 export function obterSessao() {
   const token = lerToken();
   if (!token) return null;
@@ -20,7 +20,7 @@ export function obterSessao() {
     if (!payload.perfil) return null;
     if (payload.exp && payload.exp * 1000 <= Date.now()) return null;
 
-    return { id: payload.id, email: payload.email, perfil: payload.perfil, exp: payload.exp };
+    return { id: payload.id, email: payload.email, perfil: payload.perfil, nome: payload.nome || '', exp: payload.exp };
   } catch {
     return null;
   }

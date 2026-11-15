@@ -71,7 +71,8 @@ export default function GestaoPromocoes({ abrirAlerta }) {
   const [salvando, setSalvando] = useState(false);
   const [gerando, setGerando] = useState(false);
 
-  const avisar = (titulo, mensagem, tipo = 'aviso') => abrirAlerta(titulo, mensagem, () => {}, tipo);
+  // Sucesso vira aviso que some sozinho; o resto é uma mensagem com um botão OK
+  const avisar = (titulo, mensagem, tipo = titulo === 'Sucesso' ? 'sucesso' : 'info') => abrirAlerta(titulo, mensagem, () => {}, tipo === 'perigo' ? 'erro' : tipo);
 
   const carregar = async () => {
     try {

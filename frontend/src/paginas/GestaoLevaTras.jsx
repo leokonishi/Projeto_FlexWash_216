@@ -196,9 +196,17 @@ export default function GestaoLevaTras() {
           <h2>Leva e Traz</h2>
           <p>Defina de onde o motorista sai e até onde ele vai. Dentro do raio, o cliente vê a opção com o valor; fora dele, a opção fica indisponível.</p>
         </div>
-        <span className={`lt-status ${salvo?.ativo ? 'lt-status-ativo' : 'lt-status-inativo'}`}>
-          <span className="lt-status-bolinha" /> {salvo?.ativo ? 'Ativo para clientes' : salvo ? 'Desligado' : 'Não configurado'}
-        </span>
+        {/* Só está ativo para o cliente com o endereço de saída salvo (sem ele não há como medir a distância) */}
+        {(() => {
+          const semEndereco = !salvo?.endereco_lava_rapido || salvo?.latitude == null;
+          const ativoDeVerdade = salvo?.ativo && !semEndereco;
+          const texto = ativoDeVerdade ? 'Ativo para clientes' : salvo?.ativo ? 'Falta o endereço' : salvo ? 'Desligado' : 'Não configurado';
+          return (
+            <span className={`lt-status ${ativoDeVerdade ? 'lt-status-ativo' : 'lt-status-inativo'}`} title={salvo?.ativo && semEndereco ? 'Salve o endereço de saída para os clientes verem o leva e traz.' : undefined}>
+              <span className="lt-status-bolinha" /> {texto}
+            </span>
+          );
+        })()}
       </header>
 
       {aviso && (

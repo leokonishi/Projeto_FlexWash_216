@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trash2, Car, Plus, Edit2, Check } from 'lucide-react';
 import ModalPasso from './ui/ModalPasso';
 import { aplicarMascaraPlaca } from '../utils/mascaras';
+import { useModelosFipe } from '../hooks/useModelosFipe';
 import { apiFetch } from '../utils/api';
 
 // Usadas se a Tabela FIPE não responder
@@ -23,6 +24,7 @@ export default function ModalFrota({ cliente, fecharModal, abrirAlerta, atualiza
   const [editandoId, setEditandoId] = useState(null); // null = adicionando um veículo novo
   const [salvando, setSalvando] = useState(false);
 
+  const modelosFipe = useModelosFipe(listaMarcas, marca);
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
   useEffect(() => {
@@ -72,7 +74,7 @@ export default function ModalFrota({ cliente, fecharModal, abrirAlerta, atualiza
   const handleSalvarVeiculo = async () => {
     if (salvando) return;
     if (!modelo.trim() || !placaInput.trim() || !cor.trim()) {
-      abrirAlerta('Atenção', 'Preencha Modelo, Placa e Cor do veículo!', () => {}, 'aviso');
+      abrirAlerta('Atenção', 'Preencha Modelo, Placa e Cor do veículo!', () => {}, 'info');
       return;
     }
 
@@ -94,20 +96,20 @@ export default function ModalFrota({ cliente, fecharModal, abrirAlerta, atualiza
       if (resposta.ok) {
         if (editando) {
           setVeiculos(prev => prev.map(v => (v.id === editandoId ? { ...v, ...dadosVeiculo, placa: dadosVeiculo.placa.toUpperCase() } : v)));
-          abrirAlerta('Sucesso', 'Veículo atualizado!', () => {}, 'aviso');
+          abrirAlerta('Sucesso', 'Veículo atualizado!', () => {}, 'sucesso');
         } else {
           setVeiculos(prev => [{ id: dados.veiculoId, ...dadosVeiculo }, ...prev]);
-          abrirAlerta('Sucesso', 'Veículo adicionado à frota!', () => {}, 'aviso');
+          abrirAlerta('Sucesso', 'Veículo adicionado à frota!', () => {}, 'sucesso');
         }
         limparFormulario();
 
         // REFRESH: Avisa a tela de trás (tabela de clientes) para atualizar o contador
         if (atualizarClientes) atualizarClientes();
       } else {
-        abrirAlerta('Atenção', dados.erro || 'Não foi possível salvar o veículo.', () => {}, 'perigo');
+        abrirAlerta('Atenção', dados.erro || 'Não foi possível salvar o veículo.', () => {}, 'erro');
       }
     } catch {
-      abrirAlerta('Erro', 'Falha ao conectar com o servidor.', () => {}, 'perigo');
+      abrirAlerta('Erro', 'Falha ao conectar com o servidor.', () => {}, 'erro');
     } finally {
       setSalvando(false);
     }
@@ -136,9 +138,9 @@ export default function ModalFrota({ cliente, fecharModal, abrirAlerta, atualiza
         );
         return;
       }
-      abrirAlerta('Não foi possível remover', dados.erro || 'Erro ao remover o veículo.', () => {}, 'perigo');
+      abrirAlerta('Não foi possível remover', dados.erro || 'Erro ao remover o veículo.', () => {}, 'erro');
     } catch {
-      abrirAlerta('Erro', 'Falha ao conectar com o servidor.', () => {}, 'perigo');
+      abrirAlerta('Erro', 'Falha ao conectar com o servidor.', () => {}, 'erro');
     }
   };
 
@@ -225,7 +227,8 @@ export default function ModalFrota({ cliente, fecharModal, abrirAlerta, atualiza
             </div>
             <div className="col-span-2 sm:col-span-3">
               <label className="fw-label">Modelo</label>
-              <input className="fw-input" type="text" placeholder="Ex: Civic LX 2003" value={modelo} onChange={(e) => setModelo(e.target.value)} />
+              <input className="fw-input" type="text" list="modelos-fipe-frota" autoComplete="off" placeholder={modelosFipe.length ? 'Digite para buscar o modelo' : 'Ex: Civic LX 2003'} value={modelo} onChange={(e) => setModelo(e.target.value)} />
+              <datalist id="modelos-fipe-frota">{modelosFipe.map(m => <option key={m} value={m} />)}</datalist>
             </div>
             <div className="sm:col-span-2">
               <label className="fw-label">Placa</label>

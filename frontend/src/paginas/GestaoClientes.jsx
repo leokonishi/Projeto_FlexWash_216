@@ -43,7 +43,7 @@ export default function GestaoClientes({ abrirAlerta }) {
       }
     } catch (erro) {
       console.error("Erro ao buscar clientes:", erro);
-      abrirAlerta('Erro', 'Não foi possível carregar a lista de clientes.', () => {}, 'perigo');
+      abrirAlerta('Erro', 'Não foi possível carregar a lista de clientes.', () => {}, 'erro');
     } finally {
       setCarregando(false);
     }
@@ -61,7 +61,7 @@ export default function GestaoClientes({ abrirAlerta }) {
     const novoCliente = { cpf, nome, email, telefone, endereco };
     const erroContato = validarContato(novoCliente, { telefoneObrigatorio: true });
     if (erroContato) {
-      abrirAlerta('Atenção', erroContato, () => {}, 'aviso');
+      abrirAlerta('Atenção', erroContato, () => {}, 'info');
       return;
     }
 
@@ -78,7 +78,7 @@ export default function GestaoClientes({ abrirAlerta }) {
       const dados = await resposta.json();
 
       if (resposta.ok) {
-        abrirAlerta('Sucesso', 'Cliente cadastrado com sucesso!', () => {}, 'aviso');
+        abrirAlerta('Sucesso', 'Cliente cadastrado com sucesso!', () => {}, 'sucesso');
         
         // Limpa os campos
         setCpf(''); setNome(''); setEmail(''); setTelefone(''); setEndereco('');
@@ -86,11 +86,11 @@ export default function GestaoClientes({ abrirAlerta }) {
         // Atualiza a lista na tela automaticamente consultando o banco
         buscarClientes();
       } else {
-        abrirAlerta('Atenção', dados.erro || dados.mensagem || 'Erro ao cadastrar.', () => {}, 'perigo');
+        abrirAlerta('Atenção', dados.erro || dados.mensagem || 'Erro ao cadastrar.', () => {}, 'erro');
       }
     } catch (erro) {
       console.error("Erro:", erro);
-      abrirAlerta('Erro', 'Falha na conexão com o servidor.', () => {}, 'perigo');
+      abrirAlerta('Erro', 'Falha na conexão com o servidor.', () => {}, 'erro');
     }
   };
 
@@ -118,7 +118,7 @@ export default function GestaoClientes({ abrirAlerta }) {
     // CPF antigo (cadastrado antes da validação) só é conferido se for alterado
     const erroContato = validarContato(dados, { validarCpf: dados.cpf !== cpfOriginal });
     if (erroContato) {
-      abrirAlerta('Atenção', erroContato, () => {}, 'aviso');
+      abrirAlerta('Atenção', erroContato, () => {}, 'info');
       return;
     }
     setSalvandoEdicao(true);
@@ -132,12 +132,12 @@ export default function GestaoClientes({ abrirAlerta }) {
       if (resposta.ok) {
         setClientes(prev => prev.map(c => (c.id === id ? { ...c, ...dados } : c)));
         setEdicao(null);
-        abrirAlerta('Sucesso', 'Cliente atualizado com sucesso!', () => {}, 'aviso');
+        abrirAlerta('Sucesso', 'Cliente atualizado com sucesso!', () => {}, 'sucesso');
       } else {
-        abrirAlerta('Atenção', json.erro || json.mensagem || 'Não foi possível salvar.', () => {}, 'perigo');
+        abrirAlerta('Atenção', json.erro || json.mensagem || 'Não foi possível salvar.', () => {}, 'erro');
       }
     } catch {
-      abrirAlerta('Erro', 'Falha na conexão com o servidor.', () => {}, 'perigo');
+      abrirAlerta('Erro', 'Falha na conexão com o servidor.', () => {}, 'erro');
     } finally {
       setSalvandoEdicao(false);
     }
@@ -164,9 +164,9 @@ export default function GestaoClientes({ abrirAlerta }) {
         );
         return;
       }
-      abrirAlerta('Não foi possível excluir', json.erro || json.mensagem || 'Erro ao excluir o cliente.', () => {}, 'perigo');
+      abrirAlerta('Não foi possível excluir', json.erro || json.mensagem || 'Erro ao excluir o cliente.', () => {}, 'erro');
     } catch {
-      abrirAlerta('Erro', 'Falha na conexão com o servidor.', () => {}, 'perigo');
+      abrirAlerta('Erro', 'Falha na conexão com o servidor.', () => {}, 'erro');
     }
   };
 

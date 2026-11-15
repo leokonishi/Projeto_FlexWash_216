@@ -30,7 +30,7 @@ export default function GestaoAgenda({ abrirAlerta }) {
       const res = await apiFetch(`${API_URL}/api/admin/agenda`);
       const json = await res.json().catch(() => ({}));
       if (res.ok) aplicar(json);
-      else abrirAlerta?.('Atenção', json.erro || 'Não foi possível carregar a agenda.', () => {}, 'perigo');
+      else abrirAlerta?.('Atenção', json.erro || 'Não foi possível carregar a agenda.', () => {}, 'erro');
     })();
   }, []);
 
@@ -42,7 +42,7 @@ export default function GestaoAgenda({ abrirAlerta }) {
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
-      abrirAlerta?.('Não foi possível salvar', json.erro || 'Tente de novo.', () => {}, 'perigo');
+      abrirAlerta?.('Não foi possível salvar', json.erro || 'Tente de novo.', () => {}, 'erro');
       return null;
     }
     aplicar(json);
@@ -53,7 +53,7 @@ export default function GestaoAgenda({ abrirAlerta }) {
     setSalvando(true);
     const json = await enviar('/api/admin/agenda', 'PUT', form);
     setSalvando(false);
-    if (json) abrirAlerta?.('Agenda salva', 'Os clientes já veem os novos dias e horários.', () => {}, 'aviso');
+    if (json) abrirAlerta?.('Agenda salva', 'Os clientes já veem os novos dias e horários.', () => {}, 'sucesso');
   };
 
   const alternarDia = (d) =>
@@ -75,7 +75,7 @@ export default function GestaoAgenda({ abrirAlerta }) {
         'Dia fechado',
         `Já existem ${json.agendados_no_dia} carro(s) agendado(s) em ${dataBR(novoBloqueio.data)}. Eles não foram cancelados: avise os clientes e cancele pelo pátio se precisar.`,
         () => {},
-        'aviso'
+        'info'
       );
     }
   };

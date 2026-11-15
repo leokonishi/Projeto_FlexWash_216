@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useModelosFipe } from '../../hooks/useModelosFipe';
 import { apiFetch, API_URL } from "../../utils/api";
 import { PlusCircle, Car, Trash2, ArrowRight, Check, Loader2 } from 'lucide-react';
 import ModalPasso, { Marcador } from '../ui/ModalPasso';
@@ -24,6 +25,7 @@ export default function EscolhaVeiculoCliente({ veiculosIniciais = [], aoAvancar
         cor: '',
         porte: 'Médio'
     });
+    const modelosFipe = useModelosFipe(listaMarcas, novoVeiculo.marca);
     const [salvando, setSalvando] = useState(false);
     const salvandoRef = useRef(false); // trava imediata contra clique duplo
     const [erroCadastro, setErroCadastro] = useState(null);
@@ -252,7 +254,7 @@ export default function EscolhaVeiculoCliente({ veiculosIniciais = [], aoAvancar
                         {campoVeiculo('Marca', (
                             <select
                                 value={novoVeiculo.marca}
-                                onChange={(e) => setNovoVeiculo({...novoVeiculo, marca: e.target.value})}
+                                onChange={(e) => setNovoVeiculo({...novoVeiculo, marca: e.target.value, modelo: ''})}
                                 className="fw-input cursor-pointer"
                             >
                                 {listaMarcas.length > 0 ? (
@@ -272,9 +274,15 @@ export default function EscolhaVeiculoCliente({ veiculosIniciais = [], aoAvancar
                     </div>
                     <div className="col-span-2 sm:col-span-1">
                         {campoVeiculo('Modelo', (
-                            <input type="text" required placeholder="Ex: Civic LX 2003" className="fw-input"
-                                value={novoVeiculo.modelo}
-                                onChange={(e) => setNovoVeiculo({...novoVeiculo, modelo: e.target.value})} />
+                            <>
+                                <input type="text" required placeholder={modelosFipe.length ? 'Digite para buscar o modelo' : 'Ex: Civic LX 2003'} className="fw-input"
+                                    list="modelos-fipe-cliente" autoComplete="off"
+                                    value={novoVeiculo.modelo}
+                                    onChange={(e) => setNovoVeiculo({...novoVeiculo, modelo: e.target.value})} />
+                                <datalist id="modelos-fipe-cliente">
+                                    {modelosFipe.map(m => <option key={m} value={m} />)}
+                                </datalist>
+                            </>
                         ))}
                     </div>
                     {campoVeiculo('Placa', (

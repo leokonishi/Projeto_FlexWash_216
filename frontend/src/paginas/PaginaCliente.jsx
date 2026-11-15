@@ -64,6 +64,18 @@ export default function PaginaCliente() {
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
+  // Nome para a saudação
+  const [nomeCliente, setNomeCliente] = useState('');
+  useEffect(() => {
+    apiFetch(`${API_URL}/api/me`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((me) => me?.nome && setNomeCliente(String(me.nome).trim().split(' ')[0]))
+      .catch(() => {});
+  }, []);
+
+  // Pacote + extras, numa linha
+  const descricaoServico = (item) => [item.pacote_nome || 'Serviço avulso', item.servicos_extras].filter(Boolean).join(' + ');
+
   const buscarDadosClienteBackend = async () => {
     try {
       const sessao = obterSessao();
@@ -135,6 +147,7 @@ export default function PaginaCliente() {
     : buscando ? `${primeiroNome(buscando.motorista_nome) || 'O motorista'} está a caminho para buscar seu carro` : null;
   const textoLogistica = (item) => {
     if (item.tipo_logistica !== 'leva_tras') return null;
+    if (item.status === 'Agendado' && item.logistica_status === 'a_buscar') return 'Leva e traz: vamos buscar o carro';
     if (item.logistica_status === 'buscando') return `${primeiroNome(item.motorista_nome) || 'Motorista'} a caminho para buscar`;
     if (item.logistica_status === 'entregando') return 'A caminho de volta';
     if (item.logistica_status === 'entregue' && item.status === 'Finalizado') return 'Entregue';
@@ -247,7 +260,7 @@ export default function PaginaCliente() {
           <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
             <div className="min-w-0">
               <p className="flex items-center gap-1.5 text-sm font-medium text-ouro-300">
-                <Sparkles size={15} /> Olá, que bom te ver por aqui
+                <Sparkles size={15} /> {nomeCliente ? `Olá, ${nomeCliente}!` : 'Olá, que bom te ver por aqui'}
               </p>
 
               {avisoLevaTras && (
@@ -267,7 +280,7 @@ export default function PaginaCliente() {
                     </p>
                   ) : (
                     <p className="mt-1.5 flex items-center gap-2 text-sm text-tinta-300">
-                      <Car size={16} /> {noPatio[0].marca} {noPatio[0].modelo} · {noPatio[0].pacote_nome || 'Serviço avulso'}
+                      <Car size={16} /> {noPatio[0].marca} {noPatio[0].modelo} · {descricaoServico(noPatio[0])}
                     </p>
                   )}
                 </>
@@ -325,7 +338,7 @@ export default function PaginaCliente() {
               {proximoAgendado ? (
                 <>
                   <p className="mt-0.5 truncate font-semibold text-tinta-900">{formatarDataTabela(proximoAgendado)}</p>
-                  <p className="truncate text-sm text-tinta-500">{proximoAgendado.marca} {proximoAgendado.modelo} · {proximoAgendado.pacote_nome || 'Serviço avulso'}</p>
+                  <p className="truncate text-sm text-tinta-500">{proximoAgendado.marca} {proximoAgendado.modelo} · {descricaoServico(proximoAgendado)}{proximoAgendado.tipo_logistica === 'leva_tras' ? ' · Leva e traz' : ''}</p>
                 </>
               ) : (
                 <p className="mt-0.5 text-sm text-tinta-500">Nenhum horário marcado</p>
@@ -377,7 +390,7 @@ export default function PaginaCliente() {
                         <p className="truncate font-semibold text-tinta-900">{item.marca} {item.modelo}</p>
                         <BadgeStatus status={item.status} />
                       </div>
-                      <p className="mt-0.5 truncate text-sm text-tinta-500">{item.pacote_nome || 'Serviço avulso'}</p>
+                      <p className="mt-0.5 truncate text-sm text-tinta-500">{descricaoServico(item)}</p>
                       {textoLogistica(item) && <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-ouro-700"><Truck size={12} /> {textoLogistica(item)}</p>}
                       <div className="mt-1 flex items-center justify-between text-xs text-tinta-500">
                         <span>{formatarDataTabela(item)}</span>
@@ -411,7 +424,7 @@ export default function PaginaCliente() {
                             <span className="font-semibold text-tinta-900">{item.marca} {item.modelo}</span>
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-tinta-600">{item.pacote_nome || 'Serviço avulso'}</td>
+                        <td className="px-6 py-4 text-tinta-600">{descricaoServico(item)}</td>
                         <td className="px-6 py-4 text-tinta-600">{formatarDataTabela(item)}</td>
                         <td className="px-6 py-4 text-right font-semibold text-tinta-900">{formatarValor(item.valor_total)}</td>
                         <td className="px-6 py-4">

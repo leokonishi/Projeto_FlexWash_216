@@ -28,16 +28,16 @@ const cadastrar = async (req, res) => {
             INSERT INTO clientes (nome, cpf, email, telefone, endereco, senha) 
             VALUES (?, ?, ?, ?, ?, ?)
         `;
-        await db.execute(query, [
+        const [resultado] = await db.execute(query, [
             nome, 
             cpf, 
-            email || '', 
+            (typeof email === 'string' && email.trim()) || null, // sem e-mail: NULL (vários clientes de balcão podem não ter)
             telefone || '', 
             endereco || '', 
             senhaHash
         ]);
         
-        return res.status(201).json({ sucesso: true, mensagem: 'Cliente cadastrado com sucesso!' });
+        return res.status(201).json({ sucesso: true, mensagem: 'Cliente cadastrado com sucesso!', id: resultado.insertId });
     } catch (erro) {
         console.error('Erro ao cadastrar cliente:', erro);
         return res.status(400).json({ 
@@ -86,7 +86,7 @@ const atualizarCliente = async (req, res) => {
     try {
         const [resultado] = await db.execute(
             'UPDATE clientes SET nome = ?, cpf = ?, email = ?, telefone = ?, endereco = ? WHERE id = ?',
-            [nome, cpf, email, telefone, endereco, req.params.id]
+            [nome, cpf, email || null, telefone, endereco, req.params.id]
         );
         if (resultado.affectedRows === 0) {
             return res.status(404).json({ sucesso: false, erro: 'Cliente não encontrado.' });

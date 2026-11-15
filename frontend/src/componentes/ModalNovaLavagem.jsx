@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Car, Check, MapPin, Truck, Loader2 } from 'lucide-react';
+import { Car, Check, MapPin, Truck, Loader2, UserPlus, Plus, X } from 'lucide-react';
 import ModalPasso, { Marcador } from './ui/ModalPasso';
 import ConfiguracaoVeiculo from './ConfiguracaoVeiculo';
 import { apiFetch } from '../utils/api';
+import { aplicarMascaraCPF, aplicarMascaraTelefone, aplicarMascaraPlaca, validarContato } from '../utils/mascaras';
 
 export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPatio }) {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -27,6 +28,71 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
   // Trava imediata contra cliques repetidos (o estado `enviando` só muda no próximo render)
   const enviandoRef = useRef(false);
 
+  // Cadastro rápido, sem sair do modal: cliente novo e carro novo
+  const [novoCliente, setNovoCliente] = useState(null); // { nome, cpf, telefone } quando aberto
+  const [novoCarro, setNovoCarro] = useState(null); // { marca, modelo, placa, cor, porte } quando aberto
+  const [erroRapido, setErroRapido] = useState(null);
+  const [salvandoRapido, setSalvandoRapido] = useState(false);
+
+  const recarregarClientes = async () => {
+    const res = await apiFetch(`${API_URL}/api/clientes`);
+    if (res.ok) setClientes(await res.json());
+  };
+
+  const salvarNovoCliente = async () => {
+    setErroRapido(null);
+    if (!novoCliente.nome.trim()) return setErroRapido('Informe o nome do cliente.');
+    if (!novoCliente.cpf.trim()) return setErroRapido('Informe o CPF do cliente.');
+    const erroContato = validarContato(novoCliente, { telefoneObrigatorio: true });
+    if (erroContato) return setErroRapido(erroContato);
+    setSalvandoRapido(true);
+    try {
+      const res = await apiFetch(`${API_URL}/api/clientes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...novoCliente, nome: novoCliente.nome.trim() })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) return setErroRapido(json.erro || json.mensagem || 'Não foi possível cadastrar o cliente.');
+      await recarregarClientes();
+      setNovoCliente(null);
+      if (json.id) {
+        setClienteId(String(json.id));
+        setNovoCarro({ marca: '', modelo: '', placa: '', cor: '', porte: 'Médio' }); // cliente novo ainda não tem carro
+      }
+    } catch {
+      setErroRapido('Falha de conexão com o servidor.');
+    } finally {
+      setSalvandoRapido(false);
+    }
+  };
+
+  const salvarNovoCarro = async () => {
+    setErroRapido(null);
+    const faltando = [['marca', 'marca'], ['modelo', 'modelo'], ['placa', 'placa'], ['cor', 'cor']]
+      .filter(([c]) => !String(novoCarro[c] || '').trim()).map(([, n]) => n);
+    if (faltando.length) return setErroRapido(`Preencha: ${faltando.join(', ')}.`);
+    setSalvandoRapido(true);
+    try {
+      const dados = Object.fromEntries(Object.entries(novoCarro).map(([k, v]) => [k, String(v).trim()]));
+      const res = await apiFetch(`${API_URL}/api/clientes/${clienteId}/veiculos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dados)
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) return setErroRapido(json.erro || json.mensagem || 'Não foi possível cadastrar o carro.');
+      const lista = await apiFetch(`${API_URL}/api/clientes/${clienteId}/veiculos`);
+      if (lista.ok) setVeiculosDoCliente(await lista.json());
+      if (json.veiculoId) setVeiculosSelecionados((prev) => [...prev, json.veiculoId]);
+      setNovoCarro(null);
+    } catch {
+      setErroRapido('Falha de conexão com o servidor.');
+    } finally {
+      setSalvandoRapido(false);
+    }
+  };
+
   // 1. Busca inicial: Clientes, Pacotes, Extras e Funcionários
   useEffect(() => {
     const buscarDadosIniciais = async () => {
@@ -48,7 +114,7 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
           setFuncionarios(todosFunc.filter(f => f.perfil === 'funcionario' || f.perfil === 'Funcionário'));
         }
       } catch (error) {
-        if(abrirAlerta) abrirAlerta('Erro', 'Falha ao carregar dados do sistema.', () => {}, 'perigo');
+        if(abrirAlerta) abrirAlerta('Erro', 'Falha ao carregar dados do sistema.', () => {}, 'erro');
       }
     };
     buscarDadosIniciais();
@@ -144,7 +210,7 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
   const handleConfirmar = async () => {
     if (enviandoRef.current) return;
     if (pendencia) {
-      if(abrirAlerta) abrirAlerta('Atenção', pendencia, () => {}, 'aviso');
+      if(abrirAlerta) abrirAlerta('Atenção', pendencia, () => {}, 'info');
       else alert(pendencia);
       return;
     }
@@ -176,19 +242,19 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
       });
 
       if (res.ok) {
-        if(abrirAlerta) abrirAlerta('Sucesso', 'Serviço iniciado no pátio!', () => {}, 'aviso');
+        if(abrirAlerta) abrirAlerta('Sucesso', 'Serviço iniciado no pátio!', () => {}, 'sucesso');
         else alert('Serviço iniciado no pátio com sucesso!');
         
         if (atualizarPatio) atualizarPatio(); // Recarrega a tabela do pátio
         fecharModal();
       } else {
         const erroData = await res.json();
-        if(abrirAlerta) abrirAlerta('Erro', erroData.erro || 'Falha ao iniciar.', () => {}, 'perigo');
+        if(abrirAlerta) abrirAlerta('Erro', erroData.erro || 'Falha ao iniciar.', () => {}, 'erro');
         else alert(erroData.erro || 'Falha ao iniciar.');
       }
     } catch (error) {
       console.error(error);
-      if(abrirAlerta) abrirAlerta('Erro', 'Falha de conexão com o servidor.', () => {}, 'perigo');
+      if(abrirAlerta) abrirAlerta('Erro', 'Falha de conexão com o servidor.', () => {}, 'erro');
       else alert('Falha de conexão com o servidor.');
     } finally {
       enviandoRef.current = false;
@@ -263,21 +329,49 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
     >
       <div className="space-y-6">
         <div>
-          <label htmlFor="nl-cliente" className="fw-label">Cliente</label>
-          <select id="nl-cliente" value={clienteId} onChange={e => setClienteId(e.target.value)} className="fw-input cursor-pointer">
-            <option value="">Selecione um cliente...</option>
-            {clientes.map(c => (
-              <option key={c.id} value={c.id}>{c.nome} - {c.cpf || c.telefone}</option>
-            ))}
-          </select>
+          <div className="flex items-center justify-between gap-2">
+            <label htmlFor="nl-cliente" className="fw-label">Cliente</label>
+            {!novoCliente && (
+              <button type="button" onClick={() => { setErroRapido(null); setNovoCarro(null); setNovoCliente({ nome: '', cpf: '', telefone: '' }); }}
+                className="-mt-1.5 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-marca-600 hover:bg-marca-50">
+                <UserPlus size={14} /> Cliente novo
+              </button>
+            )}
+          </div>
+          {novoCliente ? (
+            <div className="space-y-3 rounded-2xl bg-tinta-50 p-4 ring-1 ring-tinta-200">
+              {erroRapido && <p className="fw-alerta-erro">{erroRapido}</p>}
+              <div className="grid gap-3 sm:grid-cols-3">
+                <input className="fw-input" placeholder="Nome" aria-label="Nome do cliente" autoFocus value={novoCliente.nome}
+                  onChange={(e) => setNovoCliente((c) => ({ ...c, nome: e.target.value }))} />
+                <input className="fw-input" placeholder="CPF" aria-label="CPF" inputMode="numeric" value={novoCliente.cpf}
+                  onChange={(e) => setNovoCliente((c) => ({ ...c, cpf: aplicarMascaraCPF(e.target.value) }))} />
+                <input className="fw-input" placeholder="Telefone" aria-label="Telefone" inputMode="tel" value={novoCliente.telefone}
+                  onChange={(e) => setNovoCliente((c) => ({ ...c, telefone: aplicarMascaraTelefone(e.target.value) }))} />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button type="button" className="fw-btn-contorno h-9" onClick={() => setNovoCliente(null)}>Voltar</button>
+                <button type="button" className="fw-btn-primario h-9" disabled={salvandoRapido} onClick={salvarNovoCliente}>
+                  {salvandoRapido ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Cadastrar cliente
+                </button>
+              </div>
+            </div>
+          ) : (
+            <select id="nl-cliente" value={clienteId} onChange={e => { setNovoCarro(null); setClienteId(e.target.value); }} className="fw-input cursor-pointer">
+              <option value="">Selecione um cliente...</option>
+              {clientes.map(c => (
+                <option key={c.id} value={c.id}>{c.nome} - {c.cpf || c.telefone}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         {clienteId && (
           <div>
             <span className="fw-label">Carros que estão entrando</span>
-            {veiculosDoCliente.length === 0 ? (
-              <p className="fw-alerta-aviso">Este cliente não possui veículos cadastrados.</p>
-            ) : (
+            {veiculosDoCliente.length === 0 && !novoCarro ? (
+              <p className="fw-alerta-aviso">Este cliente ainda não tem carro cadastrado. Use "Adicionar carro" abaixo.</p>
+            ) : veiculosDoCliente.length === 0 ? null : (
               <div className="grid gap-2 sm:grid-cols-2">
                 {veiculosDoCliente.map(v => {
                   const ativo = veiculosSelecionados.includes(v.id);
@@ -297,6 +391,40 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
               </div>
             )}
           </div>
+        )}
+
+        {clienteId && (
+          novoCarro ? (
+            <div className="-mt-3 space-y-3 rounded-2xl bg-tinta-50 p-4 ring-1 ring-tinta-200">
+              <p className="text-sm font-semibold text-tinta-800">Carro novo</p>
+              {erroRapido && <p className="fw-alerta-erro">{erroRapido}</p>}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                <input className="fw-input" placeholder="Marca" aria-label="Marca" value={novoCarro.marca}
+                  onChange={(e) => setNovoCarro((c) => ({ ...c, marca: e.target.value }))} />
+                <input className="fw-input" placeholder="Modelo" aria-label="Modelo" value={novoCarro.modelo}
+                  onChange={(e) => setNovoCarro((c) => ({ ...c, modelo: e.target.value }))} />
+                <input className="fw-input font-mono uppercase" placeholder="Placa" aria-label="Placa" value={novoCarro.placa}
+                  onChange={(e) => setNovoCarro((c) => ({ ...c, placa: aplicarMascaraPlaca(e.target.value) }))} />
+                <input className="fw-input" placeholder="Cor" aria-label="Cor" value={novoCarro.cor}
+                  onChange={(e) => setNovoCarro((c) => ({ ...c, cor: e.target.value }))} />
+                <select className="fw-input cursor-pointer" aria-label="Porte" value={novoCarro.porte}
+                  onChange={(e) => setNovoCarro((c) => ({ ...c, porte: e.target.value }))}>
+                  <option value="Pequeno">Pequeno</option><option value="Médio">Médio</option><option value="Grande">Grande</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button type="button" className="fw-btn-contorno h-9" onClick={() => { setErroRapido(null); setNovoCarro(null); }}><X size={15} /> Fechar</button>
+                <button type="button" className="fw-btn-primario h-9" disabled={salvandoRapido} onClick={salvarNovoCarro}>
+                  {salvandoRapido ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Adicionar carro
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" onClick={() => { setErroRapido(null); setNovoCarro({ marca: '', modelo: '', placa: '', cor: '', porte: 'Médio' }); }}
+              className="-mt-3 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-marca-600 hover:bg-marca-50">
+              <Plus size={14} /> Adicionar carro
+            </button>
+          )
         )}
 
         {clienteId && (
