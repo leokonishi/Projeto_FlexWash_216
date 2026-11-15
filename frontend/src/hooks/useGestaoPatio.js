@@ -9,6 +9,7 @@ export function useGestaoPatio(abrirAlerta) {
   });
   const [listaPatio, setListaPatio] = useState([]);
   const [proximosAgendamentos, setProximosAgendamentos] = useState([]); // a partir de amanhã
+  const [entregas, setEntregas] = useState([]); // leva e traz com carros prontos para devolver
   const [carregando, setCarregando] = useState(true);
   const mudandoStatusRef = useRef(new Set()); // ids com mudança de status em andamento (evita clique duplo)
 
@@ -23,14 +24,17 @@ export function useGestaoPatio(abrirAlerta) {
   const buscarDadosDoPatio = async ({ silencioso = false } = {}) => {
     try {
       if (!silencioso) setCarregando(true);
-      const [resposta, respostaProximos] = await Promise.all([
+      const [resposta, respostaProximos, respostaEntregas] = await Promise.all([
         apiFetch(`${API_URL}/api/execucoes/patio`),
-        apiFetch(`${API_URL}/api/execucoes/agendados`)
+        apiFetch(`${API_URL}/api/execucoes/agendados`),
+        apiFetch(`${API_URL}/api/execucoes/entregas`)
       ]);
 
       const dados = await resposta.json();
       const listaSegura = Array.isArray(dados) ? dados : [];
       const proximos = await respostaProximos.json();
+      const listaEntregas = await respostaEntregas.json().catch(() => []);
+      setEntregas(Array.isArray(listaEntregas) ? listaEntregas : []);
 
       setListaPatio(listaSegura);
       setProximosAgendamentos(Array.isArray(proximos) ? proximos : []);
@@ -116,6 +120,24 @@ export function useGestaoPatio(abrirAlerta) {
     }
   };
 
+  // Leva e traz: buscando / a_buscar (desfazer) / entregando / entregue
+  const mudarLogistica = async (agendamentoId, etapa, motoristaId) => {
+    try {
+      const res = await apiFetch(`${API_URL}/api/execucoes/agendamentos/${agendamentoId}/logistica`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(motoristaId ? { etapa, motorista_id: motoristaId } : { etapa })
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        alertar('Atenção', json.erro || 'Não foi possível atualizar o leva e traz.', () => {}, 'perigo');
+      }
+      buscarDadosDoPatio({ silencioso: true });
+    } catch {
+      alertar('Erro', 'Falha ao conectar com o servidor.', () => {}, 'perigo');
+    }
+  };
+
   const excluirServico = (idServico) => {
     alertar('Excluir Serviço', 'Tem a certeza que deseja remover este serviço? Ele é apagado e não vai para o histórico.', async () => {
       try {
@@ -156,5 +178,5 @@ export function useGestaoPatio(abrirAlerta) {
   // Pátio sempre em dia: outro funcionário mexeu, um cliente agendou para hoje, etc.
   useAtualizacaoAutomatica(() => buscarDadosDoPatio({ silencioso: true }), 20000);
 
-  return { metricas, listaPatio, proximosAgendamentos, carregando, buscarDadosDoPatio, avancarStatusServico, trocarEquipe, excluirServico, cancelarAgendamento };
+  return { metricas, listaPatio, proximosAgendamentos, entregas, mudarLogistica, carregando, buscarDadosDoPatio, avancarStatusServico, trocarEquipe, excluirServico, cancelarAgendamento };
 }

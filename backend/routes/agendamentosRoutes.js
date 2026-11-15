@@ -38,7 +38,7 @@ router.get('/agendamentos/leva-e-traz', async (req, res) => {
 // 2. VAGAS DE UM DIA (GET /api/agendamentos/horarios?data=AAAA-MM-DD)
 router.get('/agendamentos/horarios', async (req, res) => {
     try {
-        res.status(200).json({ data: req.query.data, horarios: await horariosDoDia(db, req.query.data) });
+        res.status(200).json({ data: req.query.data, ...(await horariosDoDia(db, req.query.data)) });
     } catch (erro) {
         responderErro(res, erro, 'Erro ao buscar os horários.');
     }

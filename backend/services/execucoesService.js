@@ -183,7 +183,8 @@ async function registrarEntrada(db, corpo) {
     let agendamentoId = null;
     if (levaTras) {
       const [resAgendamento] = await conn.execute(
-        "INSERT INTO agendamentos (cliente_id, tipo_logistica, endereco_busca, distancia_km) VALUES (?, 'leva_tras', ?, ?)",
+        // Entrada pelo balcão: o carro já está no pátio, falta só devolver
+        "INSERT INTO agendamentos (cliente_id, tipo_logistica, endereco_busca, distancia_km, logistica_status) VALUES (?, 'leva_tras', ?, ?, 'coletado')",
         [clienteId, levaTras.endereco, levaTras.distanciaKm]
       );
       agendamentoId = resAgendamento.insertId;
@@ -200,7 +201,7 @@ async function registrarEntrada(db, corpo) {
       const valorTotal = centavosParaDecimal(centavos);
 
       const [resultado] = await conn.execute(
-        'INSERT INTO execucoes (cliente_id, veiculo_id, pacote_id, agendamento_id, valor_total, valor_logistica) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO execucoes (cliente_id, veiculo_id, pacote_id, agendamento_id, valor_total, valor_logistica, chegada_em) VALUES (?, ?, ?, ?, ?, ?, NOW())',
         [clienteId, item.veiculoId, item.pacoteId, agendamentoId, valorTotal, centavosParaDecimal(taxaCentavos)]
       );
       const execucaoId = resultado.insertId;

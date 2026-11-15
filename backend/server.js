@@ -22,6 +22,7 @@ const agendamentosRoutes = require('./routes/agendamentosRoutes');
 const logisticaRoutes = require('./routes/logisticaRoutes');
 const promocoesRoutes = require('./routes/promocoesRoutes');
 const comissoesRoutes = require('./routes/comissoesRoutes');
+const agendaAdminRoutes = require('./routes/agendaAdminRoutes');
 
 // IMPORTAÇÃO DA PASTA 'endpoints' (Rota de serviços do cliente)
 const servicoClienteRoutes = require('./endpoints/servicos');
@@ -80,6 +81,7 @@ app.use('/api', agendamentosRoutes);
 app.use('/api', logisticaRoutes); // /api/admin/logistica (leva e traz: endereço, raio e valor)
 app.use('/api', promocoesRoutes); // /api/admin/promocoes e /api/admin/movimento-diario (fidelidade e cupons)
 app.use('/api', veiculoRoutes);
+app.use('/api', agendaAdminRoutes); // /api/admin/agenda (dias, horários, vagas e feriados)
 app.use('/api', comissoesRoutes); // /api/admin/comissoes e /api/funcionario/comissoes
 
 // Rota protegida de teste

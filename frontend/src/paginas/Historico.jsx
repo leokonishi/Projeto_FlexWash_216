@@ -14,6 +14,7 @@ function periodoDoMes() {
   return { inicio: `${fim.slice(0, 7)}-01`, fim };
 }
 
+const tempoLavagem = (min) => (min >= 60 ? `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}` : `${min} min`);
 const dataBR = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
 
 export default function Historico({ abrirAlerta }) {
@@ -135,11 +136,11 @@ export default function Historico({ abrirAlerta }) {
   const handleExportarExcel = () => {
     const celula = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const linhas = [
-      ['Número', 'Dia', 'Veículo', 'Placa', 'Porte', 'Cliente', 'Serviço', 'Responsáveis', ...(ehAdmin ? ['Valor (R$)'] : [])],
+      ['Número', 'Dia', 'Veículo', 'Placa', 'Porte', 'Cliente', 'Serviço', 'Responsáveis', 'Lavagem (min)', ...(ehAdmin ? ['Valor (R$)'] : [])],
       ...historico.map((i) => [
         i.id, dataBR(i.dia), `${i.marca} ${i.modelo}`, i.placa, i.porte, i.cliente_nome,
         [i.pacote_nome || 'Serviço avulso', i.servicos_extras].filter(Boolean).join(' + '),
-        i.responsaveis || '', ...(ehAdmin ? [Number(i.valor_total || 0).toFixed(2).replace('.', ',')] : [])
+        i.responsaveis || '', i.minutos_lavagem ?? '', ...(ehAdmin ? [Number(i.valor_total || 0).toFixed(2).replace('.', ',')] : [])
       ])
     ];
     const csv = '\ufeff' + linhas.map((l) => l.map(celula).join(';')).join('\r\n');
@@ -230,7 +231,12 @@ export default function Historico({ abrirAlerta }) {
                 {historico.map(item => (
                   <tr key={item.id}>
                     <td className="font-mono text-xs text-tinta-400">#{item.id}</td>
-                    <td className="whitespace-nowrap">{dataBR(item.dia)}</td>
+                    <td className="whitespace-nowrap">
+                      {dataBR(item.dia)}
+                      {item.minutos_lavagem !== null && item.minutos_lavagem !== undefined && (
+                        <p className="text-[11px] text-tinta-400" title="Do início ao fim da lavagem">{tempoLavagem(item.minutos_lavagem)} lavando</p>
+                      )}
+                    </td>
                     <td>
                       <p className="whitespace-nowrap font-semibold text-tinta-900">{item.marca} {item.modelo}</p>
                       <div className="mt-1 flex items-center gap-2 text-xs text-tinta-500"><span className="fw-placa">{item.placa}</span> {item.porte}</div>

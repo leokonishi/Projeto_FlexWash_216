@@ -13,6 +13,21 @@ const CAPACIDADE_POR_HORARIO = 2;
 // Até quantos dias à frente procuramos o próximo horário livre para sugerir
 const DIAS_BUSCA_SUGESTAO = 30;
 
+// Agenda padrão (usada quando a tabela config_agenda ainda não existe)
+const PADRAO = { horarios: HORARIOS, capacidade: CAPACIDADE_POR_HORARIO, diasSemana: [0, 1, 2, 3, 4, 5, 6], bloqueios: new Map() };
+
+// 0 = domingo ... 6 = sábado, para uma data 'AAAA-MM-DD'
+function diaDaSemana(data) {
+  return new Date(`${data}T12:00:00Z`).getUTCDay();
+}
+
+// Motivo de o lava-rápido estar fechado no dia, ou null se abre
+function motivoFechado(data, cfg = PADRAO) {
+  if (cfg.bloqueios.has(data)) return cfg.bloqueios.get(data) || 'Fechado neste dia';
+  if (!cfg.diasSemana.includes(diaDaSemana(data))) return 'Não abrimos neste dia da semana';
+  return null;
+}
+
 // "Agora" no fuso do lava-rápido: { data: 'AAAA-MM-DD', hora: 'HH:MM' }
 function agoraLocal(referencia = new Date()) {
   const partes = Object.fromEntries(
@@ -57,13 +72,14 @@ function paraDatetime(data, horario) {
 // `ocupacao` é um Map 'HH:MM' -> carros já marcados. Cada carro ocupa o primeiro
 // horário >= horarioInicial que ainda tenha vaga. Retorna a lista de horários
 // (um por carro) ou null se não couber até o fim do dia.
-function distribuirNoDia({ data, horarioInicial, quantidade, ocupacao, agora }) {
+// `cfg` (opcional): { horarios, capacidade } da agenda configurada no painel.
+function distribuirNoDia({ data, horarioInicial, quantidade, ocupacao, agora, cfg = PADRAO }) {
   const usados = new Map(ocupacao);
   const alocados = [];
 
-  for (const horario of HORARIOS) {
+  for (const horario of cfg.horarios) {
     if (horario < horarioInicial || horarioPassou(data, horario, agora)) continue;
-    while (alocados.length < quantidade && (usados.get(horario) || 0) < CAPACIDADE_POR_HORARIO) {
+    while (alocados.length < quantidade && (usados.get(horario) || 0) < cfg.capacidade) {
       alocados.push(horario);
       usados.set(horario, (usados.get(horario) || 0) + 1);
     }
@@ -74,6 +90,9 @@ function distribuirNoDia({ data, horarioInicial, quantidade, ocupacao, agora }) 
 
 module.exports = {
   FUSO,
+  PADRAO,
+  diaDaSemana,
+  motivoFechado,
   HORARIOS,
   CAPACIDADE_POR_HORARIO,
   DIAS_BUSCA_SUGESTAO,

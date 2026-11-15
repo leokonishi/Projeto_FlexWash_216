@@ -1,6 +1,6 @@
 import React, { useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LayoutGrid, Users, History, Package, Truck, BadgeDollarSign, LogOut, Ticket, Wallet } from 'lucide-react';
+import { LayoutGrid, Users, History, Package, Truck, BadgeDollarSign, LogOut, Ticket, Wallet, CalendarDays } from 'lucide-react';
 
 // Importação dos Componentes Filhos (Padrão de Arquitetura Limpa)
 import DashboardInicio from '../componentes/DashboardInicio';
@@ -12,6 +12,7 @@ import GestaoPromocoes from './GestaoPromocoes';
 const GestaoLevaTras = lazy(() => import('./GestaoLevaTras'));
 import Historico from './Historico';
 import Comissoes from './Comissoes';
+import GestaoAgenda from './GestaoAgenda';
 import ModalConfirmacao from '../componentes/ModalConfirmacao';
 import Logo from '../componentes/ui/Logo';
 import { obterPerfil, encerrarSessao } from '../utils/sessao';
@@ -23,6 +24,7 @@ const ABAS = [
   { id: 'historico', nome: 'Histórico', nomeLongo: 'Histórico / Relatórios', icone: History },
   { id: 'comissoes', nome: 'Comissões', icone: Wallet },
   { id: 'servicos', nome: 'Serviços', icone: Package, admin: true },
+  { id: 'agenda', nome: 'Agenda', icone: CalendarDays, admin: true },
   { id: 'promocoes', nome: 'Promoções', nomeLongo: 'Fidelidade e promoções', icone: Ticket, admin: true },
   { id: 'levatras', nome: 'Leva e Traz', icone: Truck, admin: true },
   { id: 'funcionarios', nome: 'Equipe', nomeLongo: 'Funcionários', icone: BadgeDollarSign, admin: true },
@@ -141,6 +143,8 @@ export default function PaginaAdmin() {
           {abaAtiva === 'funcionarios' && ehAdmin && <GestaoFuncionarios abrirAlerta={abrirAlerta} />}
 
           {abaAtiva === 'servicos' && ehAdmin && <GestaoServicos abrirAlerta={abrirAlerta} />}
+
+          {abaAtiva === 'agenda' && ehAdmin && <GestaoAgenda abrirAlerta={abrirAlerta} />}
 
           {abaAtiva === 'promocoes' && ehAdmin && <GestaoPromocoes abrirAlerta={abrirAlerta} />}
 
