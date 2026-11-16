@@ -6,6 +6,7 @@ const db = require('../bd');
 const { JWT_SECRET } = require('../config/jwt');
 const { ErroNegocio } = require('../services/erros');
 const acesso = require('../services/acessoCliente');
+const limite = require('../services/limiteLogin');
 
 // Token de sessão do cliente (o 'id' é usado para restringir o acesso aos próprios dados)
 function sessaoDoCliente(cliente) {
@@ -31,11 +32,24 @@ router.post('/login/cliente', async (req, res) => {
         return res.status(400).json({ sucesso: false, mensagem: 'Informe o e-mail e a senha.' });
     }
 
+    const bloqueado = limite.minutosBloqueado('cliente', email, req.ip);
+    if (bloqueado) {
+        return res.status(429).json({
+            sucesso: false,
+            mensagem: `Muitas tentativas erradas. Tente de novo em ${bloqueado} min ou use "Primeiro acesso ou esqueci a senha".`
+        });
+    }
+    const senhaErrada = () => {
+        const restam = limite.registrarFalha('cliente', email, req.ip);
+        const aviso = restam === 0
+      ? ' Por segurança, o login deste e-mail ficou bloqueado por 15 minutos.'
+      : ` Você ainda tem ${restam} de ${limite.MAX_POR_EMAIL} tentativas antes de o login ser bloqueado por 15 minutos.`;
+        return res.status(401).json({ sucesso: false, mensagem: `E-mail ou senha inválidos.${aviso}` });
+    };
+
     try {
         const [rows] = await db.execute('SELECT * FROM clientes WHERE email = ? LIMIT 1', [email]);
-        if (rows.length === 0) {
-            return res.status(401).json({ sucesso: false, mensagem: 'E-mail ou senha inválidos.' });
-        }
+        if (rows.length === 0) return senhaErrada();
         const cliente = rows[0];
 
         // Cadastrado no balcão: ainda não criou a senha (ou ficou com a antiga senha padrão "123")
@@ -48,9 +62,8 @@ router.post('/login/cliente', async (req, res) => {
             });
         }
 
-        if (!(await bcrypt.compare(senha, cliente.senha))) {
-            return res.status(401).json({ sucesso: false, mensagem: 'E-mail ou senha inválidos.' });
-        }
+        if (!(await bcrypt.compare(senha, cliente.senha))) return senhaErrada();
+        limite.limparEmail('cliente', email);
         res.status(200).json(sessaoDoCliente(cliente));
     } catch (erro) {
         responderErro(res, erro, 'Erro no login do cliente:');

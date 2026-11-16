@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, ArrowRight, Mail } from 'lucide-react';
 import LayoutAcesso from '../componentes/ui/LayoutAcesso';
@@ -11,7 +11,11 @@ export default function Login() {
   const [senha, setSenha] = useState('');
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState(null);
+  // Motivo de ter caído no login (sessão vencida, acesso encerrado), deixado pelo apiFetch
+  const [erro, setErro] = useState(() => {
+    try { const m = sessionStorage.getItem('aviso_login'); return m; } catch { return null; }
+  });
+  useEffect(() => { try { sessionStorage.removeItem('aviso_login'); } catch { /* sem storage */ } }, []);
   // Primeiro acesso (cliente cadastrado no balcão) e "esqueci minha senha": link pelo e-mail
   const [modoLink, setModoLink] = useState(false);
   const [semSenha, setSemSenha] = useState(false);

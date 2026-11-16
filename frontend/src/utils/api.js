@@ -18,6 +18,11 @@ export async function apiFetch(url, opcoes = {}) {
   const resposta = await fetch(url, { ...opcoes, headers });
 
   if (resposta.status === 401) {
+    // Mostra na tela de login o motivo (ex.: "Seu acesso foi encerrado")
+    try {
+      const { mensagem } = await resposta.clone().json();
+      if (mensagem) sessionStorage.setItem('aviso_login', mensagem);
+    } catch { /* sem corpo JSON */ }
     const destino = rotaDeLogin(obterPerfil());
     encerrarSessao();
     window.location.assign(destino);
