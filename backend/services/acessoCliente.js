@@ -47,7 +47,7 @@ async function clienteDoToken(db, token) {
     throw new ErroNegocio('Este link venceu. Peça um novo na tela de login.', 410);
   }
   if (dados.tipo !== 'definir_senha') throw new ErroNegocio('Link inválido.', 400);
-  const [[cliente]] = await db.execute('SELECT id, nome, email, senha FROM clientes WHERE id = ?', [dados.id]);
+  const [[cliente]] = await db.execute('SELECT id, nome, email, senha FROM clientes WHERE id = ? AND ativo = 1', [dados.id]);
   if (!cliente || impressao(cliente.senha) !== dados.fp) {
     throw new ErroNegocio('Este link já foi usado. Se precisar, peça um novo na tela de login.', 410);
   }

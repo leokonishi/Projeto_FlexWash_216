@@ -7,19 +7,21 @@ const db = require('../bd');
 
 // 1. CAMADA DE DADOS COM PROMISES (Compatível com mysql2/promise)
 const FuncionarioDB = {
-  listarApenasFuncionarios: async () => {
+  // situacao: 'ativos' (padrão), 'inativos' (aba "Inativos") ou 'todos' (filtro do Histórico)
+  listarApenasFuncionarios: async (situacao = 'ativos') => {
     const sql = `
-      SELECT id, nome, cpf, email, telefone, funcoes, perfil, criado_em 
+      SELECT id, nome, cpf, email, telefone, funcoes, perfil, criado_em, ativo, inativado_em
       FROM funcionarios 
-      WHERE perfil = 'funcionario'
-      ORDER BY nome ASC
+      WHERE perfil = 'funcionario' AND ativo IN (?, ?)
+      ORDER BY ativo DESC, nome ASC
     `;
-    const [resultados] = await db.execute(sql);
+    const filtro = { ativos: [1, 1], inativos: [0, 0], todos: [0, 1] }[situacao] || [1, 1];
+    const [resultados] = await db.execute(sql, filtro);
     return resultados;
   },
 
   verificarDuplicidade: async (cpf, email) => {
-    const sql = 'SELECT id FROM funcionarios WHERE cpf = ? OR email = ? LIMIT 1';
+    const sql = 'SELECT id, ativo FROM funcionarios WHERE cpf = ? OR email = ? LIMIT 1';
     const [resultados] = await db.execute(sql, [cpf, email]);
     return resultados[0];
   },
@@ -51,7 +53,11 @@ const FuncionarioDB = {
 // 2. CAMADA DE ROTAS / CONTROLE
 router.get('/funcionarios', async (req, res) => {
   try {
-    const lista = await FuncionarioDB.listarApenasFuncionarios();
+    // Inativos só para o administrador; "todos" serve para filtrar o histórico por quem já saiu
+    let situacao = 'ativos';
+    if (req.query.todos === '1') situacao = 'todos';
+    else if (req.query.inativos === '1' && req.usuarioLogado?.perfil === 'administrador') situacao = 'inativos';
+    const lista = await FuncionarioDB.listarApenasFuncionarios(situacao);
     const listaFormatada = lista.map((item) => ({
       ...item,
       funcoes: item.funcoes ? item.funcoes.split(',').map((f) => f.trim()) : []
@@ -83,7 +89,10 @@ router.post('/funcionarios', async (req, res) => {
   try {
     const duplicado = await FuncionarioDB.verificarDuplicidade(cpf, email);
     if (duplicado) {
-      return res.status(409).json({ sucesso: false, mensagem: 'CPF ou E-mail ja cadastrado no sistema.' });
+      const mensagem = duplicado.ativo
+        ? 'CPF ou e-mail já cadastrado no sistema.'
+        : 'Este CPF ou e-mail é de um funcionário inativo. Reative-o na aba "Inativos".';
+      return res.status(409).json({ sucesso: false, mensagem });
     }
 
     const senhaHash = await bcrypt.hash(senha, 10);
@@ -187,31 +196,69 @@ router.put('/funcionarios/:id', async (req, res) => {
 // Bloqueia se ele ainda está escalado em um serviço agendado ou no pátio.
 // No histórico, as lavagens já feitas continuam (só deixam de mostrar o nome dele).
 router.delete('/funcionarios/:id', async (req, res) => {
+  const id = req.params.id;
   try {
     const [[ativos]] = await db.execute(
       `SELECT COUNT(*) AS total FROM execucao_funcionarios ef JOIN execucoes e ON e.id = ef.execucao_id
        WHERE ef.funcionario_id = ? AND e.status IN ('Agendado', 'Aguardando', 'Em Andamento')`,
-      [req.params.id]
+      [id]
     );
     if (Number(ativos.total) > 0) {
       return res.status(409).json({
         sucesso: false,
-        mensagem: `Este funcionario esta escalado em ${ativos.total} servico(s) agendado(s) ou no patio. Finalize esses servicos antes de remove-lo.`
+        mensagem: `Este funcionário está escalado em ${ativos.total} serviço(s) agendado(s) ou no pátio. Finalize esses serviços ou troque a equipe antes.`
       });
     }
 
-    const resultado = await FuncionarioDB.removerPorId(req.params.id);
-    if (resultado.affectedRows === 0) {
-      return res.status(404).json({ sucesso: false, mensagem: 'Funcionario nao encontrado.' });
+    // Com histórico (lavou algum carro ou foi motorista): inativa, para o nome continuar
+    // no histórico e nas comissões. Sem histórico: apaga de vez.
+    const [[historico]] = await db.execute(
+      `SELECT (SELECT COUNT(*) FROM execucao_funcionarios WHERE funcionario_id = ?)
+            + (SELECT COUNT(*) FROM agendamentos WHERE motorista_id = ?) AS total`,
+      [id, id]
+    );
+    if (Number(historico.total) > 0) {
+      const [r] = await db.execute(
+        "UPDATE funcionarios SET ativo = 0, inativado_em = NOW() WHERE id = ? AND perfil = 'funcionario' AND ativo = 1",
+        [id]
+      );
+      if (r.affectedRows === 0) return res.status(404).json({ sucesso: false, mensagem: 'Funcionário não encontrado.' });
+      esquecerUsuario('funcionario', id); // o login dele para de funcionar na hora
+      return res.status(200).json({
+        sucesso: true,
+        inativado: true,
+        mensagem: 'Funcionário inativado. Ele não entra mais no sistema, mas continua no histórico e nas comissões.'
+      });
     }
-    esquecerUsuario('funcionario', req.params.id); // o login dele para de funcionar na hora
-    return res.status(200).json({ sucesso: true, mensagem: 'Funcionario removido com sucesso.' });
+
+    const resultado = await FuncionarioDB.removerPorId(id);
+    if (resultado.affectedRows === 0) {
+      return res.status(404).json({ sucesso: false, mensagem: 'Funcionário não encontrado.' });
+    }
+    esquecerUsuario('funcionario', id);
+    return res.status(200).json({ sucesso: true, inativado: false, mensagem: 'Funcionário removido.' });
   } catch (erro) {
     if (erro.code === 'ER_ROW_IS_REFERENCED_2' || erro.code === 'ER_ROW_IS_REFERENCED') {
-      return res.status(409).json({ sucesso: false, mensagem: 'Este funcionario tem registros ligados a ele e nao pode ser removido.' });
+      return res.status(409).json({ sucesso: false, mensagem: 'Este funcionário tem registros ligados a ele e não pode ser removido.' });
     }
     console.error('Erro ao remover funcionario:', erro);
-    return res.status(500).json({ sucesso: false, mensagem: 'Erro ao remover funcionario.' });
+    return res.status(500).json({ sucesso: false, mensagem: 'Erro ao remover funcionário.' });
+  }
+});
+
+// REATIVAR FUNCIONÁRIO (POST /api/funcionarios/:id/reativar) - só administrador
+router.post('/funcionarios/:id/reativar', async (req, res) => {
+  try {
+    const [r] = await db.execute(
+      "UPDATE funcionarios SET ativo = 1, inativado_em = NULL WHERE id = ? AND perfil = 'funcionario' AND ativo = 0",
+      [req.params.id]
+    );
+    if (r.affectedRows === 0) return res.status(404).json({ sucesso: false, mensagem: 'Funcionário inativo não encontrado.' });
+    esquecerUsuario('funcionario', req.params.id);
+    return res.status(200).json({ sucesso: true, mensagem: 'Funcionário reativado. Ele já pode entrar de novo.' });
+  } catch (erro) {
+    console.error('Erro ao reativar funcionario:', erro);
+    return res.status(500).json({ sucesso: false, mensagem: 'Erro ao reativar o funcionário.' });
   }
 });
 

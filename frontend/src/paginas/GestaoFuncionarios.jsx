@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
-import { Search, UserPlus, Users, Trash2, Check, Loader2, Wrench, Edit2, UserCog } from 'lucide-react';
+import { Search, UserPlus, Users, Trash2, Check, Loader2, Wrench, Edit2, UserCog, RotateCcw } from 'lucide-react';
 import CabecalhoPagina, { Secao } from '../componentes/ui/CabecalhoPagina';
 import { aplicarMascaraCPF, aplicarMascaraTelefone, aplicarMascaraEmail, validarContato, senhaValida, REGRA_SENHA } from '../utils/mascaras';
 
@@ -37,6 +37,7 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
 
   const [funcionarios, setFuncionarios] = useState([]);
   const [carregando, setCarregando] = useState(true);
+  const [verInativos, setVerInativos] = useState(false); // aba "Inativos": quem saiu, mas tem histórico
   const [enviando, setEnviando] = useState(false);
 
   const [filtroNomeCpf, setFiltroNomeCpf] = useState('');
@@ -70,8 +71,9 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
 
   useEffect(() => {
     async function buscarFuncionarios() {
+      setCarregando(true);
       try {
-        const resposta = await apiFetch(`${API_URL}/api/funcionarios`);
+        const resposta = await apiFetch(`${API_URL}/api/funcionarios${verInativos ? '?inativos=1' : ''}`);
 
         const contentType = resposta.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
@@ -90,7 +92,7 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
       }
     }
     buscarFuncionarios();
-  }, [API_URL]);
+  }, [API_URL, verInativos]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -177,14 +179,35 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
 
       setFuncionarios((prev) => prev.filter((item) => item.id !== id));
       if (editandoId === id) cancelarEdicao();
+      avisar('Sucesso', json.mensagem || 'Funcionário removido.');
     } catch (erro) {
-      avisar('Erro', erro.message, 'perigo');
+      avisar('Não foi possível remover', erro.message, 'perigo');
+    }
+  };
+
+  const reativarNoServidor = async (id) => {
+    try {
+      const resposta = await apiFetch(`${API_URL}/api/funcionarios/${id}/reativar`, { method: 'POST' });
+      const json = await resposta.json().catch(() => ({}));
+      if (!resposta.ok) throw new Error(json.mensagem || 'Erro ao reativar.');
+      setFuncionarios((prev) => prev.filter((item) => item.id !== id));
+      avisar('Sucesso', json.mensagem || 'Funcionário reativado.');
+    } catch (erro) {
+      avisar('Não foi possível reativar', erro.message, 'perigo');
+    }
+  };
+
+  const handleReativar = (id, nome) => {
+    if (abrirAlerta) {
+      abrirAlerta('Reativar funcionário', `${nome} volta para a equipe e pode entrar no sistema de novo, com a mesma senha.`, () => reativarNoServidor(id), 'aviso');
+    } else if (window.confirm(`Reativar ${nome}?`)) {
+      reativarNoServidor(id);
     }
   };
 
   const handleExcluir = (id, nome) => {
     if (abrirAlerta) {
-      abrirAlerta('Remover funcionário', `Deseja remover o funcionário ${nome}? Ele perde o acesso ao sistema. As lavagens que já fez continuam no histórico.`, () => excluirNoServidor(id), 'perigo');
+      abrirAlerta('Remover funcionário', `Deseja remover ${nome}? Ele perde o acesso ao sistema na hora. Se já trabalhou em algum serviço, o cadastro fica inativo (o nome continua no histórico e nas comissões, e dá para reativar na aba "Inativos"). Se nunca trabalhou, o cadastro é apagado.`, () => excluirNoServidor(id), 'perigo');
     } else if (window.confirm(`Deseja remover o funcionário ${nome}?`)) {
       excluirNoServidor(id);
     }
@@ -263,9 +286,21 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
         </Secao>
 
         <Secao
-          titulo="Equipe"
+          titulo={verInativos ? 'Funcionários inativos' : 'Equipe'}
           icone={Users}
-          acoes={!carregando && <span className="rounded-full bg-marca-50 px-2.5 py-1 text-xs font-bold text-marca-700">{funcionariosFiltrados.length}</span>}
+          acoes={
+            <div className="flex items-center gap-2">
+              <div className="flex rounded-lg bg-tinta-100 p-0.5 text-xs font-semibold" role="group" aria-label="Mostrar funcionários">
+                {[['Ativos', false], ['Inativos', true]].map(([rotulo, valor]) => (
+                  <button key={rotulo} type="button" onClick={() => { setVerInativos(valor); cancelarEdicao(); }} aria-pressed={verInativos === valor}
+                    className={`rounded-md px-2.5 py-1 transition-colors ${verInativos === valor ? 'bg-white text-tinta-900 shadow-sm' : 'text-tinta-500 hover:text-tinta-800'}`}>
+                    {rotulo}
+                  </button>
+                ))}
+              </div>
+              {!carregando && <span className="rounded-full bg-marca-50 px-2.5 py-1 text-xs font-bold text-marca-700">{funcionariosFiltrados.length}</span>}
+            </div>
+          }
           semPadding
         >
           <div className="grid gap-3 border-b border-tinta-100 p-4 sm:grid-cols-2 sm:px-5">
@@ -282,7 +317,7 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
           {carregando ? (
             <div className="space-y-3 p-5">{[0, 1, 2].map(i => <div key={i} className="h-14 animate-pulse rounded-xl bg-tinta-100" />)}</div>
           ) : funcionariosFiltrados.length === 0 ? (
-            <p className="px-5 py-12 text-center text-sm text-tinta-500">Nenhum funcionário encontrado.</p>
+            <p className="px-5 py-12 text-center text-sm text-tinta-500">{verInativos ? 'Nenhum funcionário inativo.' : 'Nenhum funcionário encontrado.'}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="fw-tabela">
@@ -291,7 +326,7 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
                     <th>Funcionário</th>
                     <th className="hidden sm:table-cell">Contato</th>
                     <th>Funções</th>
-                    <th className="hidden md:table-cell">Comissão</th>
+                    <th className={verInativos ? 'hidden' : 'hidden md:table-cell'}>Comissão</th>
                     <th />
                   </tr>
                 </thead>
@@ -311,6 +346,9 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
                             <div className="min-w-0">
                               <p className="truncate font-semibold text-tinta-900">{func.nome}</p>
                               <p className="whitespace-nowrap text-xs text-tinta-500">{func.cpf}</p><p className="whitespace-nowrap text-xs text-tinta-500 sm:hidden">{func.telefone}</p>
+                              {verInativos && func.inativado_em && (
+                                <p className="whitespace-nowrap text-xs font-medium text-ouro-600">Inativo desde {new Date(func.inativado_em).toLocaleDateString('pt-BR')}</p>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -325,10 +363,15 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
                             ))}
                           </div>
                         </td>
-                        <td className="hidden md:table-cell">
+                        <td className={verInativos ? 'hidden' : 'hidden md:table-cell'}>
                           <span className="whitespace-nowrap rounded-full bg-ouro-50 px-2.5 py-1 text-xs font-semibold text-ouro-700 ring-1 ring-inset ring-ouro-200">Por serviço</span>
                         </td>
                         <td className="text-right">
+                          {verInativos ? (
+                            <button type="button" onClick={() => handleReativar(func.id, func.nome)} className="fw-btn-contorno whitespace-nowrap px-3 py-1.5 text-xs" aria-label={`Reativar ${func.nome}`}>
+                              <RotateCcw size={14} /> Reativar
+                            </button>
+                          ) : (
                           <div className="flex justify-end gap-1">
                           <button type="button" onClick={() => iniciarEdicao(func)} className="grid size-9 place-items-center rounded-lg text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" title="Editar" aria-label={`Editar ${func.nome}`}>
                             <Edit2 size={16} />
@@ -337,6 +380,7 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
                             <Trash2 size={16} />
                           </button>
                           </div>
+                          )}
                         </td>
                       </tr>
                     );

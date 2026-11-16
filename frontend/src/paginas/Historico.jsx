@@ -58,7 +58,7 @@ export default function Historico({ abrirAlerta }) {
 
   // Lista da equipe para o filtro "Quem lavou"
   useEffect(() => {
-    apiFetch(`${API_URL}/api/funcionarios`)
+    apiFetch(`${API_URL}/api/funcionarios?todos=1`)
       .then((r) => r.json())
       .then((json) => setFuncionarios(Array.isArray(json) ? json : (json.dados || [])))
       .catch(() => {});
@@ -180,7 +180,7 @@ export default function Historico({ abrirAlerta }) {
           <select className="fw-input mt-1 h-10" value={filtros.funcionario_id}
             onChange={(e) => setFiltros((f) => ({ ...f, funcionario_id: e.target.value }))}>
             <option value="">Toda a equipe</option>
-            {funcionarios.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+            {funcionarios.map((f) => <option key={f.id} value={f.id}>{f.nome}{f.ativo === 0 ? ' (inativo)' : ''}</option>)}
           </select>
         </label>
         <label className="min-w-48 flex-1 text-xs font-semibold text-tinta-500 sm:max-w-xs">

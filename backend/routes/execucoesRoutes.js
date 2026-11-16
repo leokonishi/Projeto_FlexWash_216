@@ -47,7 +47,7 @@ function transicaoPermitida(de, para, perfil) {
 
 // Troca a equipe de um serviço (quem lavou divide a comissão). Os ids precisam ser da equipe.
 async function definirEquipe(conn, execucaoId, funcionarioIds) {
-    const encontrados = await buscarPorIds(conn, 'SELECT id FROM funcionarios WHERE id IN (#)', funcionarioIds);
+    const encontrados = await buscarPorIds(conn, 'SELECT id FROM funcionarios WHERE ativo = 1 AND id IN (#)', funcionarioIds);
     exigirTodos(encontrados, funcionarioIds, 404, 'Funcionário(s) não encontrado(s)');
     await conn.execute('DELETE FROM execucao_funcionarios WHERE execucao_id = ?', [execucaoId]);
     for (const funcionarioId of funcionarioIds) {
@@ -294,7 +294,7 @@ router.put('/execucoes/agendamentos/:id/logistica', async (req, res) => {
                 await conn.rollback();
                 return res.status(422).json({ erro: 'Escolha o motorista.', motivo: 'sem_motorista' });
             }
-            const [[existe]] = await conn.execute('SELECT id FROM funcionarios WHERE id = ?', [motorista]);
+            const [[existe]] = await conn.execute('SELECT id FROM funcionarios WHERE id = ? AND ativo = 1', [motorista]);
             if (!existe) {
                 await conn.rollback();
                 return res.status(404).json({ erro: 'Motorista não encontrado.' });

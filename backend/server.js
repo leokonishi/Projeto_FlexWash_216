@@ -74,6 +74,8 @@ app.get('/api/clientes', cadastroCliente.listarClientes);
 app.put('/api/clientes/:id', cadastroCliente.atualizarCliente);
 app.delete('/api/clientes/:id', cadastroCliente.excluirCliente);
 app.post('/api/clientes/:id/acesso', cadastroCliente.enviarAcesso);
+app.post('/api/clientes/:id/reativar', cadastroCliente.reativarCliente);
+app.post('/api/clientes/:id/anonimizar', cadastroCliente.anonimizarCliente);
 
 app.use('/api', loginClienteRoutes);
 app.use('/api', loginGestao);
