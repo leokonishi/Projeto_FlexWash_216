@@ -56,11 +56,22 @@ for (const cat of CATALOGOS) {
         }
     });
 
+    // Dois itens com o mesmo nome confundem a escolha no agendamento e no pátio
+    const nomeRepetido = async (nome, ignorarId = 0) => {
+        const [[linha]] = await db.execute(
+            `SELECT id FROM ${cat.tabela} WHERE LOWER(TRIM(nome)) = LOWER(?) AND id <> ? LIMIT 1`,
+            [nome, ignorarId]
+        );
+        return Boolean(linha);
+    };
+    const avisoRepetido = (nome) => ({ erro: `Já existe um ${cat.nome.toLowerCase()} chamado "${nome}". Use outro nome.` });
+
     // CADASTRAR (admin)
     router.post(cat.rota, async (req, res) => {
         const { erro, valores } = lerItemDoCorpo(req.body);
         if (erro) return res.status(400).json({ erro });
         try {
+            if (await nomeRepetido(valores[0])) return res.status(409).json(avisoRepetido(valores[0]));
             const [resultado] = await db.execute(
                 `INSERT INTO ${cat.tabela} (nome, descricao, preco_pequeno, preco_medio, preco_grande, comissao_porcentagem)
                  VALUES (?, ?, ?, ?, ?, ?)`,
@@ -79,6 +90,7 @@ for (const cat of CATALOGOS) {
         const { erro, valores } = lerItemDoCorpo(req.body);
         if (erro) return res.status(400).json({ erro });
         try {
+            if (await nomeRepetido(valores[0], Number(req.params.id) || 0)) return res.status(409).json(avisoRepetido(valores[0]));
             const [resultado] = await db.execute(
                 `UPDATE ${cat.tabela}
                  SET nome = ?, descricao = ?, preco_pequeno = ?, preco_medio = ?, preco_grande = ?, comissao_porcentagem = ?

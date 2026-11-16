@@ -9,6 +9,11 @@ require('dotenv').config();
 // Com o certificado, a conexão valida o servidor. Sem ele, mantém o comportamento antigo
 // (cifrada, mas sem validar a identidade do servidor) e avisa no log.
 function montarSsl() {
+  // MySQL local de desenvolvimento, sem SSL: DB_SSL=false no .env (nunca em produção)
+  if (String(process.env.DB_SSL || '').toLowerCase() === 'false') {
+    console.warn('[bd] DB_SSL=false: conexão SEM criptografia. Use só com um banco local.');
+    return undefined;
+  }
   let ca;
 
   if (process.env.DB_SSL_CA) {

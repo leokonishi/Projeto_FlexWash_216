@@ -428,6 +428,34 @@ async function registrarAgendamento(db, clienteId, corpo) {
 // Cancelamento pelo próprio cliente
 // ---------------------------------------------------------------------
 
+// Só serviço "Agendado" (o carro ainda não chegou) pode ser cancelado ou remarcado pelo app
+function exigirAindaAgendado(execucao, acao) {
+  if (execucao.status === 'Agendado') return;
+  throw new ErroNegocio(
+    execucao.status === 'Cancelado'
+      ? 'Este agendamento já foi cancelado.'
+      : execucao.status === 'Finalizado'
+        ? 'Este serviço já foi concluído.'
+        : `O carro já está com a gente; fale com o lava-rápido para ${acao}.`,
+    409
+  );
+}
+
+// Pelo app, cancelar ou remarcar só até X horas antes do horário marcado (configurado na agenda)
+function exigirAntecedencia(quando, cfg, acao) {
+  if (!quando) return;
+  const horasMinimas = cfg.antecedenciaCancelamentoHoras ?? ANTECEDENCIA_CANCELAMENTO_HORAS;
+  const agora = agenda.agoraLocal();
+  const [dia, hora] = quando.split(' ');
+  const minutosAteHorario = (Date.parse(`${dia}T${hora}:00Z`) - Date.parse(`${agora.data}T${agora.hora}:00Z`)) / 60000;
+  if (minutosAteHorario < horasMinimas * 60) {
+    throw new ErroNegocio(
+      `Pelo app, dá para ${acao} até ${horasMinimas} hora(s) antes do horário. Fale com o lava-rápido.`,
+      409
+    );
+  }
+}
+
 // Até quantas horas antes do horário marcado o cliente pode cancelar pelo app vem da
 // agenda configurada (padrão 2 h). Depois disso, só falando com o lava-rápido.
 const ANTECEDENCIA_CANCELAMENTO_HORAS = 2;
@@ -448,29 +476,10 @@ async function cancelarPeloCliente(db, clienteId, execucaoId) {
       [id, clienteId]
     );
     if (!execucao) throw new ErroNegocio('Agendamento não encontrado.', 404);
-    if (execucao.status !== 'Agendado') {
-      throw new ErroNegocio(
-        execucao.status === 'Cancelado'
-          ? 'Este agendamento já foi cancelado.'
-          : execucao.status === 'Finalizado'
-            ? 'Este serviço já foi concluído.'
-            : 'O carro já está com a gente; fale com o lava-rápido para cancelar.',
-        409
-      );
-    }
+    exigirAindaAgendado(execucao, 'cancelar');
 
-    const { antecedenciaCancelamentoHoras: horasMinimas = ANTECEDENCIA_CANCELAMENTO_HORAS } = await configAgenda.obter(db);
-    if (execucao.quando) {
-      const agora = agenda.agoraLocal();
-      const [dia, hora] = execucao.quando.split(' ');
-      const minutosAteHorario = (Date.parse(`${dia}T${hora}:00Z`) - Date.parse(`${agora.data}T${agora.hora}:00Z`)) / 60000;
-      if (minutosAteHorario < horasMinimas * 60) {
-        throw new ErroNegocio(
-          `Pelo app, dá para cancelar até ${horasMinimas} hora(s) antes do horário. Fale com o lava-rápido.`,
-          409
-        );
-      }
-    }
+    const cfg = await configAgenda.obter(db);
+    exigirAntecedencia(execucao.quando, cfg, 'cancelar');
 
     await conn.execute("UPDATE execucoes SET status = 'Cancelado' WHERE id = ? AND status = 'Agendado'", [id]);
     await promocoes.estornarCuponsSeVazio(conn, execucao.agendamento_id);
@@ -484,7 +493,103 @@ async function cancelarPeloCliente(db, clienteId, execucaoId) {
   }
 }
 
+// ---------------------------------------------------------------------
+// Remarcação pelo próprio cliente
+// ---------------------------------------------------------------------
+
+// Muda a data e o horário de UM carro agendado. Pacote, extras, preço e leva e traz
+// continuam iguais. Mesmo prazo do cancelamento, e o novo horário precisa ter vaga.
+async function remarcarPeloCliente(db, clienteId, execucaoId, corpo) {
+  const id = inteiroPositivo(execucaoId);
+  if (id === null) throw new ErroNegocio('Agendamento inválido.');
+  const data = corpo?.data;
+  const horario = corpo?.horario;
+  validarDataHorario(data, horario);
+
+  const cfg = await configAgenda.obter(db);
+  conferirAgendaAberta([{ data, horario }], cfg);
+  if (agenda.horarioPassou(data, horario, agenda.agoraLocal())) {
+    throw new ErroNegocio('Esse horário já passou. Escolha um horário futuro.');
+  }
+
+  const conn = await db.getConnection();
+  let travou = false;
+  try {
+    const [[trava]] = await conn.query('SELECT GET_LOCK(?, ?) AS ok', [NOME_TRAVA, ESPERA_TRAVA_SEGUNDOS]);
+    travou = Number(trava.ok) === 1;
+    if (!travou) throw new ErroNegocio('A agenda está ocupada agora. Tente de novo em instantes.', 503);
+
+    await conn.beginTransaction();
+    const [[execucao]] = await conn.execute(
+      `SELECT e.id, e.status, e.veiculo_id, e.agendamento_id,
+              DATE_FORMAT(e.data_agendamento, '%Y-%m-%d %H:%i') AS quando,
+              v.marca, v.modelo, v.placa
+         FROM execucoes e JOIN veiculos v ON v.id = e.veiculo_id
+        WHERE e.id = ? AND e.cliente_id = ? FOR UPDATE`,
+      [id, clienteId]
+    );
+    if (!execucao) throw new ErroNegocio('Agendamento não encontrado.', 404);
+    exigirAindaAgendado(execucao, 'remarcar');
+    exigirAntecedencia(execucao.quando, cfg, 'remarcar');
+    if (execucao.quando === `${data} ${horario}`) throw new ErroNegocio('Escolha um dia ou horário diferente do atual.');
+
+    // Cupom de um dia só (promoção por movimento fraco): a lavagem precisa continuar nesse dia
+    if (execucao.agendamento_id) {
+      const [[cupomDoDia]] = await conn.execute(
+        `SELECT DATE_FORMAT(c.valido_para_data, '%Y-%m-%d') AS dia
+           FROM cupom_usos u JOIN cupons c ON c.id = u.cupom_id
+          WHERE u.agendamento_id = ? AND u.status = 'ativo' AND c.valido_para_data IS NOT NULL
+          LIMIT 1`,
+        [execucao.agendamento_id]
+      );
+      if (cupomDoDia && cupomDoDia.dia !== data) {
+        const [ano, mes, dia] = cupomDoDia.dia.split('-');
+        throw new ErroNegocio(
+          `Este agendamento usou um cupom que vale só para ${dia}/${mes}/${ano}. Dá para trocar o horário nesse dia, ou cancelar e agendar de novo.`,
+          409
+        );
+      }
+    }
+
+    // Vaga no novo horário
+    const ocupacao = await ocupacaoDoDia(conn, data);
+    if ((ocupacao.get(horario) || 0) >= cfg.capacidade) {
+      throw new ErroNegocio('Esse horário acabou de lotar. Escolha outro.', 409);
+    }
+
+    // O mesmo carro não pode ter dois agendamentos no mesmo dia
+    const [[outro]] = await conn.execute(
+      `SELECT TIME_FORMAT(data_agendamento, '%H:%i') AS horario FROM execucoes
+        WHERE status = 'Agendado' AND veiculo_id = ? AND id <> ?
+          AND data_agendamento >= ? AND data_agendamento < ?
+        LIMIT 1`,
+      [execucao.veiculo_id, id, `${data} 00:00:00`, `${agenda.somarDias(data, 1)} 00:00:00`]
+    );
+    if (outro) {
+      const [ano, mes, dia] = data.split('-');
+      throw new ErroNegocio(
+        `O ${nomeDoCarro(execucao)} já tem um agendamento em ${dia}/${mes}/${ano} às ${outro.horario}. Escolha outro dia.`,
+        409
+      );
+    }
+
+    await conn.execute(
+      "UPDATE execucoes SET data_agendamento = ? WHERE id = ? AND status = 'Agendado'",
+      [agenda.paraDatetime(data, horario), id]
+    );
+    await conn.commit();
+    return { id, data, horario };
+  } catch (erro) {
+    await conn.rollback().catch(() => {});
+    throw erro;
+  } finally {
+    if (travou) await conn.query('SELECT RELEASE_LOCK(?)', [NOME_TRAVA]).catch(() => {});
+    conn.release();
+  }
+}
+
 module.exports = {
+  remarcarPeloCliente,
   cancelarPeloCliente,
   ANTECEDENCIA_CANCELAMENTO_HORAS,
   registrarAgendamento,
