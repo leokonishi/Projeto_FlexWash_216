@@ -31,6 +31,9 @@ const servicoClienteRoutes = require('./endpoints/servicos');
 // 2. INICIALIZAÇÃO DO APP
 // ==========================================
 const app = express();
+// Atrás de um proxy (Render, Railway...), TRUST_PROXY=1 faz req.ip ser o IP real do usuário
+// (usado no limite de tentativas de login). Sem proxy, deixe sem definir.
+if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
 app.use(cors());
 app.use(express.json());
 

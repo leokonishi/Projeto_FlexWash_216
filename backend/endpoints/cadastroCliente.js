@@ -7,14 +7,17 @@ const { JWT_SECRET } = require('../config/jwt');
 const validar = require('../services/validacao');
 const { ErroNegocio } = require('../services/erros');
 const acesso = require('../services/acessoCliente');
+const { perfilAtual, esquecerUsuario } = require('../middleware/auth');
 
 // Quem está cadastrando: a própria pessoa (rota pública, sem token) ou a equipe (balcão/painel)
-function cadastroPelaEquipe(req) {
+async function cadastroPelaEquipe(req) {
     const [esquema, token] = String(req.headers.authorization || '').split(' ');
     if (esquema !== 'Bearer' || !token) return false;
     try {
-        const { perfil } = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
-        return perfil === 'funcionario' || perfil === 'administrador';
+        const { perfil, id } = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+        if (perfil !== 'funcionario' && perfil !== 'administrador') return false;
+        const atual = await perfilAtual(perfil, id); // funcionário excluído não conta como equipe
+        return atual === 'funcionario' || atual === 'administrador';
     } catch {
         return false;
     }
@@ -38,7 +41,7 @@ const responderErro = (res, erro, contexto) => {
 // - Pela equipe: e-mail opcional e SEM senha. O cliente cria a senha depois, no "Primeiro acesso".
 //   (Nada de senha padrão: antes era "123" e qualquer um entrava na conta.)
 const cadastrar = async (req, res) => {
-    const pelaEquipe = cadastroPelaEquipe(req);
+    const pelaEquipe = await cadastroPelaEquipe(req);
     try {
         const dados = {
             nome: validar.nome(req.body.nome),
@@ -195,6 +198,7 @@ const excluirCliente = async (req, res) => {
         }
         await conn.execute('DELETE FROM clientes WHERE id = ?', [id]);
         await conn.commit();
+        esquecerUsuario('cliente', id);
 
         return res.status(200).json({ sucesso: true, mensagem: 'Cliente excluído com sucesso.' });
     } catch (erro) {

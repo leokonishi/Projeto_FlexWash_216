@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, ArrowRight, ShieldCheck, Wrench, LayoutDashboard, Gauge, Users } from 'lucide-react';
 import LayoutAcesso from '../../componentes/ui/LayoutAcesso';
@@ -21,7 +21,11 @@ export default function LoginGestao() {
   const [senha, setSenha] = useState('');
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState('');
+  // Motivo de ter caído no login (sessão vencida, acesso encerrado), deixado pelo apiFetch
+  const [erro, setErro] = useState(() => {
+    try { const m = sessionStorage.getItem('aviso_login'); return m || ''; } catch { return ''; }
+  });
+  useEffect(() => { try { sessionStorage.removeItem('aviso_login'); } catch { /* sem storage */ } }, []);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {

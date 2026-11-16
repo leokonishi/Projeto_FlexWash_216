@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const validar = require('../services/validacao');
+const { esquecerUsuario } = require('../middleware/auth');
 const bcrypt = require('bcrypt');
 const db = require('../bd');
 
@@ -203,6 +204,7 @@ router.delete('/funcionarios/:id', async (req, res) => {
     if (resultado.affectedRows === 0) {
       return res.status(404).json({ sucesso: false, mensagem: 'Funcionario nao encontrado.' });
     }
+    esquecerUsuario('funcionario', req.params.id); // o login dele para de funcionar na hora
     return res.status(200).json({ sucesso: true, mensagem: 'Funcionario removido com sucesso.' });
   } catch (erro) {
     if (erro.code === 'ER_ROW_IS_REFERENCED_2' || erro.code === 'ER_ROW_IS_REFERENCED') {
