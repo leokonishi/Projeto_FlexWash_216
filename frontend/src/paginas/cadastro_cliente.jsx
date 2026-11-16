@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Loader2, ArrowRight, MapPin } from 'lucide-react';
-import { aplicarMascaraCPF, aplicarMascaraTelefone, aplicarMascaraEmail, validarContato } from '../utils/mascaras'; // Importando as máscaras reutilizáveis!
+import { aplicarMascaraCPF, aplicarMascaraTelefone, aplicarMascaraEmail, validarContato, senhaValida, REGRA_SENHA } from '../utils/mascaras'; // Importando as máscaras reutilizáveis!
 import FormEnderecoCep from '../componentes/FormEnderecoCep';
 import LayoutAcesso from '../componentes/ui/LayoutAcesso';
 import { ENDERECO_VAZIO, enderecoCompleto, enderecoVazio, partesParaApi } from '../utils/endereco';
@@ -42,6 +42,11 @@ export default function CadastroCliente() {
     const erroContato = validarContato(formulario, { telefoneObrigatorio: true, emailObrigatorio: true });
     if (erroContato) {
       setErro(erroContato);
+      return;
+    }
+
+    if (!senhaValida(formulario.senha)) {
+      setErro(`Senha fraca. ${REGRA_SENHA}`);
       return;
     }
 
@@ -122,7 +127,7 @@ export default function CadastroCliente() {
         {campo('cpf', 'CPF', { placeholder: '000.000.000-00', inputMode: 'numeric', wrapper: 'col-span-2 sm:col-span-1' })}
         {campo('telefone', 'WhatsApp', { placeholder: '(11) 99999-9999', inputMode: 'tel', autoComplete: 'tel', wrapper: 'col-span-2 sm:col-span-1' })}
         {campo('email', 'E-mail', { type: 'email', placeholder: 'seu.email@exemplo.com', autoComplete: 'email', wrapper: 'col-span-2' })}
-        {campo('senha', 'Senha', { type: 'password', placeholder: 'Crie uma senha', autoComplete: 'new-password', wrapper: 'col-span-2' })}
+        {campo('senha', 'Senha', { type: 'password', placeholder: REGRA_SENHA, autoComplete: 'new-password', wrapper: 'col-span-2' })}
 
         {/* Endereço (para o leva e traz): opcional, com busca pelo CEP */}
         <div className="col-span-2 rounded-2xl border border-dashed border-tinta-200 bg-tinta-50/60 p-4">

@@ -70,3 +70,7 @@ export const validarContato = ({ cpf, telefone, email }, { telefoneObrigatorio =
   if ((emailObrigatorio || email) && !emailValido(email)) return 'E-mail inválido. Ex.: nome@gmail.com';
   return null;
 };
+
+// Senha: mínimo 8 caracteres, com letras e números (mesma regra do backend)
+export const REGRA_SENHA = 'Mínimo 8 caracteres, com letras e números.';
+export const senhaValida = (v) => typeof v === 'string' && v.length >= 8 && v.length <= 72 && /[a-z]/i.test(v) && /\d/.test(v);

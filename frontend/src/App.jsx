@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 // Importações - Área do Cliente
 import Login from './paginas/Login';
 import CadastroCliente from './paginas/cadastro_cliente';
+import DefinirSenha from './paginas/DefinirSenha';
 import PaginaCliente from './paginas/PaginaCliente';
 import Historico from './paginas/Historico'; // (Ajuste o caminho conforme a sua estrutura)
 
@@ -20,6 +21,7 @@ export default function App() {
 
         <Route path="/login" element={<Login />} />
         <Route path="/cadastro" element={<CadastroCliente />} />
+        <Route path="/definir-senha" element={<DefinirSenha />} />
         <Route
           path="/PaginaCliente"
           element={

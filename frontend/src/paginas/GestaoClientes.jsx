@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Edit2, Trash2, Car, UserPlus, Users, Check } from 'lucide-react';
+import { Search, Edit2, Trash2, Car, UserPlus, Users, Check, Mail } from 'lucide-react';
 import CabecalhoPagina, { Secao } from '../componentes/ui/CabecalhoPagina';
 import { aplicarMascaraCPF, aplicarMascaraTelefone, aplicarMascaraPlaca, aplicarMascaraEmail, validarContato } from '../utils/mascaras';
 import ModalFrota from '../componentes/ModalFrota';
@@ -54,6 +54,21 @@ export default function GestaoClientes({ abrirAlerta }) {
     buscarClientes();
   }, []);
 
+  // Link por e-mail para o cliente criar ou trocar a senha do app
+  const enviarAcesso = (cliente) => {
+    if (!cliente.email) {
+      abrirAlerta('Sem e-mail', `Cadastre o e-mail de ${cliente.nome} (no lápis) para enviar o acesso ao app.`, () => {}, 'info');
+      return;
+    }
+    const acao = cliente.tem_senha ? 'trocar a senha' : 'criar a senha';
+    abrirAlerta('Enviar acesso ao app', `Enviar para ${cliente.email} um link para ${acao}? O link vale por 48 horas.`, async () => {
+      const res = await apiFetch(`${API_URL}/api/clientes/${cliente.id}/acesso`, { method: 'POST' });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.enviado) abrirAlerta('Sucesso', json.mensagem, () => {}, 'sucesso');
+      else abrirAlerta('Não foi possível enviar', json.erro || json.mensagem || 'Tente de novo.', () => {}, 'erro');
+    }, 'aviso');
+  };
+
   // 2. SALVAR NOVO CLIENTE NO BANCO DE DADOS (POST)
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -78,7 +93,9 @@ export default function GestaoClientes({ abrirAlerta }) {
       const dados = await resposta.json();
 
       if (resposta.ok) {
-        abrirAlerta('Sucesso', 'Cliente cadastrado com sucesso!', () => {}, 'sucesso');
+        abrirAlerta('Sucesso', dados.acesso_enviado
+          ? `Cliente cadastrado! Enviamos para ${novoCliente.email} o link para criar a senha do app.`
+          : 'Cliente cadastrado com sucesso!', () => {}, 'sucesso');
         
         // Limpa os campos
         setCpf(''); setNome(''); setEmail(''); setTelefone(''); setEndereco('');
@@ -288,6 +305,10 @@ export default function GestaoClientes({ abrirAlerta }) {
                       </td>
                       <td>
                         <div className="flex justify-end gap-1">
+                          <button onClick={() => enviarAcesso(cliente)}
+                            className={`grid size-9 place-items-center rounded-lg hover:bg-tinta-100 hover:text-tinta-800 ${cliente.tem_senha ? 'text-tinta-400' : 'text-ouro-600'}`}
+                            title={cliente.tem_senha ? 'Enviar link para trocar a senha' : 'Ainda sem acesso ao app: enviar link para criar a senha'}
+                            aria-label={`Enviar acesso ao app para ${cliente.nome}`}><Mail size={16} /></button>
                           <button onClick={() => abrirEdicao(cliente)} className="grid size-9 place-items-center rounded-lg text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" title="Editar" aria-label={`Editar ${cliente.nome}`}><Edit2 size={16} /></button>
                           {perfilUsuario === 'administrador' && (
                             <button className="fw-btn-perigo" onClick={() => handleExcluir(cliente)} title="Excluir" aria-label={`Excluir ${cliente.nome}`}><Trash2 size={16} /></button>
