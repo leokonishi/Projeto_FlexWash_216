@@ -31,10 +31,11 @@ export function useGestaoPatio(abrirAlerta) {
   const buscarDadosDoPatio = async ({ silencioso = false } = {}) => {
     try {
       if (!silencioso) setCarregando(true);
-      const [resposta, respostaProximos, respostaEntregas] = await Promise.all([
+      const [resposta, respostaProximos, respostaEntregas, respostaConcluidos] = await Promise.all([
         apiFetch(`${API_URL}/api/execucoes/patio`),
         apiFetch(`${API_URL}/api/execucoes/agendados`),
-        apiFetch(`${API_URL}/api/execucoes/entregas`)
+        apiFetch(`${API_URL}/api/execucoes/entregas`),
+        apiFetch(`${API_URL}/api/execucoes/concluidos-hoje`).catch(() => null)
       ]);
 
       const dados = await resposta.json();
@@ -45,7 +46,8 @@ export function useGestaoPatio(abrirAlerta) {
 
       setListaPatio(listaSegura);
       setProximosAgendamentos(Array.isArray(proximos) ? proximos : []);
-      calcularMetricas(listaSegura);
+      const concluidos = respostaConcluidos?.ok ? await respostaConcluidos.json().catch(() => []) : [];
+      calcularMetricas(listaSegura, Array.isArray(concluidos) ? concluidos : []);
       
     } catch (erro) {
       console.error("Erro ao buscar pátio:", erro);
@@ -58,23 +60,31 @@ export function useGestaoPatio(abrirAlerta) {
     }
   };
 
-  const calcularMetricas = (dados) => {
+  // concluidosHoje: carros finalizados hoje (já saíram do pátio), para os totais do dia não zerarem
+  const calcularMetricas = (dados, concluidosHoje = []) => {
     const dadosSeguros = Array.isArray(dados) ? dados : [];
     let faturamento = 0, pequeno = 0, medio = 0, grande = 0, emAndamento = 0, aguardando = 0, agendados = 0, levaTraz = 0;
+    const contarPorte = (porte) => {
+      if (porte === 'Pequeno' || porte === 'Pequena') pequeno++;
+      if (porte === 'Médio') medio++;
+      if (porte === 'Grande') grande++;
+    };
+    concluidosHoje.forEach(item => {
+      faturamento += Number(item.valor_total || 0);
+      contarPorte(item.porte);
+    });
     
     dadosSeguros.forEach(item => {
       if (item.status === 'Agendado') agendados++;
       else faturamento += Number(item.valor_total || 0); // agendado ainda não chegou: não entra na soma do pátio
       if (item.tipo_logistica === 'leva_tras') levaTraz++;
-      if (item.porte === 'Pequeno' || item.porte === 'Pequena') pequeno++;
-      if (item.porte === 'Médio') medio++;
-      if (item.porte === 'Grande') grande++;
+      contarPorte(item.porte);
       if (item.status === 'Em Andamento') emAndamento++;
       if (item.status === 'Aguardando') aguardando++;
     });
     
     setMetricas({ 
-      veiculosDoDia: dadosSeguros.length, 
+      veiculosDoDia: dadosSeguros.length + concluidosHoje.length, 
       portes: { pequeno, medio, grande }, 
       faturamentoHoje: faturamento, 
       statusPatio: { agendados, espera: aguardando, emAndamento }, 
