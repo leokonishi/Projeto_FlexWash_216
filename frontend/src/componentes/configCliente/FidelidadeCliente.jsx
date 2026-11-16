@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Award, Check, Zap, Ticket, Copy } from 'lucide-react';
 import { apiFetch, API_URL } from '../../utils/api';
+import { obterSessao } from '../../utils/sessao';
+import { hojeLocal } from './SeletorDataHorario';
 
 const dataBr = (texto) => {
   if (!texto) return '';
@@ -10,27 +12,44 @@ const dataBr = (texto) => {
 
 // Banner da promoção relâmpago (movimento fraco) + cartão de fidelidade com os selos.
 // `aoUsarCupom(codigo)` abre o agendamento já com o cupom preenchido.
+// Último resultado guardado no navegador: a tela já abre com a cartela e os cupons
+// e só atualiza quando o servidor responde.
+const CHAVE_CACHE = (clienteId) => `fidelidade_flexwash_${clienteId}`;
+const lerCache = (clienteId) => {
+  try {
+    const salvo = JSON.parse(localStorage.getItem(CHAVE_CACHE(clienteId)) || 'null');
+    // Promoção relâmpago só vale no dia em que foi guardada
+    if (salvo?.promocao?.valido_para_data && salvo.promocao.valido_para_data !== hojeLocal()) salvo.promocao = null;
+    return salvo;
+  } catch {
+    return null;
+  }
+};
+
 export default function FidelidadeCliente({ aoUsarCupom }) {
-  const [fidelidade, setFidelidade] = useState(null);
-  const [promocao, setPromocao] = useState(null);
+  const clienteId = obterSessao()?.id;
+  const [cache] = useState(() => (clienteId ? lerCache(clienteId) : null));
+  const [fidelidade, setFidelidade] = useState(cache?.fidelidade ?? null);
+  const [promocao, setPromocao] = useState(cache?.promocao ?? null);
   const [copiado, setCopiado] = useState(null);
 
   useEffect(() => {
     let ativo = true;
-    (async () => {
-      try {
-        const [resFid, resPromo] = await Promise.all([
-          apiFetch(`${API_URL}/api/me/fidelidade`),
-          apiFetch(`${API_URL}/api/me/promocoes`)
-        ]);
-        if (!ativo) return;
-        if (resFid.ok) setFidelidade(await resFid.json());
-        if (resPromo.ok) setPromocao((await resPromo.json()).promocao);
-      } catch (erro) {
-        console.error('Erro ao carregar fidelidade/promoções:', erro);
-      }
-    })();
+    // As duas respostas chegam e aparecem de forma independente (uma não espera a outra)
+    const novo = { fidelidade: cache?.fidelidade ?? null, promocao: cache?.promocao ?? null };
+    const guardar = () => {
+      try { if (clienteId) localStorage.setItem(CHAVE_CACHE(clienteId), JSON.stringify(novo)); } catch { /* sem armazenamento */ }
+    };
+    apiFetch(`${API_URL}/api/me/fidelidade`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((dados) => { if (ativo && dados) { setFidelidade(dados); novo.fidelidade = dados; guardar(); } })
+      .catch((erro) => console.error('Erro ao carregar a fidelidade:', erro));
+    apiFetch(`${API_URL}/api/me/promocoes`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((dados) => { if (ativo && dados) { setPromocao(dados.promocao); novo.promocao = dados.promocao; guardar(); } })
+      .catch((erro) => console.error('Erro ao carregar as promoções:', erro));
     return () => { ativo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const copiar = async (codigo) => {

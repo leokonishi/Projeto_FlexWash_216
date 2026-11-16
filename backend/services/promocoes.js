@@ -38,7 +38,19 @@ function formatarConfig(linha) {
   };
 }
 
+// A configuração muda raramente e é lida em toda tela do cliente: guarda por 30 s em memória
+// (salvarConfig limpa na hora). Com o banco na nuvem, cada consulta a menos pesa.
+const CACHE_CONFIG_MS = 30 * 1000;
+let cacheConfig = null; // { valor, ate }
+
 async function obterConfig(db) {
+  if (cacheConfig && cacheConfig.ate > Date.now()) return cacheConfig.valor;
+  const valor = await lerConfig(db);
+  cacheConfig = { valor, ate: Date.now() + CACHE_CONFIG_MS };
+  return valor;
+}
+
+async function lerConfig(db) {
   const [[linha]] = await db.execute('SELECT * FROM config_promocoes WHERE id = 1');
   if (!linha) {
     // Tabela criada mas sem a linha padrão: cria agora
@@ -95,6 +107,8 @@ async function salvarConfig(db, corpo = {}) {
       mov.percentual, mov.tipo === 'extra_gratis' ? mov.extraId : null
     ]
   );
+  cacheConfig = null;
+  promocaoConferida = null; // a regra da promoção pode ter mudado: confere de novo
   return obterConfig(db);
 }
 
@@ -214,51 +228,74 @@ async function sincronizarCuponsFidelidade(conn, clienteId, config) {
   return { visitas, meta, ganhos };
 }
 
+// O cliente tem a quantidade certa de cupons de fidelidade para as visitas? (mesma conta
+// de sincronizarCuponsFidelidade, sem gravar nada)
+function cuponsEmDia(cupons, visitas, config) {
+  const ganhos = Math.floor(visitas / config.fidelidade_meta_visitas);
+  const validos = cupons.filter((c) => c.ativo || Number(c.usado)).length;
+  if (config.fidelidade_ativa && validos < ganhos) return false;
+  if (validos > ganhos && cupons.some((c) => c.ativo && !Number(c.usado))) return false;
+  return true;
+}
+
+async function lerCuponsFidelidade(db, clienteId) {
+  const [cupons] = await db.execute(
+    `${SQL_CUPOM.replace('FROM cupons c', `,
+       EXISTS (SELECT 1 FROM cupom_usos u WHERE u.cupom_id = c.id AND u.status = 'ativo') AS usado
+     FROM cupons c`)}
+      WHERE c.cliente_id = ? AND c.origem = 'fidelidade'
+      ORDER BY c.id`,
+    [clienteId]
+  );
+  return cupons;
+}
+
 // Resumo para o painel do cliente (GET /api/me/fidelidade)
+// Caminho rápido: lê visitas, cupons e o nome do extra ao mesmo tempo. Só abre a transação
+// (com o cliente travado) quando precisa emitir ou desativar cupom.
 async function resumoFidelidade(db, clienteId) {
   const config = await obterConfig(db);
-  const conn = await db.getConnection();
-  try {
-    await conn.beginTransaction();
-    // Trava o cliente para dois acessos ao mesmo tempo não emitirem cupom em dobro
-    await conn.execute('SELECT id FROM clientes WHERE id = ? FOR UPDATE', [clienteId]);
-    const { visitas, meta } = await sincronizarCuponsFidelidade(conn, clienteId, config);
-    await conn.commit();
+  const [visitasLidas, cuponsLidos, extra] = await Promise.all([
+    contarVisitas(db, clienteId),
+    lerCuponsFidelidade(db, clienteId),
+    config.fidelidade_ativa && config.fidelidade_extra_id
+      ? db.execute('SELECT nome FROM servicos_extras WHERE id = ?', [config.fidelidade_extra_id]).then(([[linha]]) => linha)
+      : null
+  ]);
+  let visitas = visitasLidas;
+  let cupons = cuponsLidos;
 
-    const [disponiveis] = await db.execute(
-      `${SQL_CUPOM}
-        WHERE c.cliente_id = ? AND c.origem = 'fidelidade' AND c.ativo = TRUE
-          AND NOT EXISTS (SELECT 1 FROM cupom_usos u WHERE u.cupom_id = c.id AND u.status = 'ativo')
-        ORDER BY c.id`,
-      [clienteId]
-    );
-    const noCiclo = visitas % meta;
-    let beneficio = null;
-    if (config.fidelidade_ativa) {
-      const [[extra]] = config.fidelidade_extra_id
-        ? await db.execute('SELECT nome FROM servicos_extras WHERE id = ?', [config.fidelidade_extra_id])
-        : [[null]];
-      beneficio = descreverBeneficio({
-        tipo: config.fidelidade_tipo,
-        percentual: config.fidelidade_percentual,
-        extra_nome: extra?.nome
-      });
+  if (!cuponsEmDia(cupons, visitas, config)) {
+    const conn = await db.getConnection();
+    try {
+      await conn.beginTransaction();
+      // Trava o cliente para dois acessos ao mesmo tempo não emitirem cupom em dobro
+      await conn.execute('SELECT id FROM clientes WHERE id = ? FOR UPDATE', [clienteId]);
+      ({ visitas } = await sincronizarCuponsFidelidade(conn, clienteId, config));
+      await conn.commit();
+    } catch (erro) {
+      await conn.rollback().catch(() => {});
+      throw erro;
+    } finally {
+      conn.release();
     }
-    return {
-      ativo: config.fidelidade_ativa,
-      visitas_concluidas: visitas,
-      meta,
-      visitas_no_ciclo: noCiclo,
-      faltam: config.fidelidade_ativa ? meta - noCiclo : null,
-      beneficio,
-      cupons_disponiveis: disponiveis.map(formatarCupom)
-    };
-  } catch (erro) {
-    await conn.rollback().catch(() => {});
-    throw erro;
-  } finally {
-    conn.release();
+    cupons = await lerCuponsFidelidade(db, clienteId);
   }
+
+  const meta = config.fidelidade_meta_visitas;
+  const noCiclo = visitas % meta;
+  const beneficio = config.fidelidade_ativa
+    ? descreverBeneficio({ tipo: config.fidelidade_tipo, percentual: config.fidelidade_percentual, extra_nome: extra?.nome })
+    : null;
+  return {
+    ativo: config.fidelidade_ativa,
+    visitas_concluidas: visitas,
+    meta,
+    visitas_no_ciclo: noCiclo,
+    faltam: config.fidelidade_ativa ? meta - noCiclo : null,
+    beneficio,
+    cupons_disponiveis: cupons.filter((c) => c.ativo && !Number(c.usado)).map(formatarCupom)
+  };
 }
 
 // ---------------------------------------------------------------------
@@ -347,18 +384,29 @@ async function gerarPromocaoMovimento(db, { data, forcar = false } = {}) {
 // Gatilho automático: depois da hora de verificação, se o dia estiver abaixo da meta
 // e ainda não houver promoção, cria uma. Roda quando alguém abre o painel (cliente ou
 // admin), então não depende de um servidor com rotina agendada.
+// Para não refazer a conferência em toda abertura de tela: guarda o dia em que a promoção
+// já existe (não precisa olhar mais) e, nos outros casos, confere no máximo 1 vez por minuto.
+const INTERVALO_CONFERENCIA_MS = 60 * 1000;
+let promocaoConferida = null; // { data, existe, ate }
+
 async function garantirPromocaoAutomatica(db) {
   const config = await obterConfig(db);
   if (!config.movimento_ativo) return null;
   if (config.movimento_tipo === 'extra_gratis' && !config.movimento_extra_id) return null;
   const agora = agenda.agoraLocal();
   if (agora.hora < config.movimento_hora_verificacao) return null;
-  if (await promocaoDoDia(db, agora.data)) return null;
-  if ((await carrosDoDia(db, agora.data)) >= config.movimento_meta_carros) return null;
+  const memo = promocaoConferida;
+  if (memo && memo.data === agora.data && (memo.existe || memo.ate > Date.now())) return null;
+  const lembrar = (existe) => { promocaoConferida = { data: agora.data, existe, ate: Date.now() + INTERVALO_CONFERENCIA_MS }; };
+
+  if (await promocaoDoDia(db, agora.data)) return lembrar(true), null;
+  if ((await carrosDoDia(db, agora.data)) >= config.movimento_meta_carros) return lembrar(false), null;
   try {
-    return await gerarPromocaoMovimento(db, { data: agora.data });
+    const criada = await gerarPromocaoMovimento(db, { data: agora.data });
+    lembrar(true);
+    return criada;
   } catch (erro) {
-    if (erro instanceof ErroNegocio) return null; // outro acesso já criou
+    if (erro instanceof ErroNegocio) return lembrar(false), null; // outro acesso já criou
     throw erro;
   }
 }

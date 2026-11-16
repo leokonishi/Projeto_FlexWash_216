@@ -50,6 +50,10 @@ const pool = mysql.createPool({
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000,
+  // Conexão parada fica aberta por 10 min (o padrão do mysql2 fecha em 60 s). Abrir conexão
+  // nova com a Aiven custa o aperto de mão do SSL, e a tela do cliente faz várias consultas juntas.
+  maxIdle: Number(process.env.DB_POOL_LIMIT) || 10,
+  idleTimeout: 10 * 60 * 1000,
   // Datas em UTC dos dois lados (ver o 'connection' abaixo). Sem isso, o mysql2 lia o
   // criado_em (gravado em UTC pela Aiven) como se fosse hora local do servidor Node,
   // e uma entrada feita às 22h aparecia com a data do dia seguinte.

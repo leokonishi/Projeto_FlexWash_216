@@ -107,7 +107,7 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
     { nome: 'Na fila', valor: metricas.statusPatio.espera, icone: ParkingSquare, cor: 'bg-ouro-50 text-ouro-600' },
     { nome: 'Lavando', valor: metricas.statusPatio.emAndamento, icone: Droplets, cor: 'bg-marca-50 text-marca-600' },
     ehAdmin
-      ? { nome: 'Faturamento hoje', valor: moeda(metricas.faturamentoHoje), icone: Wallet, cor: 'bg-verde-50 text-verde-600', dica: 'Carros que já chegaram' }
+      ? { nome: 'Faturamento hoje', valor: moeda(metricas.faturamentoHoje), icone: Wallet, cor: 'bg-verde-50 text-verde-600', dica: 'Inclui os carros já concluídos' }
       : { nome: 'Chegam hoje', valor: metricas.statusPatio.agendados, icone: CalendarClock, cor: 'bg-marca-50 text-marca-600' },
   ];
 

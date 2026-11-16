@@ -112,6 +112,28 @@ router.get('/execucoes/patio', async (req, res) => {
     }
 });
 
+// 2a. CONCLUÍDOS HOJE: carros que já saíram do pátio hoje. Somados ao pátio, os
+// indicadores do painel ("Carros hoje", faturamento) contam o dia inteiro e não zeram
+// quando um serviço é finalizado.
+router.get('/execucoes/concluidos-hoje', async (req, res) => {
+    try {
+        const [linhas] = await db.execute(
+            `SELECT e.id, e.valor_total, v.porte
+               FROM execucoes e JOIN veiculos v ON v.id = e.veiculo_id
+              WHERE e.status = 'Finalizado' AND ${SQL_DIA_SERVICO} = ?`,
+            [agenda.agoraLocal().data]
+        );
+        // Valores em dinheiro só para o administrador
+        if (req.usuarioLogado.perfil !== 'administrador') {
+            return res.status(200).json(linhas.map(({ valor_total, ...resto }) => resto));
+        }
+        res.status(200).json(linhas);
+    } catch (erro) {
+        console.error('Erro ao buscar os concluídos de hoje:', erro);
+        res.status(500).json({ erro: 'Erro ao buscar os concluídos de hoje.' });
+    }
+});
+
 // 2b. PRÓXIMOS AGENDAMENTOS (a partir de amanhã, até 7 dias)
 router.get('/execucoes/agendados', async (req, res) => {
     try {
