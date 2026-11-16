@@ -51,6 +51,7 @@ router.post('/login/cliente', async (req, res) => {
         const [rows] = await db.execute('SELECT * FROM clientes WHERE email = ? LIMIT 1', [email]);
         if (rows.length === 0) return senhaErrada();
         const cliente = rows[0];
+        if (!cliente.ativo) return senhaErrada(); // cadastro inativado: como se não existisse
 
         // Cadastrado no balcão: ainda não criou a senha (ou ficou com a antiga senha padrão "123")
         const semSenha = !cliente.senha || (senha === '123' && await bcrypt.compare('123', cliente.senha));
@@ -84,7 +85,7 @@ router.post('/acesso/link', async (req, res) => {
     ultimoEnvio.set(email, agora);
 
     try {
-        const [[cliente]] = await db.execute('SELECT id, nome, email, senha FROM clientes WHERE email = ? LIMIT 1', [email]);
+        const [[cliente]] = await db.execute('SELECT id, nome, email, senha FROM clientes WHERE email = ? AND ativo = 1 LIMIT 1', [email]);
         if (cliente) await acesso.enviarLink(cliente);
         res.status(200).json(resposta);
     } catch (erro) {

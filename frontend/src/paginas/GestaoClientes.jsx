@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Edit2, Trash2, Car, UserPlus, Users, Check, Mail } from 'lucide-react';
+import { Search, Edit2, Trash2, Car, UserPlus, Users, Check, Mail, RotateCcw, ShieldOff } from 'lucide-react';
 import CabecalhoPagina, { Secao } from '../componentes/ui/CabecalhoPagina';
 import { aplicarMascaraCPF, aplicarMascaraTelefone, aplicarMascaraPlaca, aplicarMascaraEmail, validarContato } from '../utils/mascaras';
 import ModalFrota from '../componentes/ModalFrota';
@@ -23,6 +23,8 @@ export default function GestaoClientes({ abrirAlerta }) {
   const [buscaPlaca, setBuscaPlaca] = useState('');
   const [clientes, setClientes] = useState([]);
   const [carregando, setCarregando] = useState(true);
+  // Aba da lista: clientes ativos ou inativados (só o administrador vê os inativos)
+  const [verInativos, setVerInativos] = useState(false);
 
   const [clienteSelecionadoFrota, setClienteSelecionadoFrota] = useState(null);
 
@@ -31,10 +33,10 @@ export default function GestaoClientes({ abrirAlerta }) {
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
   // 1. CARREGAR CLIENTES DO BANCO DE DADOS (GET)
-  const buscarClientes = async () => {
+  const buscarClientes = async (inativos = verInativos) => {
     try {
       setCarregando(true);
-      const resposta = await apiFetch(`${API_URL}/api/clientes`, {
+      const resposta = await apiFetch(`${API_URL}/api/clientes${inativos ? '?inativos=1' : ''}`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token_flexwash')}` }
       });
       if (resposta.ok) {
@@ -51,8 +53,8 @@ export default function GestaoClientes({ abrirAlerta }) {
 
   // Dispara a busca quando a tela abre pela primeira vez
   useEffect(() => {
-    buscarClientes();
-  }, []);
+    buscarClientes(verInativos);
+  }, [verInativos]);
 
   // Link por e-mail para o cliente criar ou trocar a senha do app
   const enviarAcesso = (cliente) => {
@@ -160,41 +162,64 @@ export default function GestaoClientes({ abrirAlerta }) {
     }
   };
 
-  // 4. EXCLUIR CLIENTE (DELETE) - só administrador.
-  // Se o cliente tiver lavagens no histórico, o servidor pede uma 2ª confirmação.
-  const excluirNoServidor = async (cliente, incluirHistorico = false) => {
+  // Resposta padrão das ações de excluir / reativar / apagar dados
+  const acaoNoServidor = async (url, method, cliente, tituloErro) => {
     try {
-      const url = `${API_URL}/api/clientes/${cliente.id}${incluirHistorico ? '?incluirHistorico=1' : ''}`;
-      const resposta = await apiFetch(url, { method: 'DELETE' });
+      const resposta = await apiFetch(url, { method });
       const json = await resposta.json().catch(() => ({}));
-
       if (resposta.ok) {
         setClientes(prev => prev.filter(c => c.id !== cliente.id));
-        return;
+        abrirAlerta('Sucesso', json.mensagem || 'Feito.', () => {}, 'sucesso');
+      } else {
+        abrirAlerta(tituloErro, json.erro || json.mensagem || 'Tente de novo.', () => {}, 'erro');
       }
-      if (json.precisaConfirmarHistorico) {
-        abrirAlerta(
-          'Apagar também o histórico?',
-          `${cliente.nome} tem ${json.historico} lavagem(ns) no histórico. Excluir o cliente apaga esse histórico, os veículos e os agendamentos dele, e os valores saem dos relatórios. Esta ação não pode ser desfeita.`,
-          () => excluirNoServidor(cliente, true),
-          'perigo'
-        );
-        return;
-      }
-      abrirAlerta('Não foi possível excluir', json.erro || json.mensagem || 'Erro ao excluir o cliente.', () => {}, 'erro');
     } catch {
       abrirAlerta('Erro', 'Falha na conexão com o servidor.', () => {}, 'erro');
     }
   };
 
+  // 4. EXCLUIR CLIENTE (DELETE) - só administrador.
+  // Com lavagens no histórico o servidor INATIVA (o histórico e os relatórios ficam); sem histórico, apaga.
   const handleExcluir = (cliente) => {
+    const lavagens = Number(cliente.lavagens) || 0;
+    const url = `${API_URL}/api/clientes/${cliente.id}`;
+    if (lavagens > 0) {
+      abrirAlerta(
+        'Inativar cliente',
+        `${cliente.nome} tem ${lavagens} ${lavagens === 1 ? 'lavagem' : 'lavagens'} no histórico, então o cadastro será inativado: sai da lista e não entra mais no app, mas o histórico e os relatórios continuam iguais. Dá para reativar depois na aba "Inativos".`,
+        () => acaoNoServidor(url, 'DELETE', cliente, 'Não foi possível inativar'),
+        'aviso'
+      );
+      return;
+    }
     abrirAlerta(
       'Excluir cliente',
-      `Tem certeza que deseja excluir o cadastro de ${cliente.nome}? Os veículos dele também serão removidos.`,
-      () => excluirNoServidor(cliente),
+      `${cliente.nome} não tem lavagens no histórico, então o cadastro será apagado de vez, junto com os veículos dele. Esta ação não pode ser desfeita.`,
+      () => acaoNoServidor(url, 'DELETE', cliente, 'Não foi possível excluir'),
       'perigo'
     );
   };
+
+  const handleReativar = (cliente) => {
+    abrirAlerta(
+      'Reativar cliente',
+      `${cliente.nome} volta para a lista de clientes e pode entrar no app de novo.`,
+      () => acaoNoServidor(`${API_URL}/api/clientes/${cliente.id}/reativar`, 'POST', cliente, 'Não foi possível reativar'),
+      'aviso'
+    );
+  };
+
+  // LGPD: o cliente pediu para apagar os dados pessoais
+  const handleApagarDados = (cliente) => {
+    abrirAlerta(
+      'Apagar dados pessoais',
+      `Use quando ${cliente.nome} pedir a remoção dos dados (LGPD). Nome, CPF, telefone, e-mail, endereços e placas serão apagados e não dá para reativar. As lavagens continuam nos relatórios como "Cliente removido". Esta ação não pode ser desfeita.`,
+      () => acaoNoServidor(`${API_URL}/api/clientes/${cliente.id}/anonimizar`, 'POST', cliente, 'Não foi possível apagar os dados'),
+      'perigo'
+    );
+  };
+
+  const dataCurta = (valor) => (valor ? new Date(valor).toLocaleDateString('pt-BR') : '');
 
   const clientesFiltrados = clientes.filter(cliente => {
     // Verifica se a buscaGeral bate com nome ou CPF
@@ -244,9 +269,23 @@ export default function GestaoClientes({ abrirAlerta }) {
         </Secao>
 
         <Secao
-          titulo="Clientes cadastrados"
+          titulo={verInativos ? 'Clientes inativos' : 'Clientes cadastrados'}
           icone={Users}
-          acoes={!carregando && <span className="rounded-full bg-marca-50 px-2.5 py-1 text-xs font-bold text-marca-700">{clientesFiltrados.length}</span>}
+          acoes={
+            <div className="flex items-center gap-2">
+              {perfilUsuario === 'administrador' && (
+                <div className="flex rounded-lg bg-tinta-100 p-0.5 text-xs font-semibold" role="group" aria-label="Mostrar clientes">
+                  {[['Ativos', false], ['Inativos', true]].map(([rotulo, valor]) => (
+                    <button key={rotulo} type="button" onClick={() => setVerInativos(valor)} aria-pressed={verInativos === valor}
+                      className={`rounded-md px-2.5 py-1 transition-colors ${verInativos === valor ? 'bg-white text-tinta-900 shadow-sm' : 'text-tinta-500 hover:text-tinta-800'}`}>
+                      {rotulo}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!carregando && <span className="rounded-full bg-marca-50 px-2.5 py-1 text-xs font-bold text-marca-700">{clientesFiltrados.length}</span>}
+            </div>
+          }
           semPadding
         >
           <div className="grid gap-3 border-b border-tinta-100 p-4 sm:grid-cols-2 sm:px-5">
@@ -263,7 +302,7 @@ export default function GestaoClientes({ abrirAlerta }) {
           {carregando ? (
             <div className="space-y-3 p-5">{[0, 1, 2].map(i => <div key={i} className="h-14 animate-pulse rounded-xl bg-tinta-100" />)}</div>
           ) : clientesFiltrados.length === 0 ? (
-            <p className="px-5 py-12 text-center text-sm text-tinta-500">Nenhum cliente encontrado.</p>
+            <p className="px-5 py-12 text-center text-sm text-tinta-500">{verInativos ? 'Nenhum cliente inativo.' : 'Nenhum cliente encontrado.'}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="fw-tabela">
@@ -285,6 +324,7 @@ export default function GestaoClientes({ abrirAlerta }) {
                           <div className="min-w-0">
                             <p className="truncate font-semibold text-tinta-900">{cliente.nome}</p>
                             <p className="text-xs text-tinta-500">{cliente.cpf}</p><p className="text-xs text-tinta-500 sm:hidden">{cliente.telefone}</p>
+                            {verInativos && <p className="text-xs font-medium text-ouro-600">Inativo desde {dataCurta(cliente.inativado_em)}</p>}
                           </div>
                         </div>
                       </td>
@@ -294,6 +334,11 @@ export default function GestaoClientes({ abrirAlerta }) {
                       </td>
                       <td className="hidden max-w-[240px] truncate text-xs text-tinta-500 2xl:table-cell">{cliente.endereco || '—'}</td>
                       <td>
+                        {verInativos ? (
+                          <span className="whitespace-nowrap text-xs text-tinta-500">
+                            {cliente.frota > 0 ? `${cliente.frota} ${cliente.frota === 1 ? 'carro' : 'carros'}` : 'Sem carros'}
+                          </span>
+                        ) : (
                         <button
                           onClick={() => setClienteSelecionadoFrota(cliente)}
                           className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
@@ -302,8 +347,22 @@ export default function GestaoClientes({ abrirAlerta }) {
                         >
                           <Car size={14} /> {cliente.frota > 0 ? `${cliente.frota} ${cliente.frota === 1 ? 'carro' : 'carros'}` : 'Sem carros'}
                         </button>
+                        )}
                       </td>
                       <td>
+                        {verInativos ? (
+                          <div className="flex justify-end gap-1">
+                            {!cliente.dados_apagados && (
+                              <button onClick={() => handleReativar(cliente)} className="fw-btn-contorno px-3 py-1.5 text-xs" title="Reativar" aria-label={`Reativar ${cliente.nome}`}>
+                                <RotateCcw size={14} /> Reativar
+                              </button>
+                            )}
+                            {!cliente.dados_apagados && (
+                              <button className="fw-btn-perigo" onClick={() => handleApagarDados(cliente)} title="Apagar dados pessoais (LGPD)" aria-label={`Apagar dados pessoais de ${cliente.nome}`}><ShieldOff size={16} /></button>
+                            )}
+                            {!!cliente.dados_apagados && <span className="text-xs text-tinta-400">Dados apagados</span>}
+                          </div>
+                        ) : (
                         <div className="flex justify-end gap-1">
                           <button onClick={() => enviarAcesso(cliente)}
                             className={`grid size-9 place-items-center rounded-lg hover:bg-tinta-100 hover:text-tinta-800 ${cliente.tem_senha ? 'text-tinta-400' : 'text-ouro-600'}`}
@@ -311,9 +370,12 @@ export default function GestaoClientes({ abrirAlerta }) {
                             aria-label={`Enviar acesso ao app para ${cliente.nome}`}><Mail size={16} /></button>
                           <button onClick={() => abrirEdicao(cliente)} className="grid size-9 place-items-center rounded-lg text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" title="Editar" aria-label={`Editar ${cliente.nome}`}><Edit2 size={16} /></button>
                           {perfilUsuario === 'administrador' && (
-                            <button className="fw-btn-perigo" onClick={() => handleExcluir(cliente)} title="Excluir" aria-label={`Excluir ${cliente.nome}`}><Trash2 size={16} /></button>
+                            <button className="fw-btn-perigo" onClick={() => handleExcluir(cliente)}
+                              title={Number(cliente.lavagens) > 0 ? 'Inativar (tem histórico)' : 'Excluir'}
+                              aria-label={`${Number(cliente.lavagens) > 0 ? 'Inativar' : 'Excluir'} ${cliente.nome}`}><Trash2 size={16} /></button>
                           )}
                         </div>
+                        )}
                       </td>
                     </tr>
                   ))}

@@ -151,6 +151,10 @@ async function registrarEntrada(db, corpo) {
     const extraIds = [...new Set(itens.flatMap((i) => i.extraIds))];
     const funcionarioIds = [...new Set(itens.flatMap((i) => i.funcionarioIds))];
 
+    const [[cliente]] = await conn.execute('SELECT ativo FROM clientes WHERE id = ?', [clienteId]);
+    if (!cliente) throw new ErroNegocio('Cliente não encontrado.', 404);
+    if (!cliente.ativo) throw new ErroNegocio('Este cliente está inativo. Reative o cadastro na aba "Inativos" antes de lançar um serviço.', 409);
+
     const veiculos = await buscarPorIds(
       conn,
       'SELECT id, porte FROM veiculos WHERE cliente_id = ? AND id IN (#)',
@@ -176,7 +180,7 @@ async function registrarEntrada(db, corpo) {
     );
     exigirTodos(extras, extraIds, 404, 'Extra(s) não encontrado(s)');
 
-    const funcionarios = await buscarPorIds(conn, 'SELECT id FROM funcionarios WHERE id IN (#)', funcionarioIds);
+    const funcionarios = await buscarPorIds(conn, 'SELECT id FROM funcionarios WHERE ativo = 1 AND id IN (#)', funcionarioIds);
     exigirTodos(funcionarios, funcionarioIds, 404, 'Funcionário(s) não encontrado(s)');
 
     // Mesmo registro que o agendamento do cliente usa para o leva e traz (endereço e distância)

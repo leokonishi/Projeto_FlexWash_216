@@ -51,6 +51,9 @@ router.post('/login-gestao', async (req, res) => {
     const senhaCorreta = await bcrypt.compare(senha, usuario.senha);
 
     if (!senhaCorreta) return senhaErrada();
+    if (!usuario.ativo) {
+      return res.status(403).json({ sucesso: false, mensagem: 'Seu acesso foi encerrado. Fale com o administrador.' });
+    }
     limite.limparEmail('equipe', emailLimpo);
 
     const token = jwt.sign(

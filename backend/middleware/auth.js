@@ -3,7 +3,7 @@ const db = require('../bd');
 const { JWT_SECRET } = require('../config/jwt');
 
 // Confere a assinatura do token E, no banco, se a pessoa ainda existe.
-// Assim um funcionário excluído (ou um cliente apagado) perde o acesso na hora,
+// Assim um funcionário excluído ou inativado (ou um cliente apagado/inativado) perde o acesso na hora,
 // em vez de continuar entrando até o token vencer (8 h para a equipe).
 // O perfil vale o que está no banco: rebaixar alguém tem efeito imediato.
 
@@ -20,10 +20,10 @@ async function perfilAtual(perfil, id) {
 
   let atual = null;
   if (perfil === 'cliente') {
-    const [[linha]] = await db.execute('SELECT id FROM clientes WHERE id = ?', [id]);
+    const [[linha]] = await db.execute('SELECT id FROM clientes WHERE id = ? AND ativo = 1', [id]);
     atual = linha ? 'cliente' : null;
   } else {
-    const [[linha]] = await db.execute('SELECT perfil FROM funcionarios WHERE id = ?', [id]);
+    const [[linha]] = await db.execute('SELECT perfil FROM funcionarios WHERE id = ? AND ativo = 1', [id]);
     atual = linha ? String(linha.perfil || '').toLowerCase() : null;
   }
   cache.set(k, { perfil: atual, ate: Date.now() + CACHE_MS });
