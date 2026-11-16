@@ -37,7 +37,8 @@ app.use(express.json());
 // ==========================================
 // 3. CONTROLE DE ACESSO (por prefixo de URL)
 // ------------------------------------------
-// Públicas (sem token): POST /api/clientes (auto-cadastro), /api/login/cliente, /api/login-gestao
+// Públicas (sem token): POST /api/clientes (auto-cadastro), /api/login/cliente, /api/login-gestao,
+// /api/acesso/* (link por e-mail para criar ou trocar a senha do cliente)
 // logado  = qualquer perfil autenticado
 // equipe  = funcionário + administrador
 // soAdmin = apenas administrador
@@ -69,6 +70,7 @@ app.post('/api/clientes', cadastroCliente.cadastrar);
 app.get('/api/clientes', cadastroCliente.listarClientes);
 app.put('/api/clientes/:id', cadastroCliente.atualizarCliente);
 app.delete('/api/clientes/:id', cadastroCliente.excluirCliente);
+app.post('/api/clientes/:id/acesso', cadastroCliente.enviarAcesso);
 
 app.use('/api', loginClienteRoutes);
 app.use('/api', loginGestao);

@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const validar = require('../services/validacao');
 const bcrypt = require('bcrypt');
 const db = require('../bd');
 
@@ -63,19 +64,19 @@ router.get('/funcionarios', async (req, res) => {
 });
 
 router.post('/funcionarios', async (req, res) => {
-  const { nome, cpf, email, telefone, funcoes, senha } = req.body;
-
-  const listaFuncoes = Array.isArray(funcoes)
-    ? funcoes
-    : typeof funcoes === 'string' && funcoes.trim() !== ''
-    ? funcoes.split(',').map((f) => f.trim())
-    : [];
-
-  if (!nome || !cpf || !email || !telefone || listaFuncoes.length === 0 || !senha) {
-    return res.status(400).json({
-      sucesso: false,
-      mensagem: 'Preencha todos os campos e selecione pelo menos uma funcao.'
-    });
+  const listaFuncoes = lerFuncoes(req.body.funcoes);
+  let nome, cpf, email, telefone, senha;
+  try {
+    nome = validar.nome(req.body.nome);
+    cpf = validar.cpf(req.body.cpf);
+    email = validar.email(req.body.email, { obrigatorio: true });
+    telefone = validar.telefone(req.body.telefone);
+    senha = validar.senha(req.body.senha);
+  } catch (erro) {
+    return res.status(400).json({ sucesso: false, mensagem: erro.message });
+  }
+  if (listaFuncoes.length === 0) {
+    return res.status(400).json({ sucesso: false, mensagem: 'Selecione pelo menos uma função.' });
   }
 
   try {
@@ -116,27 +117,30 @@ router.post('/funcionarios', async (req, res) => {
 });
 
 // Normaliza as funções (array ou texto separado por vírgula)
-const lerFuncoes = (funcoes) => (Array.isArray(funcoes)
-  ? funcoes
-  : typeof funcoes === 'string' && funcoes.trim() !== ''
-  ? funcoes.split(',')
-  : []).map((f) => String(f).trim()).filter(Boolean);
+function lerFuncoes(funcoes) {
+  return (Array.isArray(funcoes)
+    ? funcoes
+    : typeof funcoes === 'string' && funcoes.trim() !== ''
+    ? funcoes.split(',')
+    : []).map((f) => String(f).trim()).filter(Boolean);
+}
 
 // EDITAR FUNCIONÁRIO (PUT) - só administrador. Senha é opcional: em branco mantém a atual.
 router.put('/funcionarios/:id', async (req, res) => {
-  const texto = (v) => (typeof v === 'string' ? v.trim() : '');
-  const nome = texto(req.body.nome);
-  const cpf = texto(req.body.cpf);
-  const email = texto(req.body.email);
-  const telefone = texto(req.body.telefone);
-  const senha = typeof req.body.senha === 'string' ? req.body.senha : '';
   const listaFuncoes = lerFuncoes(req.body.funcoes);
-
-  if (!nome || !cpf || !email || !telefone || listaFuncoes.length === 0) {
-    return res.status(400).json({ sucesso: false, mensagem: 'Preencha todos os campos e selecione pelo menos uma funcao.' });
+  let nome, cpf, email, telefone, senha = '';
+  try {
+    const [[atual]] = await db.execute('SELECT cpf FROM funcionarios WHERE id = ?', [req.params.id]);
+    nome = validar.nome(req.body.nome);
+    cpf = validar.cpfNaEdicao(req.body.cpf, atual?.cpf);
+    email = validar.email(req.body.email, { obrigatorio: true });
+    telefone = validar.telefone(req.body.telefone);
+    if (req.body.senha) senha = validar.senha(req.body.senha); // em branco mantém a atual
+  } catch (erro) {
+    return res.status(400).json({ sucesso: false, mensagem: erro.message });
   }
-  if (senha && senha.length < 6) {
-    return res.status(400).json({ sucesso: false, mensagem: 'A nova senha precisa ter pelo menos 6 caracteres.' });
+  if (listaFuncoes.length === 0) {
+    return res.status(400).json({ sucesso: false, mensagem: 'Selecione pelo menos uma função.' });
   }
 
   try {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ArrowRight, Mail } from 'lucide-react';
 import LayoutAcesso from '../componentes/ui/LayoutAcesso';
 import { aplicarMascaraEmail } from '../utils/mascaras';
 
@@ -12,6 +12,10 @@ export default function Login() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState(null);
+  // Primeiro acesso (cliente cadastrado no balcão) e "esqueci minha senha": link pelo e-mail
+  const [modoLink, setModoLink] = useState(false);
+  const [semSenha, setSemSenha] = useState(false);
+  const [linkEnviado, setLinkEnviado] = useState(null);
 
   // Vindo do cadastro concluído
   const recemCadastrado = location.state?.cadastrado;
@@ -36,6 +40,9 @@ export default function Login() {
       if (resposta.ok) {
         localStorage.setItem('token_flexwash', resultado.token);
         navigate('/PaginaCliente');
+      } else if (resultado.motivo === 'sem_senha') {
+        setSemSenha(true);
+        setErro(resultado.mensagem);
       } else {
         setErro(resultado.mensagem || 'E-mail ou senha inválidos.');
       }
@@ -47,6 +54,59 @@ export default function Login() {
     }
   };
 
+  const pedirLink = async (e) => {
+    e?.preventDefault();
+    setErro(null);
+    setEnviando(true);
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+      const resposta = await fetch(`${API_URL}/api/acesso/link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const resultado = await resposta.json().catch(() => ({}));
+      if (resposta.ok) setLinkEnviado(resultado.mensagem);
+      else setErro(resultado.mensagem || 'Não foi possível enviar o link.');
+    } catch {
+      setErro('Não foi possível conectar ao servidor.');
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const abrirModoLink = () => { setModoLink(true); setErro(null); setSemSenha(false); setLinkEnviado(null); };
+
+  if (modoLink) {
+    return (
+      <LayoutAcesso
+        titulo="Primeiro acesso ou nova senha"
+        subtitulo="Digite o e-mail do seu cadastro. Enviamos um link para você criar a senha."
+        rodape={<button type="button" onClick={() => setModoLink(false)} className="font-semibold text-marca-600 hover:text-marca-700">Voltar para o login</button>}
+      >
+        {linkEnviado ? (
+          <div className="space-y-4">
+            <div className="fw-alerta-sucesso" role="status">{linkEnviado}</div>
+            <p className="text-sm text-tinta-500">O link vale por 48 horas. Não chegou? Confira o e-mail digitado ou peça na recepção para atualizar o seu cadastro.</p>
+            <button type="button" onClick={() => setLinkEnviado(null)} className="fw-btn-contorno h-11 w-full">Enviar de novo</button>
+          </div>
+        ) : (
+          <form onSubmit={pedirLink} className="space-y-4">
+            {erro && <div className="fw-alerta-erro" role="alert">{erro}</div>}
+            <div>
+              <label htmlFor="link-email" className="fw-label">E-mail</label>
+              <input id="link-email" type="email" required autoComplete="email" className="fw-input" value={email}
+                onChange={(e) => setEmail(aplicarMascaraEmail(e.target.value))} placeholder="seu.email@exemplo.com" />
+            </div>
+            <button type="submit" disabled={enviando} className="fw-btn-primario h-12 w-full text-[15px]">
+              {enviando ? <Loader2 size={18} className="animate-spin" /> : <><Mail size={18} /> Enviar link</>}
+            </button>
+          </form>
+        )}
+      </LayoutAcesso>
+    );
+  }
+
   return (
     <LayoutAcesso
       titulo="Bem-vindo de volta"
@@ -57,7 +117,16 @@ export default function Login() {
         {recemCadastrado && !erro && (
           <div className="fw-alerta-sucesso">Conta criada! Agora é só entrar com o seu e-mail e senha.</div>
         )}
-        {erro && <div className="fw-alerta-erro" role="alert">{erro}</div>}
+        {erro && (
+          <div className="fw-alerta-erro" role="alert">
+            {erro}
+            {semSenha && (
+              <button type="button" onClick={() => { abrirModoLink(); pedirLink(); }} className="mt-2 block font-semibold underline">
+                Enviar o link para {email}
+              </button>
+            )}
+          </div>
+        )}
 
         <div>
           <label htmlFor="login-email" className="fw-label">E-mail</label>
@@ -97,7 +166,13 @@ export default function Login() {
           </div>
         </div>
 
-        <button type="submit" disabled={enviando} className="fw-btn-primario mt-2 h-12 w-full text-[15px]">
+        <div className="-mt-1 text-right">
+          <button type="button" onClick={abrirModoLink} className="text-sm font-semibold text-marca-600 hover:text-marca-700">
+            Primeiro acesso ou esqueci a senha
+          </button>
+        </div>
+
+        <button type="submit" disabled={enviando} className="fw-btn-primario h-12 w-full text-[15px]">
           {enviando ? <Loader2 size={18} className="animate-spin" /> : <>Entrar <ArrowRight size={18} /></>}
         </button>
       </form>

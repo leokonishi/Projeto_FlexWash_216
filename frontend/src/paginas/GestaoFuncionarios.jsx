@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
 import { Search, UserPlus, Users, Trash2, Check, Loader2, Wrench, Edit2, UserCog } from 'lucide-react';
 import CabecalhoPagina, { Secao } from '../componentes/ui/CabecalhoPagina';
-import { aplicarMascaraCPF, aplicarMascaraTelefone, aplicarMascaraEmail, validarContato } from '../utils/mascaras';
+import { aplicarMascaraCPF, aplicarMascaraTelefone, aplicarMascaraEmail, validarContato, senhaValida, REGRA_SENHA } from '../utils/mascaras';
 
 const MASCARAS = { cpf: aplicarMascaraCPF, telefone: aplicarMascaraTelefone, email: aplicarMascaraEmail };
 
@@ -123,6 +123,11 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
     const erroContato = validarContato(formulario, { telefoneObrigatorio: true, emailObrigatorio: true, validarCpf: cpfMudou });
     if (erroContato) {
       avisar('Atenção', erroContato);
+      return;
+    }
+
+    if ((!editando || formulario.senha) && !senhaValida(formulario.senha)) {
+      avisar('Atenção', `Senha fraca. ${REGRA_SENHA}`);
       return;
     }
 
@@ -247,8 +252,8 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
             </div>
 
             {editando
-              ? campo('senha', 'Nova senha (opcional)', { type: 'password', placeholder: 'Deixe em branco para manter a atual', autoComplete: 'new-password', required: false, minLength: 6 })
-              : campo('senha', 'Senha de acesso', { type: 'password', placeholder: 'Mínimo 6 caracteres', autoComplete: 'new-password', minLength: 6 })}
+              ? campo('senha', 'Nova senha (opcional)', { type: 'password', placeholder: 'Deixe em branco para manter a atual', autoComplete: 'new-password', required: false, minLength: 8 })
+              : campo('senha', 'Senha de acesso', { type: 'password', placeholder: REGRA_SENHA, autoComplete: 'new-password', minLength: 8 })}
 
             <button type="submit" className="fw-btn-primario w-full" disabled={enviando}>
               {enviando ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />}
