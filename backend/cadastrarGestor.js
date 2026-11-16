@@ -12,17 +12,16 @@ async function inserirGestor() {
   try {
     const senhaHash = await bcrypt.hash(senhaPura, 10);
     const sql = 'INSERT INTO funcionarios (nome, cpf, email, telefone, senha, perfil) VALUES (?, ?, ?, ?, ?, ?)';
-
-    db.query(sql, [nome, cpf, email, telefone, senhaHash, perfil], (err, resultado) => {
-      if (err) {
-        console.error('Erro ao cadastrar gestor:', err.message);
-      } else {
-        console.log('Gestor cadastrado com sucesso no banco de dados!');
-      }
-      process.exit();
-    });
+    await db.execute(sql, [nome, cpf, email, telefone, senhaHash, perfil]);
+    console.log('Gestor cadastrado com sucesso no banco de dados!');
   } catch (erro) {
-    console.error('Erro ao criptografar senha:', erro);
+    console.error(
+      erro.code === 'ER_DUP_ENTRY' ? 'Já existe um funcionário com este CPF ou e-mail.' : 'Erro ao cadastrar gestor:',
+      erro.code === 'ER_DUP_ENTRY' ? '' : erro.message
+    );
+    process.exitCode = 1;
+  } finally {
+    await db.end(); // fecha o pool para o script terminar
   }
 }
 
