@@ -13,6 +13,6 @@
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.x.x",
-    "nodemailer": "^6.9.16"
+    "nodemailer": "^10.3.1"
   }
 }
