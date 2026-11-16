@@ -12,6 +12,8 @@ import { apiFetch } from '../utils/api';
 import { obterSessao, encerrarSessao } from '../utils/sessao';
 import { useAtualizacaoAutomatica } from '../hooks/useAtualizacaoAutomatica';
 import ModalConfirmacao from '../componentes/ModalConfirmacao';
+import ModalPasso from '../componentes/ui/ModalPasso';
+import SeletorDataHorario from '../componentes/configCliente/SeletorDataHorario';
 
 const AGENDAMENTO_VAZIO = { veiculos: [], selecoes: {}, resumo: [], levaTras: null, avaliacaoLevaTras: null };
 
@@ -121,10 +123,49 @@ export default function PaginaCliente() {
     buscarDadosClienteBackend();
   };
 
+  // Remarcação: o cliente escolhe outra data e horário para o mesmo carro (pacote e preço iguais)
+  const [remarcando, setRemarcando] = useState(null); // { item, data, horario }
+  const [salvandoRemarcacao, setSalvandoRemarcacao] = useState(false);
+  const abrirRemarcacao = (item) => {
+    const [data, horario] = (item.data_agendamento || '').split(' ');
+    setRemarcando({ item, data, horario, original: item.data_agendamento });
+  };
+  const confirmarRemarcacao = async () => {
+    const { item, data, horario } = remarcando;
+    setSalvandoRemarcacao(true);
+    try {
+      const res = await apiFetch(`${API_URL}/api/agendamentos/servicos/${item.id}/remarcar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data, horario })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setRemarcando(null);
+        const [ano, mes, dia] = data.split('-');
+        setAviso({ titulo: 'Agendamento remarcado', mensagem: `O ${item.marca} ${item.modelo} agora está marcado para ${dia}/${mes}/${ano} às ${horario}.` });
+        buscarDadosClienteBackend();
+      } else {
+        setAviso({ titulo: 'Não foi possível remarcar', mensagem: json.erro || 'Tente de novo em instantes.' });
+      }
+    } catch {
+      setAviso({ titulo: 'Sem conexão', mensagem: 'Não conseguimos falar com o servidor. Tente de novo.' });
+    } finally {
+      setSalvandoRemarcacao(false);
+    }
+  };
+
   const botaoCancelar = (item, classe = '') => item.status === 'Agendado' && (
-    <button onClick={() => setCancelando(item)} className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 ${classe}`}>
-      <CalendarX size={13} /> Cancelar
-    </button>
+    <span className={`inline-flex items-center gap-1 ${classe}`}>
+      {item.data_agendamento && (
+        <button onClick={() => abrirRemarcacao(item)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-marca-700 hover:bg-marca-50">
+          <CalendarClock size={13} /> Remarcar
+        </button>
+      )}
+      <button onClick={() => setCancelando(item)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50">
+        <CalendarX size={13} /> Cancelar
+      </button>
+    </span>
   );
 
   // O card de status olha só o que está no pátio (agendados e cancelados não contam).
@@ -486,6 +527,33 @@ export default function PaginaCliente() {
               aoVoltar={() => setPassoAgendamento('modalidade')}
               aoCancelar={cancelarAgendamento}
           />
+      )}
+
+      {remarcando && (
+        <ModalPasso
+          titulo="Remarcar lavagem"
+          subtitulo={`${remarcando.item.marca} ${remarcando.item.modelo} · hoje marcado para ${formatarDataTabela(remarcando.item)}. O serviço e o valor continuam iguais.`}
+          aoFechar={() => setRemarcando(null)}
+          rodape={
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" className="fw-btn-contorno" onClick={() => setRemarcando(null)}>Voltar</button>
+              <button
+                type="button"
+                className="fw-btn-primario"
+                disabled={salvandoRemarcacao || !remarcando.horario || `${remarcando.data} ${remarcando.horario}` === remarcando.original}
+                onClick={confirmarRemarcacao}
+              >
+                {salvandoRemarcacao ? 'Salvando...' : 'Confirmar novo horário'}
+              </button>
+            </div>
+          }
+        >
+          <SeletorDataHorario
+            data={remarcando.data}
+            horario={remarcando.horario}
+            onChange={({ data, horario }) => setRemarcando((r) => ({ ...r, data, horario }))}
+          />
+        </ModalPasso>
       )}
 
       <ModalConfirmacao
