@@ -43,7 +43,7 @@ export default function Login() {
 
       if (resposta.ok) {
         localStorage.setItem('token_flexwash', resultado.token);
-        navigate('/PaginaCliente');
+        navigate('/cliente');
       } else if (resultado.motivo === 'sem_senha') {
         setSemSenha(true);
         setErro(resultado.mensagem);
@@ -115,7 +115,7 @@ export default function Login() {
     <LayoutAcesso
       titulo="Bem-vindo de volta"
       subtitulo="Entre para agendar e acompanhar a lavagem do seu carro."
-      rodape={<>Ainda não tem conta? <Link to="/cadastro" className="font-semibold text-marca-600 hover:text-marca-700">Criar conta</Link></>}
+      rodape={<>Ainda não tem conta? <Link to="/cliente/cadastro" className="font-semibold text-marca-600 hover:text-marca-700">Criar conta</Link></>}
     >
       <form onSubmit={handleLogin} className="space-y-4">
         {recemCadastrado && !erro && (

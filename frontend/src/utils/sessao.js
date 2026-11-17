@@ -37,5 +37,5 @@ export function encerrarSessao() {
 
 // Tela de login correspondente ao perfil
 export function rotaDeLogin(perfil) {
-  return perfil === 'cliente' ? '/login' : '/gestao/LoginGestao';
+  return perfil === 'cliente' ? '/cliente/login' : '/gestao/login';
 }

@@ -72,7 +72,7 @@ export default function PaginaAdmin() {
 
   const handleLogout = () => {
     encerrarSessao();
-    navigate('/gestao/LoginGestao');
+    navigate('/gestao/login');
   };
 
   const botaoAba = (aba, compacto) => {

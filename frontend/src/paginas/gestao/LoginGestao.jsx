@@ -61,7 +61,7 @@ export default function LoginGestao() {
       localStorage.setItem('perfil_flexwash', resultado.usuario.perfil);
 
       // Redireciona TODO MUNDO para a rota unificada
-      navigate('/painel');
+      navigate('/gestao');
 
     } catch (err) {
       setErro(err.message);
@@ -77,7 +77,7 @@ export default function LoginGestao() {
       selo="Painel de gestão"
       chamada={<>Seu pátio, <span className="bg-linear-to-r from-marca-300 to-verde-300 bg-clip-text text-transparent">sob controle.</span></>}
       destaques={DESTAQUES_EQUIPE}
-      rodape={<>É cliente? <Link to="/login" className="font-semibold text-marca-600 hover:text-marca-700">Entrar na área do cliente</Link></>}
+      rodape={<>É cliente? <Link to="/cliente/login" className="font-semibold text-marca-600 hover:text-marca-700">Entrar na área do cliente</Link></>}
     >
       <form onSubmit={handleLogin} className="space-y-4">
         <div>

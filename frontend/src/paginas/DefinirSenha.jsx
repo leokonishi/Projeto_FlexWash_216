@@ -54,7 +54,7 @@ export default function DefinirSenha() {
       const json = await res.json().catch(() => ({}));
       if (res.ok && json.token) {
         localStorage.setItem('token_flexwash', json.token);
-        navigate('/PaginaCliente', { replace: true });
+        navigate('/cliente', { replace: true });
       } else {
         setErro(json.mensagem || 'Não foi possível salvar a senha.');
         if (res.status === 410) setEstado('invalido');
@@ -79,7 +79,7 @@ export default function DefinirSenha() {
       <LayoutAcesso titulo="Link indisponível" subtitulo="Peça um novo link na tela de login, em &quot;Primeiro acesso ou esqueci a senha&quot;.">
         <div className="space-y-4">
           <div className="fw-alerta-erro" role="alert">{erro}</div>
-          <Link to="/login" className="fw-btn-primario h-12 w-full text-[15px]">Ir para o login</Link>
+          <Link to="/cliente/login" className="fw-btn-primario h-12 w-full text-[15px]">Ir para o login</Link>
         </div>
       </LayoutAcesso>
     );
