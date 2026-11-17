@@ -1,6 +1,6 @@
 import React, { useState, useRef, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LayoutGrid, Users, History, Package, Truck, BadgeDollarSign, LogOut, Ticket, Wallet, CalendarDays, CheckCircle2, X } from 'lucide-react';
+import { LayoutGrid, Users, History, Package, Truck, UserCog, LogOut, Ticket, Wallet, CalendarDays, CheckCircle2, X } from 'lucide-react';
 
 // Importação dos Componentes Filhos (Padrão de Arquitetura Limpa)
 import DashboardInicio from '../componentes/DashboardInicio';
@@ -21,13 +21,13 @@ import { obterPerfil, obterSessao, encerrarSessao } from '../utils/sessao';
 const ABAS = [
   { id: 'inicio', nome: 'Pátio', icone: LayoutGrid },
   { id: 'clientes', nome: 'Clientes', icone: Users },
-  { id: 'historico', nome: 'Histórico', nomeLongo: 'Histórico / Relatórios', icone: History },
+  { id: 'historico', nome: 'Histórico', icone: History },
   { id: 'comissoes', nome: 'Comissões', icone: Wallet },
-  { id: 'servicos', nome: 'Serviços', icone: Package, admin: true },
+  { id: 'servicos', nome: 'Serviços', nomeLongo: 'Serviços e valores', icone: Package, admin: true },
   { id: 'agenda', nome: 'Agenda', icone: CalendarDays, admin: true },
   { id: 'promocoes', nome: 'Promoções', nomeLongo: 'Fidelidade e promoções', icone: Ticket, admin: true },
   { id: 'levatras', nome: 'Leva e Traz', icone: Truck, admin: true },
-  { id: 'funcionarios', nome: 'Equipe', nomeLongo: 'Funcionários', icone: BadgeDollarSign, admin: true },
+  { id: 'funcionarios', nome: 'Equipe', nomeLongo: 'Funcionários', icone: UserCog, admin: true },
 ];
 
 export default function PaginaAdmin() {
@@ -151,9 +151,13 @@ export default function PaginaAdmin() {
               <button onClick={handleLogout} className="fw-btn-fantasma h-9 px-2" aria-label="Sair"><LogOut size={18} /></button>
             </div>
           </div>
-          <nav className="flex gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:none]">
-            {abasVisiveis.map(a => botaoAba(a, true))}
-          </nav>
+          {/* A faixa rola para o lado: o degradê à direita mostra que há mais abas */}
+          <div className="relative">
+            <nav className="flex gap-2 overflow-x-auto px-4 pb-3 pr-10 [scrollbar-width:none]">
+              {abasVisiveis.map(a => botaoAba(a, true))}
+            </nav>
+            <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-linear-to-l from-white to-transparent" />
+          </div>
         </header>
 
         {/* Conteúdo */}

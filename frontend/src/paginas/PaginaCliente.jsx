@@ -199,6 +199,18 @@ export default function PaginaCliente() {
     if (item.logistica_status === 'coletado' && item.status === 'Finalizado') return 'Pronto, aguardando a entrega';
     return null;
   };
+  // Lista: primeiro o que está em aberto (pátio e próximos horários), depois o histórico.
+  // O histórico começa com os 5 mais recentes; o resto aparece em "Ver todos".
+  const [verTodos, setVerTodos] = useState(false);
+  const ORDEM_ABERTOS = { 'Em Andamento': 0, 'Aguardando': 1, 'Agendado': 2 };
+  const abertos = ultimosAgendamentos
+    .filter(item => item.status in ORDEM_ABERTOS)
+    .sort((a, b) => ORDEM_ABERTOS[a.status] - ORDEM_ABERTOS[b.status] || String(a.data_agendamento || '').localeCompare(String(b.data_agendamento || '')));
+  const passados = ultimosAgendamentos.filter(item => !(item.status in ORDEM_ABERTOS));
+  const HISTORICO_INICIAL = 5;
+  const listaOrdenada = [...abertos, ...passados];
+  const listaVisivel = verTodos ? listaOrdenada : [...abertos, ...passados.slice(0, HISTORICO_INICIAL)];
+
   const totalConcluidos = ultimosAgendamentos.filter(item => !['Agendado', 'Aguardando', 'Em Andamento', 'Cancelado'].includes(item.status)).length;
 
   const lidarComLogout = () => {
@@ -271,7 +283,8 @@ export default function PaginaCliente() {
   } else if (variosNoPatio) {
     tituloPatio = `Seus ${noPatio.length} carros estão com a gente`;
   }
-  const inicial = (sessao?.email || 'C').charAt(0).toUpperCase();
+  const nomeNoTopo = nomeCliente || String(sessao?.nome || '').trim().split(' ')[0] || sessao?.email || 'Cliente';
+  const inicial = nomeNoTopo.charAt(0).toUpperCase();
 
   return (
     <div className="fw-app min-h-[100dvh]">
@@ -282,7 +295,7 @@ export default function PaginaCliente() {
           <Logo tamanho="sm" />
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="hidden text-right sm:block">
-              <p className="max-w-[220px] truncate text-sm font-semibold text-tinta-900">{sessao?.email || 'Cliente'}</p>
+              <p className="max-w-[220px] truncate text-sm font-semibold text-tinta-900">{nomeNoTopo}</p>
               <p className="text-xs text-tinta-500">Área do cliente</p>
             </div>
             <span className="grid size-9 place-items-center rounded-full bg-linear-to-br from-marca-500 to-verde-500 text-sm font-bold text-white ring-2 ring-white">
@@ -408,7 +421,9 @@ export default function PaginaCliente() {
               <History size={18} className="text-marca-600" /> Seus agendamentos
             </h2>
             {!carregando && ultimosAgendamentos.length > 0 && (
-              <span className="text-xs font-medium text-tinta-500">{ultimosAgendamentos.length} no total</span>
+              <span className="text-xs font-medium text-tinta-500">
+                {listaVisivel.length < listaOrdenada.length ? `${listaVisivel.length} de ${listaOrdenada.length}` : `${listaOrdenada.length} no total`}
+              </span>
             )}
           </div>
 
@@ -427,7 +442,7 @@ export default function PaginaCliente() {
             <>
               {/* Celular: lista de cartões */}
               <ul className="divide-y divide-tinta-100 md:hidden">
-                {ultimosAgendamentos.map((item) => (
+                {listaVisivel.map((item) => (
                   <li key={item.id} className="flex items-center gap-3 px-4 py-3.5">
                     <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-tinta-100 text-tinta-600"><Car size={18} /></span>
                     <div className="min-w-0 flex-1">
@@ -461,7 +476,7 @@ export default function PaginaCliente() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-tinta-100">
-                    {ultimosAgendamentos.map((item) => (
+                    {listaVisivel.map((item) => (
                       <tr key={item.id} className="transition-colors hover:bg-tinta-50/70">
                         <td className="px-6 py-4">
                           <span className="flex items-center gap-3">
@@ -482,6 +497,13 @@ export default function PaginaCliente() {
                   </tbody>
                 </table>
               </div>
+              {listaOrdenada.length > HISTORICO_INICIAL + abertos.length && (
+                <div className="border-t border-tinta-100 p-3 text-center">
+                  <button type="button" onClick={() => setVerTodos(v => !v)} className="rounded-lg px-3 py-2 text-sm font-semibold text-marca-700 hover:bg-marca-50">
+                    {verTodos ? 'Mostrar menos' : `Ver todos (${listaOrdenada.length})`}
+                  </button>
+                </div>
+              )}
             </>
           )}
         </section>

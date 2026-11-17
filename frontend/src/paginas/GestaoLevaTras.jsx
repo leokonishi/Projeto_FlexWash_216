@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Truck, MapPin, Save, Search, Loader2, CheckCircle2, AlertCircle, Ruler, BadgeDollarSign, Radar, Navigation
+  MapPin, Save, Search, Loader2, CheckCircle2, AlertCircle, Ruler, BadgeDollarSign, Radar, Navigation
 } from 'lucide-react';
 import { apiFetch, API_URL } from '../utils/api';
+import CabecalhoPagina from '../componentes/ui/CabecalhoPagina';
 import MapaRaio3D from '../componentes/levaTras/MapaRaio3D';
 import {
   ENDERECO_VAZIO, CAMPOS_OBRIGATORIOS, soDigitos, mascaraCep, montarEndereco, separarEndereco, buscarCep as consultarViaCep
@@ -31,6 +32,7 @@ export default function GestaoLevaTras() {
 
   const [raio, setRaio] = useState('10');
   const [taxa, setTaxa] = useState('');
+  const taxaNumero = Number(String(taxa).replace(',', '.')) || 0;
   const [ativo, setAtivo] = useState(true);
 
   // Ponto no mapa: { latitude, longitude, origem: 'salvo' | 'busca' | 'manual', encontrado }
@@ -50,7 +52,8 @@ export default function GestaoLevaTras() {
       setEnderecoAntigo(config.endereco_lava_rapido || '');
     }
     setRaio(config.raio_km != null ? String(config.raio_km) : '10');
-    setTaxa(config.taxa_por_veiculo ?? '');
+    // Valor com vírgula, como o resto do painel
+    setTaxa(config.taxa_por_veiculo == null ? '' : Number(config.taxa_por_veiculo).toFixed(2).replace('.', ','));
     setAtivo(Boolean(config.ativo));
     setPonto(config.latitude != null ? { latitude: config.latitude, longitude: config.longitude, origem: 'salvo' } : null);
   };
@@ -157,7 +160,7 @@ export default function GestaoLevaTras() {
           endereco_partes: partesParaApi(),
           ...(pontoConfirmado ? { coordenadas: { latitude: ponto.latitude, longitude: ponto.longitude } } : {}),
           raio_km: raio,
-          taxa_por_veiculo: taxa,
+          taxa_por_veiculo: taxaNumero,
           ativo
         })
       });
@@ -190,12 +193,7 @@ export default function GestaoLevaTras() {
   return (
     <div className="lt-pagina">
       {/* Cabeçalho */}
-      <header className="lt-cabecalho">
-        <div className="lt-cabecalho-icone"><Truck size={24} /></div>
-        <div className="lt-cabecalho-texto">
-          <h2>Leva e Traz</h2>
-          <p>Defina de onde o motorista sai e até onde ele vai. Dentro do raio, o cliente vê a opção com o valor; fora dele, a opção fica indisponível.</p>
-        </div>
+      <CabecalhoPagina titulo="Leva e Traz" subtitulo="De onde o motorista sai e até onde ele vai. Fora do raio, o cliente não vê a opção.">
         {/* Só está ativo para o cliente com o endereço de saída salvo (sem ele não há como medir a distância) */}
         {(() => {
           const semEndereco = !salvo?.endereco_lava_rapido || salvo?.latitude == null;
@@ -207,7 +205,10 @@ export default function GestaoLevaTras() {
             </span>
           );
         })()}
-      </header>
+        <button type="submit" form="form-leva-tras" className="fw-btn-primario" disabled={salvando}>
+          {salvando ? <Loader2 className="lt-girando" size={17} /> : <Save size={17} />} {salvando ? 'Salvando...' : 'Salvar configuração'}
+        </button>
+      </CabecalhoPagina>
 
       {aviso && (
         <div className={`lt-aviso ${aviso.tipo === 'ok' ? 'lt-aviso-ok' : 'lt-aviso-erro'}`} role="status">
@@ -216,7 +217,7 @@ export default function GestaoLevaTras() {
         </div>
       )}
 
-      <form className="lt-grade" onSubmit={salvar}>
+      <form id="form-leva-tras" className="lt-grade" onSubmit={salvar}>
         {/* Coluna do formulário */}
         <div className="lt-coluna-form">
           <section className="lt-card">
@@ -325,7 +326,7 @@ export default function GestaoLevaTras() {
               <label htmlFor="lt-taxa">Valor por veículo</label>
               <div className="lt-input-prefixo">
                 <span>R$</span>
-                <input id="lt-taxa" type="number" step="0.01" min="0" value={taxa} onChange={(e) => setTaxa(e.target.value)} placeholder="15,00" required />
+                <input id="lt-taxa" type="text" inputMode="decimal" pattern="\d+([.,]\d{1,2})?" title="Valor em reais, ex.: 15,00" value={taxa} onChange={(e) => setTaxa(e.target.value.replace(/[^\d.,]/g, ''))} placeholder="15,00" required />
               </div>
               <small className="lt-ajuda">Use 0 para oferecer o leva e traz grátis.</small>
             </div>
@@ -340,10 +341,6 @@ export default function GestaoLevaTras() {
             </label>
           </section>
 
-          <button type="submit" className="lt-botao-primario" disabled={salvando}>
-            {salvando ? <Loader2 className="lt-girando" size={18} /> : <Save size={18} />}
-            {salvando ? 'Salvando...' : 'Salvar configuração'}
-          </button>
         </div>
 
         {/* Coluna do mapa */}
@@ -360,7 +357,7 @@ export default function GestaoLevaTras() {
               </div>
               <div className="lt-indicador">
                 <BadgeDollarSign size={16} />
-                <div><span>Por veículo</span><strong>{Number(taxa) === 0 && taxa !== '' ? 'Grátis' : fmtMoeda(taxa)}</strong></div>
+                <div><span>Por veículo</span><strong>{taxaNumero === 0 && taxa !== '' ? 'Grátis' : fmtMoeda(taxaNumero)}</strong></div>
               </div>
             </div>
 
