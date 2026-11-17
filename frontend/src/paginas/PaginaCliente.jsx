@@ -82,7 +82,7 @@ export default function PaginaCliente() {
     try {
       const sessao = obterSessao();
       if (!sessao) {
-        navigate('/login');
+        navigate('/cliente/login');
         return;
       }
 
@@ -215,7 +215,7 @@ export default function PaginaCliente() {
 
   const lidarComLogout = () => {
     encerrarSessao();
-    navigate('/login');
+    navigate('/cliente/login');
   };
 
   // Agendado: data e hora marcadas ('AAAA-MM-DD HH:MM'); senão, a data de entrada

@@ -18,7 +18,7 @@ const urlDoApp = () => (process.env.APP_URL || 'http://localhost:5173').replace(
 
 function gerarLink(cliente) {
   const token = jwt.sign({ id: cliente.id, tipo: 'definir_senha', fp: impressao(cliente.senha) }, JWT_SECRET, { expiresIn: VALIDADE });
-  return `${urlDoApp()}/definir-senha?token=${encodeURIComponent(token)}`;
+  return `${urlDoApp()}/cliente/definir-senha?token=${encodeURIComponent(token)}`;
 }
 
 const escapar = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

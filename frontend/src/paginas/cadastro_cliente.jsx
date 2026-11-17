@@ -80,13 +80,13 @@ export default function CadastroCliente() {
           const sessao = await login.json().catch(() => ({}));
           if (login.ok && sessao.token) {
             localStorage.setItem('token_flexwash', sessao.token);
-            navigate('/PaginaCliente');
+            navigate('/cliente');
             return;
           }
         } catch {
           // segue para o login manual
         }
-        navigate('/login', { state: { cadastrado: true } });
+        navigate('/cliente/login', { state: { cadastrado: true } });
       } else {
         // E-mail ou CPF já existente: mostra a mensagem do backend
         setErro(resultado.erro || 'Erro ao realizar cadastro.');
@@ -118,7 +118,7 @@ export default function CadastroCliente() {
     <LayoutAcesso
       titulo="Crie sua conta"
       subtitulo="Leva menos de um minuto. Depois é só agendar."
-      rodape={<>Já tem uma conta? <Link to="/login" className="font-semibold text-marca-600 hover:text-marca-700">Entrar</Link></>}
+      rodape={<>Já tem uma conta? <Link to="/cliente/login" className="font-semibold text-marca-600 hover:text-marca-700">Entrar</Link></>}
     >
       <form onSubmit={aoEnviarFormulario} className="grid grid-cols-2 gap-4">
         {erro && <div className="fw-alerta-erro col-span-2" role="alert">{erro}</div>}
