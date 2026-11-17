@@ -588,7 +588,62 @@ async function remarcarPeloCliente(db, clienteId, execucaoId, corpo) {
   }
 }
 
+// ---------------------------------------------------------------------
+// Agendamentos vencidos
+// ---------------------------------------------------------------------
+
+// Quem estava agendado e não apareceu no dia: na virada do dia o agendamento vira
+// "Cancelado" sozinho (sai do pátio e da tela do cliente) e o cupom usado volta.
+// Não depende de rotina agendada no servidor: roda quando alguém abre o pátio ou a tela
+// do cliente, no máximo 1 vez por minuto. Carro que o motorista já coletou não entra.
+const INTERVALO_VENCIDOS_MS = 60 * 1000;
+let proximaConferenciaVencidos = 0;
+
+async function cancelarVencidos(db, { forcar = false } = {}) {
+  if (!forcar && Date.now() < proximaConferenciaVencidos) return 0;
+  proximaConferenciaVencidos = Date.now() + INTERVALO_VENCIDOS_MS;
+
+  const inicioDeHoje = `${agenda.agoraLocal().data} 00:00:00`;
+  const [vencidos] = await db.execute(
+    `SELECT e.id, e.agendamento_id
+       FROM execucoes e LEFT JOIN agendamentos a ON a.id = e.agendamento_id
+      WHERE e.status = 'Agendado' AND e.data_agendamento < ?
+        AND COALESCE(a.logistica_status, '') <> 'coletado'`,
+    [inicioDeHoje]
+  );
+  if (vencidos.length === 0) return 0;
+
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    const ids = vencidos.map((v) => v.id);
+    await conn.query("UPDATE execucoes SET status = 'Cancelado' WHERE status = 'Agendado' AND id IN (?)", [ids]);
+    for (const agendamentoId of new Set(vencidos.map((v) => v.agendamento_id).filter(Boolean))) {
+      await promocoes.estornarCuponsSeVazio(conn, agendamentoId);
+    }
+    await conn.commit();
+    console.log(`[agenda] ${ids.length} agendamento(s) vencido(s) cancelado(s) automaticamente: ${ids.join(', ')}`);
+    return ids.length;
+  } catch (erro) {
+    await conn.rollback().catch(() => {});
+    throw erro;
+  } finally {
+    conn.release();
+  }
+}
+
+// Versão para as rotas de leitura: uma falha aqui não pode derrubar a tela
+async function cancelarVencidosSemFalhar(db) {
+  try {
+    await cancelarVencidos(db);
+  } catch (erro) {
+    console.error('Erro ao cancelar agendamentos vencidos:', erro.message);
+  }
+}
+
 module.exports = {
+  cancelarVencidos,
+  cancelarVencidosSemFalhar,
   remarcarPeloCliente,
   cancelarPeloCliente,
   ANTECEDENCIA_CANCELAMENTO_HORAS,

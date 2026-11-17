@@ -155,7 +155,10 @@ export default function PaginaCliente() {
     }
   };
 
-  const botaoCancelar = (item, classe = '') => item.status === 'Agendado' && (
+  // Horário já passou (o carro está atrasado): pelo app não dá mais para remarcar nem cancelar
+  const horarioPassou = (item) => Boolean(item.data_agendamento) && new Date(item.data_agendamento.replace(' ', 'T')) <= new Date();
+
+  const botaoCancelar = (item, classe = '') => item.status === 'Agendado' && !horarioPassou(item) && (
     <span className={`inline-flex items-center gap-1 ${classe}`}>
       {item.data_agendamento && (
         <button onClick={() => abrirRemarcacao(item)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-marca-700 hover:bg-marca-50">
@@ -181,15 +184,16 @@ export default function PaginaCliente() {
     .sort((a, b) => a.data_agendamento.localeCompare(b.data_agendamento))[0];
   // Leva e traz: motorista indo buscar ou trazendo o carro de volta
   const primeiroNome = (nome) => String(nome || '').split(' ')[0];
-  const voltando = ultimosAgendamentos.find(item => item.tipo_logistica === 'leva_tras' && item.logistica_status === 'entregando');
+  const voltando = ultimosAgendamentos.find(item => item.status === 'Finalizado' && item.tipo_logistica === 'leva_tras' && item.logistica_status === 'entregando');
   const buscando = ultimosAgendamentos.find(item => item.status === 'Agendado' && item.tipo_logistica === 'leva_tras' && item.logistica_status === 'buscando');
   const avisoLevaTras = voltando
-    ? `${primeiroNome(voltando.motorista_nome) || 'O motorista'} está trazendo seu carro de volta`
-    : buscando ? `${primeiroNome(buscando.motorista_nome) || 'O motorista'} está a caminho para buscar seu carro` : null;
+    ? `${primeiroNome(voltando.motorista_nome) || 'O motorista'} está trazendo o ${voltando.marca} ${voltando.modelo} de volta`
+    : buscando ? `${primeiroNome(buscando.motorista_nome) || 'O motorista'} está a caminho para buscar o ${buscando.marca} ${buscando.modelo}` : null;
   const textoLogistica = (item) => {
     if (item.tipo_logistica !== 'leva_tras') return null;
     if (item.status === 'Agendado' && item.logistica_status === 'a_buscar') return 'Leva e traz: vamos buscar o carro';
-    if (item.logistica_status === 'buscando') return `${primeiroNome(item.motorista_nome) || 'Motorista'} a caminho para buscar`;
+    if (item.status === 'Cancelado') return null;
+    if (item.status === 'Agendado' && item.logistica_status === 'buscando') return `${primeiroNome(item.motorista_nome) || 'Motorista'} a caminho para buscar`;
     if (item.logistica_status === 'entregando') return 'A caminho de volta';
     if (item.logistica_status === 'entregue' && item.status === 'Finalizado') return 'Entregue';
     if (item.logistica_status === 'coletado' && item.status === 'Finalizado') return 'Pronto, aguardando a entrega';

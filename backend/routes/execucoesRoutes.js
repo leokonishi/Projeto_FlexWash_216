@@ -4,6 +4,7 @@ const db = require('../bd');
 const { registrarEntrada, exigirForaDoPatio, STATUS_NO_PATIO, listaDeIds, buscarPorIds, exigirTodos } = require('../services/execucoesService');
 const { ErroNegocio } = require('../services/erros');
 const agenda = require('../services/agenda');
+const { cancelarVencidosSemFalhar } = require('../services/agendamentoService');
 const { avaliarLevaTras } = require('../services/logistica');
 const { estornarCuponsSeVazio } = require('../services/promocoes');
 const { validarPeriodo, comissaoAtual, SQL_DIA_SERVICO } = require('../services/comissoes');
@@ -96,6 +97,7 @@ router.get('/execucoes/leva-e-traz/:cliente_id', async (req, res) => {
 // Carros no pátio (Aguardando / Em Andamento) + agendados de hoje (e atrasados) que ainda não chegaram.
 router.get('/execucoes/patio', async (req, res) => {
     try {
+        await cancelarVencidosSemFalhar(db); // agendado de dia anterior que não apareceu sai do pátio
         const amanha = agenda.somarDias(agenda.agoraLocal().data, 1);
         const query = `
             SELECT ${CAMPOS_PATIO}
@@ -455,6 +457,7 @@ router.get('/execucoes/cliente/:cliente_id', async (req, res) => {
     }
 
     try {
+        await cancelarVencidosSemFalhar(db);
         const query = `
             SELECT 
                 e.id, e.status, e.valor_total, e.valor_logistica, e.criado_em, e.agendamento_id,

@@ -25,7 +25,6 @@ const comissoesRoutes = require('./routes/comissoesRoutes');
 const agendaAdminRoutes = require('./routes/agendaAdminRoutes');
 
 // IMPORTAÇÃO DA PASTA 'endpoints' (Rota de serviços do cliente)
-const servicoClienteRoutes = require('./endpoints/servicos');
 
 // ==========================================
 // 2. INICIALIZAÇÃO DO APP
@@ -81,7 +80,6 @@ app.use('/api', loginClienteRoutes);
 app.use('/api', loginGestao);
 app.use('/api', funcionariosRoutes);
 app.use('/api', servicosRoutes);
-app.use('/api', servicoClienteRoutes); // <--- Regista as rotas de serviços do cliente em /api/servicos
 app.use('/api', execucoesRoutes);
 app.use('/api', meRoutes);
 app.use('/api', agendamentosRoutes);
@@ -98,6 +96,23 @@ app.get('/api/protegida', verificarToken, (req, res) => {
     mensagem: 'Acesso liberado! Token válido.',
     usuario: req.usuarioLogado
   });
+});
+
+// ==========================================
+// 4b. ERROS GERAIS: sempre JSON, sem expor detalhes internos
+// ==========================================
+app.use('/api', (req, res) => res.status(404).json({ sucesso: false, erro: 'Rota não encontrada.', mensagem: 'Rota não encontrada.' }));
+
+// eslint-disable-next-line no-unused-vars
+app.use((erro, req, res, next) => {
+  if (erro.type === 'entity.parse.failed') {
+    return res.status(400).json({ sucesso: false, erro: 'Dados enviados em formato inválido.', mensagem: 'Dados enviados em formato inválido.' });
+  }
+  if (erro.type === 'entity.too.large') {
+    return res.status(413).json({ sucesso: false, erro: 'Os dados enviados são grandes demais.', mensagem: 'Os dados enviados são grandes demais.' });
+  }
+  console.error('Erro não tratado:', erro);
+  res.status(500).json({ sucesso: false, erro: 'Erro interno no servidor.', mensagem: 'Erro interno no servidor.' });
 });
 
 // ==========================================
