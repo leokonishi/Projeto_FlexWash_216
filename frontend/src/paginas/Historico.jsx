@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, FileSpreadsheet, FileText, History as HistoryIcon, RotateCcw, Pencil, Search } from 'lucide-react';
 import CabecalhoPagina, { Secao } from '../componentes/ui/CabecalhoPagina';
-import { apiFetch } from '../utils/api';
+import { apiFetch, API_URL } from '../utils/api';
 import ModalEquipe from '../componentes/ModalEquipe';
 import { obterPerfil } from '../utils/sessao';
 
@@ -24,7 +24,6 @@ export default function Historico({ abrirAlerta }) {
   const [funcionarios, setFuncionarios] = useState([]);
   const [editandoEquipe, setEditandoEquipe] = useState(null);
   
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
   const perfilUsuario = obterPerfil() || 'funcionario'; // lido do token
   const ehAdmin = perfilUsuario === 'administrador';
 

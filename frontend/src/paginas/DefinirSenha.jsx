@@ -3,8 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
 import LayoutAcesso from '../componentes/ui/LayoutAcesso';
 import { REGRA_SENHA, senhaValida } from '../utils/mascaras';
+import { API_URL } from '../utils/api';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 // Aberta pelo link do e-mail: o cliente cria (primeiro acesso) ou troca a senha e já entra.
 export default function DefinirSenha() {

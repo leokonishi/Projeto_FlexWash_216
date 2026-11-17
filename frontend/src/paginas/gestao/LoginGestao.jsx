@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, ArrowRight, ShieldCheck, Wrench, LayoutDashboard, Gauge, Users } from 'lucide-react';
 import LayoutAcesso from '../../componentes/ui/LayoutAcesso';
 import { aplicarMascaraEmail } from '../../utils/mascaras';
+import { API_URL } from '../../utils/api';
 
 const DESTAQUES_EQUIPE = [
   { icone: Gauge, texto: 'Fluxo do pátio em tempo real, do agendado ao pronto' },
@@ -33,8 +34,6 @@ export default function LoginGestao() {
     setErro('');
     setEnviando(true);
 
-    // Define a URL base da API (pega da Vercel em produção ou usa o localhost para testes)
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
     try {
       const resposta = await fetch(`${API_URL}/api/login-gestao`, {

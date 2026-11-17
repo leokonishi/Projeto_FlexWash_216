@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiFetch } from '../utils/api';
+import { apiFetch, API_URL } from '../utils/api';
 import { Search, UserPlus, Users, Trash2, Check, Loader2, Wrench, Edit2, UserCog, RotateCcw } from 'lucide-react';
 import CabecalhoPagina, { Secao } from '../componentes/ui/CabecalhoPagina';
 import { aplicarMascaraCPF, aplicarMascaraTelefone, aplicarMascaraEmail, validarContato, senhaValida, REGRA_SENHA } from '../utils/mascaras';
@@ -33,7 +33,6 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
   };
 
   // Mesma porta padrão do backend/server.js (8080) usada nas demais telas
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
   const [funcionarios, setFuncionarios] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -92,7 +91,7 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
       }
     }
     buscarFuncionarios();
-  }, [API_URL, verInativos]);
+  }, [verInativos]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
