@@ -2,11 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Car, Check, MapPin, Truck, Loader2, UserPlus, Plus, X } from 'lucide-react';
 import ModalPasso, { Marcador } from './ui/ModalPasso';
 import ConfiguracaoVeiculo from './ConfiguracaoVeiculo';
-import { apiFetch } from '../utils/api';
+import { apiFetch, API_URL } from '../utils/api';
 import { aplicarMascaraCPF, aplicarMascaraTelefone, aplicarMascaraPlaca, validarContato } from '../utils/mascaras';
 
 export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPatio }) {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
   // Estados de Dados da API
   const [clientes, setClientes] = useState([]);

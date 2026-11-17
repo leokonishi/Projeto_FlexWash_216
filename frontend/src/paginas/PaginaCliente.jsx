@@ -8,7 +8,7 @@ import EscolhaHorarioCliente from '../componentes/configCliente/EscolhaHorarioCl
 import FidelidadeCliente from '../componentes/configCliente/FidelidadeCliente';
 import Logo from '../componentes/ui/Logo';
 import BadgeStatus from '../componentes/ui/BadgeStatus';
-import { apiFetch } from '../utils/api';
+import { apiFetch, API_URL } from '../utils/api';
 import { obterSessao, encerrarSessao } from '../utils/sessao';
 import { useAtualizacaoAutomatica } from '../hooks/useAtualizacaoAutomatica';
 import ModalConfirmacao from '../componentes/ModalConfirmacao';
@@ -64,7 +64,6 @@ export default function PaginaCliente() {
   const [configAgendamento, setConfigAgendamento] = useState(null); // horários, vagas e taxa do leva e traz
   const [cupomSugerido, setCupomSugerido] = useState(''); // vem do botão "usar" da fidelidade/promoção
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
   // Nome para a saudação
   const [nomeCliente, setNomeCliente] = useState('');
@@ -100,7 +99,7 @@ export default function PaginaCliente() {
 
   useEffect(() => {
     buscarDadosClienteBackend();
-  }, [navigate, API_URL]);
+  }, [navigate]);
 
   // Acompanhamento em tempo real: o status do carro muda sozinho na tela (a cada 15 s
   // e ao voltar para a aba). Pausa enquanto o cliente está no meio de um agendamento.

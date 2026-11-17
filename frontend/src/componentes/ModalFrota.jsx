@@ -3,7 +3,7 @@ import { Trash2, Car, Plus, Edit2, Check } from 'lucide-react';
 import ModalPasso from './ui/ModalPasso';
 import { aplicarMascaraPlaca } from '../utils/mascaras';
 import { useModelosFipe } from '../hooks/useModelosFipe';
-import { apiFetch } from '../utils/api';
+import { apiFetch, API_URL } from '../utils/api';
 
 // Usadas se a Tabela FIPE não responder
 const MARCAS_RESERVA = ['Audi', 'BMW', 'Chevrolet', 'Fiat', 'Ford', 'Honda', 'Hyundai', 'Jeep', 'Toyota', 'Volkswagen'];
@@ -25,7 +25,6 @@ export default function ModalFrota({ cliente, fecharModal, abrirAlerta, atualiza
   const [salvando, setSalvando] = useState(false);
 
   const modelosFipe = useModelosFipe(listaMarcas, marca);
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
   useEffect(() => {
     const buscarDados = async () => {
@@ -53,7 +52,7 @@ export default function ModalFrota({ cliente, fecharModal, abrirAlerta, atualiza
     };
     
     buscarDados();
-  }, [cliente.id, API_URL]);
+  }, [cliente.id]);
 
   const limparFormulario = () => {
     setEditandoId(null);

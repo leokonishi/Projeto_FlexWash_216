@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Check } from 'lucide-react';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, API_URL } from '../../utils/api';
 import { Secao } from '../ui/CabecalhoPagina';
 import ModalPasso from '../ui/ModalPasso';
 
@@ -17,7 +17,6 @@ export default function CatalogoServicos({ abrirAlerta, rota, icone, textos }) {
   const [editandoId, setEditandoId] = useState(null); // null = cadastro novo
   const [salvando, setSalvando] = useState(false);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
   const mudar = (campo) => (e) => setForm(prev => ({ ...prev, [campo]: e.target.value }));
 
   // 1. Busca os itens reais do banco de dados

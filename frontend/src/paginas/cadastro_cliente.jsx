@@ -5,6 +5,7 @@ import { aplicarMascaraCPF, aplicarMascaraTelefone, aplicarMascaraEmail, validar
 import FormEnderecoCep from '../componentes/FormEnderecoCep';
 import LayoutAcesso from '../componentes/ui/LayoutAcesso';
 import { ENDERECO_VAZIO, enderecoCompleto, enderecoVazio, partesParaApi } from '../utils/endereco';
+import { API_URL } from '../utils/api';
 
 export default function CadastroCliente() {
   const navigate = useNavigate();
@@ -37,7 +38,6 @@ export default function CadastroCliente() {
     e.preventDefault();
     setErro(null);
 
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
     const erroContato = validarContato(formulario, { telefoneObrigatorio: true, emailObrigatorio: true });
     if (erroContato) {
