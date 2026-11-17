@@ -109,7 +109,7 @@ export default function Comissoes({ abrirAlerta }) {
             <div className="flex items-start gap-3 rounded-2xl bg-ouro-50 p-4 text-sm text-ouro-800 ring-1 ring-ouro-200">
               <AlertTriangle size={18} className="mt-0.5 shrink-0" />
               <p>
-                <strong>{dados.sem_equipe.servicos} carro(s) sem equipe</strong> no período, somando {moeda(dados.sem_equipe.comissao)} de comissão
+                <strong>{dados.sem_equipe.servicos} {dados.sem_equipe.servicos === 1 ? 'carro' : 'carros'} sem equipe</strong> no período, somando {moeda(dados.sem_equipe.comissao)} de comissão
                 que ninguém recebe. Use o lápis na lista abaixo para dizer quem lavou.
               </p>
             </div>

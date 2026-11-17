@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, FileSpreadsheet, FileText, History as HistoryIcon, RotateCcw, Pencil, Search } from 'lucide-react';
 import CabecalhoPagina, { Secao } from '../componentes/ui/CabecalhoPagina';
-import BadgeStatus from '../componentes/ui/BadgeStatus';
 import { apiFetch } from '../utils/api';
 import ModalEquipe from '../componentes/ModalEquipe';
 import { obterPerfil } from '../utils/sessao';
@@ -108,7 +107,7 @@ export default function Historico({ abrirAlerta }) {
   const handleExcluirRegistro = (id) => {
     if (abrirAlerta) {
       abrirAlerta(
-        'Apagar Registro',
+        'Apagar registro',
         `Tem certeza que deseja apagar este histórico (#${id})? Esta ação não pode ser desfeita.`,
         async () => {
           try {
@@ -125,10 +124,6 @@ export default function Historico({ abrirAlerta }) {
         },
         'perigo'
       );
-    } else {
-      if (window.confirm('Tem certeza que deseja apagar este registro?')) {
-        // Fallback caso o abrirAlerta não seja passado
-      }
     }
   };
 
@@ -212,7 +207,43 @@ export default function Historico({ abrirAlerta }) {
         ) : historico.length === 0 ? (
           <p className="px-5 py-12 text-center text-sm text-tinta-500">Nenhum serviço finalizado com esses filtros.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Celular: um cartão por atendimento (a tabela não cabe na tela) */}
+          <ul className="divide-y divide-tinta-100 md:hidden print:hidden">
+            {historico.map(item => (
+              <li key={item.id} className="px-4 py-3.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-tinta-900">{item.marca} {item.modelo}</p>
+                    <div className="mt-1 flex items-center gap-2 text-xs text-tinta-500"><span className="fw-placa">{item.placa}</span> {item.porte}</div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    {ehAdmin && <p className="font-semibold text-tinta-900">{moeda(item.valor_total)}</p>}
+                    <p className="text-xs text-tinta-500">{dataBR(item.dia)}</p>
+                  </div>
+                </div>
+                <p className="mt-2 text-sm text-tinta-700">
+                  {item.cliente_nome} · {item.pacote_nome || 'Serviço avulso'}
+                  {item.servicos_extras && <span className="text-verde-700"> + {item.servicos_extras}</span>}
+                </p>
+                <div className="mt-1.5 flex items-center justify-between gap-2">
+                  <p className="min-w-0 text-xs text-tinta-500">
+                    {item.responsaveis || <span className="font-semibold text-ouro-700">Sem equipe</span>}
+                    {item.minutos_lavagem > 0 && <span className="text-tinta-400"> · {tempoLavagem(item.minutos_lavagem)} lavando</span>}
+                  </p>
+                  {ehAdmin && (
+                    <span className="flex shrink-0 items-center">
+                      <button onClick={() => setEditandoEquipe(item)} className="grid size-9 place-items-center rounded-lg text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" aria-label="Corrigir equipe"><Pencil size={15} /></button>
+                      <button onClick={() => reabrir(item)} className="grid size-9 place-items-center rounded-lg text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" aria-label="Reabrir serviço"><RotateCcw size={15} /></button>
+                      <button className="fw-btn-perigo" onClick={() => handleExcluirRegistro(item.id)} aria-label="Apagar do histórico"><Trash2 size={15} /></button>
+                    </span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <div className="hidden overflow-x-auto md:block print:block">
             <table className="fw-tabela">
               <thead>
                 <tr>
@@ -223,7 +254,6 @@ export default function Historico({ abrirAlerta }) {
                   <th>Serviço</th>
                   <th>Responsáveis</th>
                   {ehAdmin && <th className="text-right">Valor</th>}
-                  <th>Status</th>
                   {ehAdmin && <th />}
                 </tr>
               </thead>
@@ -233,7 +263,7 @@ export default function Historico({ abrirAlerta }) {
                     <td className="font-mono text-xs text-tinta-400">#{item.id}</td>
                     <td className="whitespace-nowrap">
                       {dataBR(item.dia)}
-                      {item.minutos_lavagem !== null && item.minutos_lavagem !== undefined && (
+                      {item.minutos_lavagem > 0 && (
                         <p className="text-[11px] text-tinta-400" title="Do início ao fim da lavagem">{tempoLavagem(item.minutos_lavagem)} lavando</p>
                       )}
                     </td>
@@ -248,7 +278,7 @@ export default function Historico({ abrirAlerta }) {
                     </td>
                     <td className="text-xs text-tinta-500">
                       <span className="flex items-center gap-1">
-                        {item.responsaveis || <span className="font-semibold text-ouro-700">Não atribuído</span>}
+                        {item.responsaveis || <span className="font-semibold text-ouro-700">Sem equipe</span>}
                         {ehAdmin && (
                           <button onClick={() => setEditandoEquipe(item)} className="grid size-7 shrink-0 place-items-center rounded-md text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" title="Corrigir equipe" aria-label="Corrigir equipe">
                             <Pencil size={13} />
@@ -257,7 +287,6 @@ export default function Historico({ abrirAlerta }) {
                       </span>
                     </td>
                     {ehAdmin && <td className="whitespace-nowrap text-right font-semibold text-tinta-900">{moeda(item.valor_total)}</td>}
-                    <td><BadgeStatus status="Finalizado" /></td>
                     {ehAdmin && (
                       <td className="whitespace-nowrap text-right">
                         <button className="mr-1 inline-grid size-9 place-items-center rounded-lg text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" onClick={() => reabrir(item)} title="Reabrir (finalizado por engano)" aria-label="Reabrir serviço">
@@ -273,6 +302,7 @@ export default function Historico({ abrirAlerta }) {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </Secao>
 

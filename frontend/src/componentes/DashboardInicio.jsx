@@ -76,7 +76,11 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
   // 2. Estado apenas para controlar se a janelinha (modal) está aberta ou fechada
   const [modalLavagemAberto, setModalLavagemAberto] = useState(false);
   // No celular as colunas viram abas
-  const [colunaCelular, setColunaCelular] = useState('Aguardando');
+  // Até a pessoa escolher uma aba, abre na primeira que tem carro (fila, lavando, chegam hoje)
+  const [colunaEscolhida, setColunaCelular] = useState(null);
+  const colunaCelular = colunaEscolhida
+    || ['Aguardando', 'Em Andamento', 'Agendado'].find((st) => listaPatio.some((item) => item.status === st))
+    || 'Aguardando';
   // Escolha da equipe: { item, modo: 'iniciar' | 'trocar' }
   const [equipeAberta, setEquipeAberta] = useState(null);
   // Escolha do motorista do leva e traz: { agendamentoId, etapa, descricao, motoristaId }

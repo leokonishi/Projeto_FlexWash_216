@@ -3,6 +3,7 @@ import { useModelosFipe } from '../../hooks/useModelosFipe';
 import { apiFetch, API_URL } from "../../utils/api";
 import { PlusCircle, Car, Trash2, ArrowRight, Check, Loader2 } from 'lucide-react';
 import ModalPasso, { Marcador } from '../ui/ModalPasso';
+import ModalConfirmacao from '../ModalConfirmacao';
 
 // Passo 1 do agendamento: o cliente escolhe UM OU MAIS veículos (o preço depende do porte de cada um)
 export default function EscolhaVeiculoCliente({ veiculosIniciais = [], aoAvancar, aoCancelar }) {
@@ -113,12 +114,16 @@ export default function EscolhaVeiculoCliente({ veiculosIniciais = [], aoAvancar
     };
 
     // Função para remover um veículo cadastrado
-    const lidarComExclusaoVeiculo = async (e, veiculoId, modeloCarro) => {
+    // Confirmação e avisos no mesmo visual do resto do app (nada de janela do navegador)
+    const [removendo, setRemovendo] = useState(null); // { id, modelo }
+    const [avisoVeiculo, setAvisoVeiculo] = useState(null);
+    const lidarComExclusaoVeiculo = (e, veiculoId, modeloCarro) => {
         e.stopPropagation(); // Evita que clique no botão de lixeira selecione o carro ao mesmo tempo
-        
-        if (!window.confirm(`Tem certeza que deseja remover o veículo ${modeloCarro}?`)) {
-            return;
-        }
+        setRemovendo({ id: veiculoId, modelo: modeloCarro });
+    };
+    const confirmarExclusaoVeiculo = async () => {
+        const veiculoId = removendo.id;
+        setRemovendo(null);
 
         try {
             const resposta = await apiFetch(`${API_URL}/api/me/veiculos/${veiculoId}`, { method: 'DELETE' });
@@ -129,11 +134,11 @@ export default function EscolhaVeiculoCliente({ veiculosIniciais = [], aoAvancar
                 setVeiculos(prev => prev.filter(v => v.id !== veiculoId));
             } else {
                 const json = await resposta.json().catch(() => ({}));
-                alert(json.erro || 'Erro ao remover o veículo.');
+                setAvisoVeiculo(json.erro || 'Erro ao remover o veículo.');
             }
         } catch (erro) {
             console.error('Erro ao excluir veículo:', erro);
-            alert('Falha de conexão ao tentar remover o veículo.');
+            setAvisoVeiculo('Falha de conexão ao tentar remover o veículo.');
         }
     };
 
@@ -155,6 +160,7 @@ export default function EscolhaVeiculoCliente({ veiculosIniciais = [], aoAvancar
     );
 
     return (
+        <>
         <ModalPasso
             passo={1}
             titulo={modoCadastro ? 'Novo veículo' : 'Quais carros vamos lavar?'}
@@ -326,5 +332,23 @@ export default function EscolhaVeiculoCliente({ veiculosIniciais = [], aoAvancar
                 </form>
             )}
         </ModalPasso>
+        <ModalConfirmacao
+            isOpen={!!removendo}
+            titulo="Remover veículo"
+            mensagem={removendo ? `Remover o ${removendo.modelo} da sua conta?` : ''}
+            onConfirm={confirmarExclusaoVeiculo}
+            onCancel={() => setRemovendo(null)}
+            tipo="perigo"
+            textoConfirmar="Remover"
+        />
+        <ModalConfirmacao
+            isOpen={!!avisoVeiculo}
+            titulo="Não foi possível remover"
+            mensagem={avisoVeiculo}
+            onConfirm={() => setAvisoVeiculo(null)}
+            onCancel={() => setAvisoVeiculo(null)}
+            soAviso
+        />
+        </>
     );
 }

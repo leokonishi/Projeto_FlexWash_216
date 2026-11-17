@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Award, Zap, Ticket, Check, Loader2, Users, Gauge, Power } from 'lucide-react';
+import { Award, Zap, Ticket, Save, Loader2, Users, Gauge, Power } from 'lucide-react';
 import CabecalhoPagina, { Secao } from '../componentes/ui/CabecalhoPagina';
 import { apiFetch, API_URL } from '../utils/api';
 
@@ -169,7 +169,7 @@ export default function GestaoPromocoes({ abrirAlerta }) {
   if (carregando || !painel || !form) {
     return (
       <div className="mx-auto max-w-7xl">
-        <CabecalhoPagina titulo="Promoções" subtitulo="Fidelidade e promoção por movimento fraco." />
+        <CabecalhoPagina titulo="Fidelidade e promoções" subtitulo="Fidelidade e promoção por movimento fraco." />
         <div className="grid gap-4 lg:grid-cols-2">{[0, 1].map(i => <div key={i} className="h-64 animate-pulse rounded-2xl bg-tinta-100" />)}</div>
       </div>
     );
@@ -187,9 +187,13 @@ export default function GestaoPromocoes({ abrirAlerta }) {
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <CabecalhoPagina
-        titulo="Promoções"
+        titulo="Fidelidade e promoções"
         subtitulo="Programa de fidelidade e cupom relâmpago para os dias de movimento fraco."
-      />
+      >
+        <button type="submit" form="form-promocoes" disabled={salvando} className="fw-btn-primario">
+          {salvando ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />} {salvando ? 'Salvando...' : 'Salvar configuração'}
+        </button>
+      </CabecalhoPagina>
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         {indicadores.map(i => (
@@ -232,7 +236,7 @@ export default function GestaoPromocoes({ abrirAlerta }) {
         </div>
       </Secao>
 
-      <form onSubmit={salvar} className="grid items-start gap-6 lg:grid-cols-2">
+      <form id="form-promocoes" onSubmit={salvar} className="grid items-start gap-6 lg:grid-cols-2">
         <Secao titulo="Fidelidade" subtitulo="A cada N visitas concluídas o cliente ganha um cupom." icone={Award}>
           <div className="space-y-4">
             <Interruptor ligado={form.fidelidade_ativa} aoMudar={(v) => mudar('fidelidade_ativa', v)} rotulo="Programa de fidelidade ligado" />
@@ -266,11 +270,6 @@ export default function GestaoPromocoes({ abrirAlerta }) {
           </div>
         </Secao>
 
-        <div className="flex justify-end lg:col-span-2">
-          <button type="submit" disabled={salvando} className="fw-btn-primario px-6">
-            {salvando ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />} Salvar configuração
-          </button>
-        </div>
       </form>
 
       <div className="grid items-start gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
