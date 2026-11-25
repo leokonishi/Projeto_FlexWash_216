@@ -1,14 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Clock, CalendarOff } from 'lucide-react';
 import { apiFetch, API_URL } from '../../utils/api';
+import { hojeLocal, formatarDataBr } from '../../utils/datas';
 
-// Data de hoje no fuso do navegador (toISOString usaria UTC e, à noite, já mostraria o dia seguinte)
-export const hojeLocal = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
-// AAAA-MM-DD -> DD/MM/AAAA
 // 'AAAA-MM-DD' + n dias
 const somarDias = (dataIso, n) => {
     const [a, m, d] = dataIso.split('-').map(Number);
@@ -18,12 +12,6 @@ const somarDias = (dataIso, n) => {
 
 // Quantos dias à frente a tela pula sozinha procurando o primeiro dia com vaga
 const DIAS_PULO_AUTOMATICO = 14;
-
-export const formatarDataBr = (dataIso) => {
-    if (!dataIso) return '';
-    const [ano, mes, dia] = dataIso.split('-');
-    return `${dia}/${mes}/${ano}`;
-};
 
 // Data + grade de horários com as vagas de GET /api/agendamentos/horarios.
 // `ocupadosNoPedido` (Map 'HH:MM' -> n) desconta as vagas que outros carros deste mesmo

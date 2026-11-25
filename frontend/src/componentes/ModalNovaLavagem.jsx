@@ -112,11 +112,12 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
           const todosFunc = Array.isArray(jsonFunc) ? jsonFunc : (jsonFunc.dados || []);
           setFuncionarios(todosFunc.filter(f => f.perfil === 'funcionario' || f.perfil === 'Funcionário'));
         }
-      } catch (error) {
+      } catch {
         abrirAlerta?.('Erro', 'Falha ao carregar dados do sistema.', () => {}, 'erro');
       }
     };
     buscarDadosIniciais();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- carrega uma vez, ao abrir o modal
   }, []);
 
   // 2. Quando seleciona um cliente, busca os veículos dele

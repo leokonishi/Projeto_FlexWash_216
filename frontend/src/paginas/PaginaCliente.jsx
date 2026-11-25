@@ -100,6 +100,7 @@ export default function PaginaCliente() {
 
   useEffect(() => {
     buscarDadosClienteBackend();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- carrega ao abrir a tela
   }, [navigate]);
 
   // Acompanhamento em tempo real: o status do carro muda sozinho na tela (a cada 15 s

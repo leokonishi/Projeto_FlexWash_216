@@ -43,6 +43,7 @@ export default function Comissoes({ abrirAlerta }) {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- busca de novo só quando o período muda
   useEffect(() => { buscar(); }, [periodo.inicio, periodo.fim]);
 
   const salvarEquipe = async (ids) => {

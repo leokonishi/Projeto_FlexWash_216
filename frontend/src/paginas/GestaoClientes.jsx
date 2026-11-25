@@ -55,6 +55,7 @@ export default function GestaoClientes({ abrirAlerta }) {
   // Dispara a busca quando a tela abre pela primeira vez
   useEffect(() => {
     buscarClientes(verInativos);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- busca de novo só ao trocar ativos/inativos
   }, [verInativos]);
 
   // Link por e-mail para o cliente criar ou trocar a senha do app

@@ -105,7 +105,7 @@ export default function EscolhaVeiculoCliente({ veiculosIniciais = [], aoAvancar
             } else {
                 setErroCadastro(json.erro || 'Erro ao cadastrar veículo.');
             }
-        } catch (erro) {
+        } catch {
             setErroCadastro('Erro de conexão ao salvar o veículo.');
         } finally {
             salvandoRef.current = false;

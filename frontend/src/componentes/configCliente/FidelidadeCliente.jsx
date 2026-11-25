@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Award, Check, Zap, Ticket, Copy } from 'lucide-react';
 import { apiFetch, API_URL } from '../../utils/api';
 import { obterSessao } from '../../utils/sessao';
-import { hojeLocal } from './SeletorDataHorario';
+import { hojeLocal } from '../../utils/datas';
 
 const dataBr = (texto) => {
   if (!texto) return '';

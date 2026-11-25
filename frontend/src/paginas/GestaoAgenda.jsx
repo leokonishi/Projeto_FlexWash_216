@@ -32,6 +32,7 @@ export default function GestaoAgenda({ abrirAlerta }) {
       if (res.ok) aplicar(json);
       else abrirAlerta?.('Atenção', json.erro || 'Não foi possível carregar a agenda.', () => {}, 'erro');
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- carrega uma vez, ao abrir a aba
   }, []);
 
   const enviar = async (url, metodo, corpo) => {

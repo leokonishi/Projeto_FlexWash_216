@@ -3,7 +3,8 @@ import { MapPin, Car, Check, Truck, Loader2, Ticket, X } from 'lucide-react';
 import ModalPasso from '../ui/ModalPasso';
 import { apiFetch, API_URL } from '../../utils/api';
 import { formatarMoeda, precoCentavos } from '../../utils/precos';
-import SeletorDataHorario, { hojeLocal, formatarDataBr } from './SeletorDataHorario';
+import SeletorDataHorario from './SeletorDataHorario';
+import { hojeLocal, formatarDataBr } from '../../utils/datas';
 
 // Passo 4 do agendamento: data, horário, endereço, resumo e confirmação.
 // No leva e traz, `levaTras` é a avaliação feita no passo 3 (endereço de busca,
