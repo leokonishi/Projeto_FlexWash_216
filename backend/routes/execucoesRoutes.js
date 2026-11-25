@@ -376,15 +376,29 @@ router.get('/execucoes/entregas', async (req, res) => {
 });
 
 // 4. EXCLUIR SERVIÇO DO PÁTIO (DELETE) - Apenas Administrador
+// Serviço finalizado não é apagado: ele já conta no faturamento e nas comissões.
+// Cada exclusão fica registrada no log do servidor (Render > Logs), com quem excluiu.
 router.delete('/execucoes/:id', async (req, res) => {
     try {
-        const [[execucao]] = await db.execute('SELECT agendamento_id FROM execucoes WHERE id = ?', [req.params.id]);
+        const [[execucao]] = await db.execute(
+            `SELECT e.agendamento_id, e.status, e.valor_total, c.nome AS cliente_nome, v.placa
+               FROM execucoes e JOIN clientes c ON c.id = e.cliente_id JOIN veiculos v ON v.id = e.veiculo_id
+              WHERE e.id = ?`,
+            [req.params.id]
+        );
         if (!execucao) {
             return res.status(404).json({ erro: 'Serviço não encontrado. Atualize a tela.' });
+        }
+        if (execucao.status === 'Finalizado') {
+            return res.status(409).json({
+                erro: 'Serviço finalizado não pode ser apagado: ele já conta no faturamento e nas comissões. Se foi concluído por engano, use "Reabrir" no Histórico.'
+            });
         }
         // execucao_extras e execucao_funcionarios saem junto (ON DELETE CASCADE).
         // A contagem de fidelidade é recalculada pelo trigger do banco.
         await db.execute('DELETE FROM execucoes WHERE id = ?', [req.params.id]);
+        const quem = req.usuarioLogado;
+        console.log(`[auditoria] Serviço #${req.params.id} (${execucao.status}, ${execucao.cliente_nome}, placa ${execucao.placa}, R$ ${execucao.valor_total}) excluído por ${quem.nome || quem.email} (id ${quem.id}).`);
         // Sem nenhum carro sobrando no agendamento, o cupom usado nele volta para o cliente
         await estornarCuponsSeVazio(db, execucao.agendamento_id);
         res.status(200).json({ mensagem: 'Serviço removido!' });

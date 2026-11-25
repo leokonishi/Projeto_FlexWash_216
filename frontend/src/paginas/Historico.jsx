@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, FileSpreadsheet, FileText, History as HistoryIcon, RotateCcw, Pencil, Search } from 'lucide-react';
+import { FileSpreadsheet, FileText, History as HistoryIcon, RotateCcw, Pencil, Search } from 'lucide-react';
 import CabecalhoPagina, { Secao } from '../componentes/ui/CabecalhoPagina';
 import { apiFetch, API_URL } from '../utils/api';
 import ModalEquipe from '../componentes/ModalEquipe';
@@ -101,29 +101,6 @@ export default function Historico({ abrirAlerta }) {
       abrirAlerta('Não foi possível salvar', json.erro || 'Erro ao salvar a equipe.', () => {}, 'erro');
     }
     buscarHistorico();
-  };
-
-  const handleExcluirRegistro = (id) => {
-    if (abrirAlerta) {
-      abrirAlerta(
-        'Apagar registro',
-        `Tem certeza que deseja apagar este histórico (#${id})? Esta ação não pode ser desfeita.`,
-        async () => {
-          try {
-            const resposta = await apiFetch(`${API_URL}/api/execucoes/${id}`, { method: 'DELETE' });
-            if (resposta.ok) {
-              setHistorico(prev => prev.filter(item => item.id !== id));
-            } else {
-              const json = await resposta.json().catch(() => ({}));
-              abrirAlerta('Não foi possível apagar', json.erro || json.mensagem || 'Erro ao apagar o registro.', () => {}, 'erro');
-            }
-          } catch {
-            abrirAlerta('Erro', 'Falha na conexão com o servidor.', () => {}, 'erro');
-          }
-        },
-        'perigo'
-      );
-    }
   };
 
   // Exporta a lista filtrada em CSV (abre no Excel). Separador ";" e BOM para os acentos.
@@ -234,7 +211,6 @@ export default function Historico({ abrirAlerta }) {
                     <span className="flex shrink-0 items-center">
                       <button onClick={() => setEditandoEquipe(item)} className="grid size-9 place-items-center rounded-lg text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" aria-label="Corrigir equipe"><Pencil size={15} /></button>
                       <button onClick={() => reabrir(item)} className="grid size-9 place-items-center rounded-lg text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" aria-label="Reabrir serviço"><RotateCcw size={15} /></button>
-                      <button className="fw-btn-perigo" onClick={() => handleExcluirRegistro(item.id)} aria-label="Apagar do histórico"><Trash2 size={15} /></button>
                     </span>
                   )}
                 </div>
@@ -290,9 +266,6 @@ export default function Historico({ abrirAlerta }) {
                       <td className="whitespace-nowrap text-right">
                         <button className="mr-1 inline-grid size-9 place-items-center rounded-lg text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" onClick={() => reabrir(item)} title="Reabrir (finalizado por engano)" aria-label="Reabrir serviço">
                           <RotateCcw size={16} />
-                        </button>
-                        <button className="fw-btn-perigo" onClick={() => handleExcluirRegistro(item.id)} title="Apagar do histórico" aria-label="Apagar do histórico">
-                          <Trash2 size={16} />
                         </button>
                       </td>
                     )}

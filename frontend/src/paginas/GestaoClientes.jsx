@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import BotaoWhatsApp from '../componentes/ui/BotaoWhatsApp';
+import { primeiroNome } from '../utils/whatsapp';
 import { Search, Edit2, Trash2, Car, UserPlus, Users, Check, Mail, RotateCcw, ShieldOff } from 'lucide-react';
 import CabecalhoPagina, { Secao } from '../componentes/ui/CabecalhoPagina';
 import { aplicarMascaraCPF, aplicarMascaraTelefone, aplicarMascaraPlaca, aplicarMascaraEmail, validarContato } from '../utils/mascaras';
@@ -322,13 +324,16 @@ export default function GestaoClientes({ abrirAlerta }) {
                           <span className="grid size-9 shrink-0 place-items-center rounded-full bg-marca-50 text-xs font-bold text-marca-700">{iniciais(cliente.nome)}</span>
                           <div className="min-w-0">
                             <p className="truncate font-semibold text-tinta-900">{cliente.nome}</p>
-                            <p className="text-xs text-tinta-500">{cliente.cpf}</p><p className="text-xs text-tinta-500 sm:hidden">{cliente.telefone}</p>
+                            <p className="text-xs text-tinta-500">{cliente.cpf}</p><p className="flex items-center gap-1 text-xs text-tinta-500 sm:hidden">{cliente.telefone}{!verInativos && <BotaoWhatsApp compacto telefone={cliente.telefone} className="-my-2" mensagem={`Olá, ${primeiroNome(cliente.nome)}! Aqui é do lava-rápido.`} />}</p>
                             {verInativos && <p className="text-xs font-medium text-ouro-600">Inativo desde {dataCurta(cliente.inativado_em)}</p>}
                           </div>
                         </div>
                       </td>
                       <td className="hidden sm:table-cell">
-                        <p className="whitespace-nowrap font-medium text-tinta-800">{cliente.telefone}</p>
+                        <p className="flex items-center gap-1 whitespace-nowrap font-medium text-tinta-800">
+                          {cliente.telefone}
+                          {!verInativos && <BotaoWhatsApp compacto telefone={cliente.telefone} className="-my-1.5" mensagem={`Olá, ${primeiroNome(cliente.nome)}! Aqui é do lava-rápido.`} />}
+                        </p>
                         {cliente.email && <p className="text-xs text-tinta-500">{cliente.email}</p>}
                       </td>
                       <td className="hidden max-w-[240px] truncate text-xs text-tinta-500 2xl:table-cell">{cliente.endereco || '—'}</td>
