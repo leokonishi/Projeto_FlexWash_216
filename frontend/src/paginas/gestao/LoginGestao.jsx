@@ -29,6 +29,30 @@ export default function LoginGestao() {
   useEffect(() => { try { sessionStorage.removeItem('aviso_login'); } catch { /* sem storage */ } }, []);
   const navigate = useNavigate();
 
+  // "Esqueci minha senha": manda o link de troca para o e-mail
+  const [modoLink, setModoLink] = useState(false);
+  const [linkEnviado, setLinkEnviado] = useState('');
+  const pedirLink = async (e) => {
+    e.preventDefault();
+    setErro('');
+    setEnviando(true);
+    try {
+      const resposta = await fetch(`${API_URL}/api/acesso/equipe/link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const resultado = await resposta.json().catch(() => ({}));
+      if (resposta.ok) setLinkEnviado(resultado.mensagem || 'Se este e-mail for da equipe, enviamos o link.');
+      else setErro(resultado.mensagem || 'Não foi possível enviar o link.');
+    } catch {
+      setErro('Não foi possível conectar ao servidor.');
+    } finally {
+      setEnviando(false);
+    }
+  };
+  const alternarModoLink = (ligar) => { setModoLink(ligar); setErro(''); setLinkEnviado(''); };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setErro('');
@@ -42,7 +66,7 @@ export default function LoginGestao() {
         body: JSON.stringify({ email, senha, perfil: perfilSelecionado })
       });
 
-      const resultado = await resposta.json();
+      const resultado = await resposta.json().catch(() => ({}));
 
       if (!resposta.ok) {
         throw new Error(resultado.mensagem || 'Erro ao realizar login.');
@@ -63,7 +87,7 @@ export default function LoginGestao() {
       navigate('/gestao');
 
     } catch (err) {
-      setErro(err.message);
+      setErro(err.message === 'Failed to fetch' ? 'Não foi possível conectar ao servidor.' : err.message);
     } finally {
       setEnviando(false);
     }
@@ -78,6 +102,31 @@ export default function LoginGestao() {
       destaques={DESTAQUES_EQUIPE}
       rodape={<>É cliente? <Link to="/cliente/login" className="font-semibold text-marca-600 hover:text-marca-700">Entrar na área do cliente</Link></>}
     >
+      {modoLink ? (
+        <form onSubmit={pedirLink} className="space-y-4">
+          <p className="text-sm text-tinta-600">Informe o e-mail da sua conta. Enviaremos um link para criar uma nova senha.</p>
+          {erro && <div className="fw-alerta-erro" role="alert">{erro}</div>}
+          {linkEnviado && <div className="fw-alerta-sucesso" role="status">{linkEnviado}</div>}
+          <div>
+            <label htmlFor="gestao-email-link" className="fw-label">E-mail</label>
+            <input
+              id="gestao-email-link"
+              type="email"
+              required
+              autoComplete="username"
+              className="fw-input"
+              value={email}
+              onChange={(e) => setEmail(aplicarMascaraEmail(e.target.value))}
+            />
+          </div>
+          <button type="submit" disabled={enviando} className="fw-btn-escuro h-12 w-full text-[15px]">
+            {enviando ? <Loader2 size={18} className="animate-spin" /> : 'Enviar link'}
+          </button>
+          <button type="button" onClick={() => alternarModoLink(false)} className="w-full text-sm font-semibold text-marca-600 hover:text-marca-700">
+            Voltar para o login
+          </button>
+        </form>
+      ) : (
       <form onSubmit={handleLogin} className="space-y-4">
         <div>
           <span className="fw-label">Perfil de acesso</span>
@@ -140,7 +189,11 @@ export default function LoginGestao() {
         <button type="submit" disabled={enviando} className="fw-btn-escuro mt-2 h-12 w-full text-[15px]">
           {enviando ? <Loader2 size={18} className="animate-spin" /> : <>Acessar painel <ArrowRight size={18} /></>}
         </button>
+        <button type="button" onClick={() => alternarModoLink(true)} className="w-full text-sm font-semibold text-marca-600 hover:text-marca-700">
+          Esqueci minha senha
+        </button>
       </form>
+      )}
     </LayoutAcesso>
   );
 }

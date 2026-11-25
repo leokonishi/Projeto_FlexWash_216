@@ -7,6 +7,7 @@ const { JWT_SECRET } = require('../config/jwt');
 const { ErroNegocio } = require('../services/erros');
 const acesso = require('../services/acessoCliente');
 const limite = require('../services/limiteLogin');
+const { emailsPublicos } = require('../services/limitePorIp');
 
 // Token de sessão do cliente (o 'id' é usado para restringir o acesso aos próprios dados)
 function sessaoDoCliente(cliente) {
@@ -75,7 +76,7 @@ router.post('/login/cliente', async (req, res) => {
 // A resposta é sempre a mesma, exista ou não o e-mail (não revela quem é cliente).
 const ultimoEnvio = new Map(); // e-mail -> horário (evita disparar vários e-mails seguidos)
 const INTERVALO_MS = 60 * 1000;
-router.post('/acesso/link', async (req, res) => {
+router.post('/acesso/link', emailsPublicos.middleware, async (req, res) => {
     const email = String(req.body?.email || '').trim().toLowerCase();
     if (!email) return res.status(400).json({ sucesso: false, mensagem: 'Informe o e-mail.' });
     const resposta = { sucesso: true, mensagem: 'Se este e-mail estiver cadastrado, enviamos um link para criar a senha. Confira também o spam.' };
@@ -86,7 +87,8 @@ router.post('/acesso/link', async (req, res) => {
 
     try {
         const [[cliente]] = await db.execute('SELECT id, nome, email, senha FROM clientes WHERE email = ? AND ativo = 1 LIMIT 1', [email]);
-        if (cliente) await acesso.enviarLink(cliente);
+        // Falha no envio não muda a resposta: senão a diferença revelaria quem é cliente
+        if (cliente) await acesso.enviarLink(cliente).catch((erro) => console.error('Erro ao enviar o link de acesso:', erro.message));
         res.status(200).json(resposta);
     } catch (erro) {
         responderErro(res, erro, 'Erro ao enviar o link de acesso:');

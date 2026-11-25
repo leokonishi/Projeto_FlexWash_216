@@ -1,6 +1,6 @@
 import React, { useState, useRef, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LayoutGrid, Users, History, Package, Truck, UserCog, LogOut, Ticket, Wallet, CalendarDays, CheckCircle2, X } from 'lucide-react';
+import { LayoutGrid, Users, History, Package, Truck, UserCog, LogOut, Ticket, Wallet, CalendarDays, CheckCircle2, X, KeyRound } from 'lucide-react';
 
 // Importação dos Componentes Filhos (Padrão de Arquitetura Limpa)
 import DashboardInicio from '../componentes/DashboardInicio';
@@ -14,6 +14,7 @@ import Historico from './Historico';
 import Comissoes from './Comissoes';
 import GestaoAgenda from './GestaoAgenda';
 import ModalConfirmacao from '../componentes/ModalConfirmacao';
+import ModalMinhaSenha from '../componentes/ModalMinhaSenha';
 import Logo from '../componentes/ui/Logo';
 import { obterPerfil, obterSessao, encerrarSessao } from '../utils/sessao';
 
@@ -48,6 +49,7 @@ export default function PaginaAdmin() {
   // tipo: 'aviso' e 'perigo' pedem confirmação; 'info' e 'erro' só informam (botão OK);
   // 'sucesso' vira um aviso no canto que some sozinho, sem travar o trabalho.
   const [toast, setToast] = useState(null);
+  const [trocandoSenha, setTrocandoSenha] = useState(false);
   const timerToast = useRef(null);
   const mostrarToast = (mensagem) => {
     clearTimeout(timerToast.current);
@@ -132,6 +134,9 @@ export default function PaginaAdmin() {
             <p className="truncate text-sm font-semibold text-tinta-900" title={nomeUsuario}>{nomeUsuario}</p>
             <p className="truncate text-xs text-tinta-500">{ehAdmin ? 'Administrador' : 'Operador de pátio'}</p>
           </div>
+          <button onClick={() => setTrocandoSenha(true)} className="grid size-8 place-items-center rounded-lg text-tinta-400 hover:bg-white hover:text-tinta-900" aria-label="Trocar minha senha" title="Trocar minha senha">
+            <KeyRound size={17} />
+          </button>
           <button onClick={handleLogout} className="grid size-8 place-items-center rounded-lg text-tinta-400 hover:bg-white hover:text-tinta-900" aria-label="Sair" title="Sair">
             <LogOut size={17} />
           </button>
@@ -148,6 +153,7 @@ export default function PaginaAdmin() {
               <span className="max-w-40 truncate rounded-full bg-tinta-100 px-2.5 py-1 text-xs font-semibold text-tinta-600" title={ehAdmin ? 'Administrador' : 'Operador de pátio'}>
                 {sessao?.nome ? sessao.nome.split(' ')[0] : ehAdmin ? 'Administrador' : 'Operador'}
               </span>
+              <button onClick={() => setTrocandoSenha(true)} className="fw-btn-fantasma h-9 px-2" aria-label="Trocar minha senha"><KeyRound size={18} /></button>
               <button onClick={handleLogout} className="fw-btn-fantasma h-9 px-2" aria-label="Sair"><LogOut size={18} /></button>
             </div>
           </div>
@@ -197,6 +203,8 @@ export default function PaginaAdmin() {
         soAviso={alerta.soAviso}
         textoConfirmar={alerta.soAviso ? 'OK' : 'Confirmar'}
       />
+
+      <ModalMinhaSenha aberto={trocandoSenha} fechar={() => setTrocandoSenha(false)} aoTrocar={mostrarToast} />
 
       {/* Aviso de sucesso: some sozinho */}
       {toast && (

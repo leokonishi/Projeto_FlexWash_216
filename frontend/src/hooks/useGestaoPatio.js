@@ -21,10 +21,7 @@ export function useGestaoPatio(abrirAlerta) {
   const mudandoStatusRef = useRef(new Set()); // ids com mudança de status em andamento (evita clique duplo)
 
 
-  const alertar = (tit, msg, func, tipo) => {
-    if (abrirAlerta) abrirAlerta(tit, msg, func, tipo);
-    else alert(`${tit}: ${msg}`);
-  };
+  const alertar = (tit, msg, func, tipo) => abrirAlerta?.(tit, msg, func, tipo);
 
   // silencioso: atualização automática, sem girar o botão nem trocar a tela
   const buscarDadosDoPatio = async ({ silencioso = false } = {}) => {

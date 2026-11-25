@@ -11,6 +11,7 @@ import Historico from './paginas/Historico';
 import LoginGestao from './paginas/gestao/LoginGestao';
 import EsqueletoAdmin from './paginas/pagina_admin'; // Este é o seu painel principal
 import RotaProtegida from './rotas_protegidas';
+import AvisoServidor from './componentes/ui/AvisoServidor';
 
 // Endereços antigos continuam funcionando: redireciona mantendo ?query e #hash
 // (ex.: link de "definir senha" já enviado ao cliente com ?token=...).
@@ -22,6 +23,7 @@ function Redirecionar({ para }) {
 export default function App() {
   return (
     <BrowserRouter>
+      <AvisoServidor />
       <Routes>
         <Route path="/" element={<Navigate to="/cliente" replace />} />
 
@@ -48,6 +50,7 @@ export default function App() {
           }
         />
         <Route path="/gestao/login" element={<LoginGestao />} />
+        <Route path="/gestao/definir-senha" element={<DefinirSenha area="equipe" />} />
         <Route
           path="/gestao/historico"
           element={
