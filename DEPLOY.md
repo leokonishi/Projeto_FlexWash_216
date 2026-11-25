@@ -86,3 +86,10 @@ a faixa "Ligando o servidor…" enquanto isso. Para mantê-lo acordado, um monit
 (ex.: cron-job.org ou UptimeRobot) pode chamar `https://flexwash-api.onrender.com/api/saude` a
 cada 10 min. As 750 h grátis por mês só cobrem **um** serviço ligado o tempo todo: apague
 serviços duplicados antes.
+
+## 9. WhatsApp da loja (botão "Fale conosco" do cliente)
+
+No Static Site do Render, em **Environment**, crie `VITE_WHATSAPP_LOJA` com o número da loja com
+DDD, só números (ex.: `11999998888`), e faça um novo deploy (o valor entra no build). Sem essa
+variável o botão não aparece. Os botões de WhatsApp da equipe usam o telefone de cada cliente e
+não precisam de configuração.

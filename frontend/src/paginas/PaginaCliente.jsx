@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, CalendarPlus, CalendarClock, Car, Droplets, Sparkles, CheckCircle2, ParkingSquare, History, CalendarX, Truck } from 'lucide-react';
+import { LogOut, CalendarPlus, CalendarClock, Car, Droplets, Sparkles, CheckCircle2, ParkingSquare, History, CalendarX, Truck, MessageCircle } from 'lucide-react';
+import { WHATSAPP_LOJA, linkWhatsApp } from '../utils/whatsapp';
 import EscolhaServicoCliente from '../componentes/configCliente/EscolhaServicoCliente';
 import EscolhaVeiculoCliente from '../componentes/configCliente/EscolhaVeiculoCliente';
 import EscolhaLevaTrasCliente from '../componentes/configCliente/EscolhaLevaTrasCliente';
@@ -300,6 +301,12 @@ export default function PaginaCliente() {
             <span className="grid size-9 place-items-center rounded-full bg-linear-to-br from-marca-500 to-verde-500 text-sm font-bold text-white ring-2 ring-white">
               {inicial}
             </span>
+            {WHATSAPP_LOJA && (
+              <a href={linkWhatsApp(WHATSAPP_LOJA, `Olá! Sou ${nomeNoTopo || 'cliente'} e tenho uma dúvida.`)} target="_blank" rel="noopener noreferrer"
+                className="fw-btn-fantasma h-9 text-[#128C4A]" aria-label="Falar com a loja no WhatsApp" title="Falar com a loja no WhatsApp">
+                <MessageCircle size={18} /><span className="hidden sm:inline">Fale conosco</span>
+              </a>
+            )}
             <button onClick={lidarComLogout} className="fw-btn-fantasma h-9" aria-label="Sair">
               <LogOut size={18} /><span className="hidden sm:inline">Sair</span>
             </button>

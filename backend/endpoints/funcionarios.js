@@ -58,10 +58,14 @@ router.get('/funcionarios', async (req, res) => {
     if (req.query.todos === '1') situacao = 'todos';
     else if (req.query.inativos === '1' && req.usuarioLogado?.perfil === 'administrador') situacao = 'inativos';
     const lista = await FuncionarioDB.listarApenasFuncionarios(situacao);
-    const listaFormatada = lista.map((item) => ({
-      ...item,
-      funcoes: item.funcoes ? item.funcoes.split(',').map((f) => f.trim()) : []
-    }));
+    // CPF, e-mail e telefone dos colegas só para o administrador. A equipe recebe só o que
+    // usa nas telas (nome para escolher quem lavou ou quem dirige, e as funções).
+    const ehAdmin = req.usuarioLogado?.perfil === 'administrador';
+    const listaFormatada = lista.map((item) => {
+      const funcoes = item.funcoes ? item.funcoes.split(',').map((f) => f.trim()) : [];
+      if (ehAdmin) return { ...item, funcoes };
+      return { id: item.id, nome: item.nome, perfil: item.perfil, ativo: item.ativo, funcoes };
+    });
 
     return res.status(200).json({ sucesso: true, dados: listaFormatada });
   } catch (erro) {

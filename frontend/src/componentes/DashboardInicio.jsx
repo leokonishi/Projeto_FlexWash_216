@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import BotaoWhatsApp from './ui/BotaoWhatsApp';
 import { Plus, Car, CalendarClock, ParkingSquare, Droplets, Wallet, Truck, Trash2, ArrowRight, CheckCircle2, User, Users, Pencil, RefreshCw, CalendarX, Undo2, PackageCheck, MapPin, Phone } from 'lucide-react';
 import ModalNovaLavagem from '../componentes/ModalNovaLavagem';
 import ModalEquipe from '../componentes/ModalEquipe';
@@ -35,6 +36,15 @@ const ETAPA_LOGISTICA = {
   entregue: { texto: 'Entregue', cor: 'bg-verde-100 text-verde-800' },
 };
 const primeiroNome = (nome) => String(nome || '').split(' ')[0];
+
+// Mensagem pronta do WhatsApp para o cliente de um carro do pátio
+function mensagemPatio(item, agendado, atraso) {
+  const carro = `${item.marca} ${item.modelo} (${item.placa})`;
+  const ola = `Olá, ${primeiroNome(item.cliente_nome)}! Aqui é do lava-rápido.`;
+  if (item.status === 'Agendado' && atraso > 0) return `${ola} O horário do ${carro} era às ${agendado?.hora}. Você ainda vem hoje?`;
+  if (item.status === 'Agendado') return `${ola} Lembrando do horário do ${carro} hoje às ${agendado?.hora}.`;
+  return `${ola} Sobre o ${carro}:`;
+}
 
 const horaDe = (dataIso) => (dataIso ? new Date(dataIso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '');
 
@@ -149,7 +159,10 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
         )}
 
         <div className="mt-3 space-y-1.5 text-sm">
-          <p className="flex items-center gap-2 text-tinta-700"><User size={14} className="shrink-0 text-tinta-400" /><span className="truncate">{item.cliente_nome}</span></p>
+          <p className="flex items-center gap-2 text-tinta-700">
+            <User size={14} className="shrink-0 text-tinta-400" /><span className="truncate">{item.cliente_nome}</span>
+            <BotaoWhatsApp compacto telefone={item.cliente_telefone} className="-my-1.5 ml-auto" mensagem={mensagemPatio(item, agendado, atraso)} />
+          </p>
           <p className="text-tinta-900">
             <span className="font-medium">{item.pacote_nome || 'Sem pacote'}</span>
             {item.servicos_extras && <span className="text-verde-700"> + {item.servicos_extras}</span>}
@@ -349,7 +362,13 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
                   </p>
                   <p className="text-tinta-700">{e.carros.join(', ')}</p>
                   <p className="flex items-start gap-1.5 text-xs text-tinta-500"><MapPin size={13} className="mt-px shrink-0" />{e.endereco_busca}</p>
-                  {e.cliente_telefone && <p className="flex items-center gap-1.5 text-xs text-tinta-500"><Phone size={13} className="shrink-0" />{e.cliente_telefone}</p>}
+                  {e.cliente_telefone && (
+                    <p className="flex items-center gap-1.5 text-xs text-tinta-500">
+                      <Phone size={13} className="shrink-0" />{e.cliente_telefone}
+                      <BotaoWhatsApp compacto telefone={e.cliente_telefone}
+                        mensagem={`Olá, ${primeiroNome(e.cliente_nome)}! Seu carro está pronto e logo sai para a entrega.`} className="-my-1.5" />
+                    </p>
+                  )}
                 </div>
                 {e.logistica_status === 'coletado' ? (
                   <button
@@ -407,7 +426,9 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
                         : <span className="text-xs text-tinta-500">Cliente leva</span>}
                     </div>
                     {podeOperar && (
-                      <div className="flex shrink-0 gap-1">
+                      <div className="flex shrink-0 items-center gap-1">
+                        <BotaoWhatsApp compacto telefone={item.cliente_telefone} className="size-9"
+                          mensagem={`Olá, ${primeiroNome(item.cliente_nome)}! Aqui é do lava-rápido, sobre o agendamento do ${item.marca} ${item.modelo} em ${agendado?.data} às ${agendado?.hora}.`} />
                         <button onClick={() => cancelarAgendamento(item)} className="grid size-9 place-items-center rounded-lg text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" title="Cancelar agendamento" aria-label="Cancelar agendamento">
                           <CalendarX size={17} />
                         </button>
