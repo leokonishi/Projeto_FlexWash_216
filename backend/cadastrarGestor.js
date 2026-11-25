@@ -5,11 +5,15 @@ const nome = 'Nome do Dono'; // Coloque o nome real do dono
 const cpf = '123.456.789-00'; // CPF único do gestor
 const email = 'dono@flexwash.com'; // E-mail que ele vai usar para logar
 const telefone = '(11) 99999-9999'; // Telefone de contato
-const senhaPura = 'senha123'; // Senha inicial provisória
+// Senha inicial: nunca fica no código. Rode assim (PowerShell):
+//   $env:SENHA_GESTOR="umaSenhaForte123"; node cadastrarGestor.js
+// Depois de entrar, dá para trocar pelo ícone de chave no painel.
+const senhaPura = process.env.SENHA_GESTOR || '';
 const perfil = 'administrador';
 
 async function inserirGestor() {
   try {
+    require('./services/validacao').senha(senhaPura); // mínimo 8 caracteres, com letras e números
     const senhaHash = await bcrypt.hash(senhaPura, 10);
     const sql = 'INSERT INTO funcionarios (nome, cpf, email, telefone, senha, perfil) VALUES (?, ?, ?, ?, ?, ?)';
     await db.execute(sql, [nome, cpf, email, telefone, senhaHash, perfil]);

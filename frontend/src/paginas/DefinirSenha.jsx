@@ -6,13 +6,18 @@ import { REGRA_SENHA, senhaValida } from '../utils/mascaras';
 import { API_URL } from '../utils/api';
 
 
-// Aberta pelo link do e-mail: o cliente cria (primeiro acesso) ou troca a senha e já entra.
-export default function DefinirSenha() {
+// Aberta pelo link do e-mail.
+// Cliente: cria (primeiro acesso) ou troca a senha e já entra.
+// Equipe (area="equipe"): troca a senha e volta para o login da gestão.
+export default function DefinirSenha({ area = 'cliente' }) {
+  const ehEquipe = area === 'equipe';
+  const rotaApi = `${API_URL}/api/acesso${ehEquipe ? '/equipe' : ''}`;
+  const rotaLogin = ehEquipe ? '/gestao/login' : '/cliente/login';
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const token = params.get('token') || '';
 
-  const [estado, setEstado] = useState('carregando'); // carregando | pronto | invalido
+  const [estado, setEstado] = useState('carregando'); // carregando | pronto | invalido | concluido
   const [info, setInfo] = useState({ nome: '', primeiro_acesso: true });
   const [senha, setSenha] = useState('');
   const [confirmacao, setConfirmacao] = useState('');
@@ -23,7 +28,7 @@ export default function DefinirSenha() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${API_URL}/api/acesso/link?token=${encodeURIComponent(token)}`);
+        const res = await fetch(`${rotaApi}/link?token=${encodeURIComponent(token)}`);
         const json = await res.json().catch(() => ({}));
         if (res.ok) {
           setInfo(json);
@@ -37,7 +42,7 @@ export default function DefinirSenha() {
         setEstado('invalido');
       }
     })();
-  }, [token]);
+  }, [token, rotaApi]);
 
   const salvar = async (e) => {
     e.preventDefault();
@@ -46,13 +51,15 @@ export default function DefinirSenha() {
     if (senha !== confirmacao) return setErro('As duas senhas não são iguais.');
     setEnviando(true);
     try {
-      const res = await fetch(`${API_URL}/api/acesso/senha`, {
+      const res = await fetch(`${rotaApi}/senha`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, senha }),
       });
       const json = await res.json().catch(() => ({}));
-      if (res.ok && json.token) {
+      if (res.ok && ehEquipe) {
+        setEstado('concluido');
+      } else if (res.ok && json.token) {
         localStorage.setItem('token_flexwash', json.token);
         navigate('/cliente', { replace: true });
       } else {
@@ -74,12 +81,20 @@ export default function DefinirSenha() {
     );
   }
 
+  if (estado === 'concluido') {
+    return (
+      <LayoutAcesso titulo="Senha trocada!" subtitulo="Agora entre no painel com a nova senha.">
+        <Link to={rotaLogin} className="fw-btn-primario h-12 w-full text-[15px]">Ir para o login <ArrowRight size={18} /></Link>
+      </LayoutAcesso>
+    );
+  }
+
   if (estado === 'invalido') {
     return (
-      <LayoutAcesso titulo="Link indisponível" subtitulo="Peça um novo link na tela de login, em &quot;Primeiro acesso ou esqueci a senha&quot;.">
+      <LayoutAcesso titulo="Link indisponível" subtitulo={ehEquipe ? 'Peça um novo link na tela de login da equipe, em "Esqueci minha senha".' : 'Peça um novo link na tela de login, em "Primeiro acesso ou esqueci a senha".'}>
         <div className="space-y-4">
           <div className="fw-alerta-erro" role="alert">{erro}</div>
-          <Link to="/cliente/login" className="fw-btn-primario h-12 w-full text-[15px]">Ir para o login</Link>
+          <Link to={rotaLogin} className="fw-btn-primario h-12 w-full text-[15px]">Ir para o login</Link>
         </div>
       </LayoutAcesso>
     );
@@ -102,7 +117,7 @@ export default function DefinirSenha() {
   return (
     <LayoutAcesso
       titulo={info.primeiro_acesso ? `Olá${info.nome ? `, ${info.nome}` : ''}! Crie sua senha` : 'Crie uma nova senha'}
-      subtitulo="Depois disso você já entra na sua conta para agendar e acompanhar seu carro."
+      subtitulo={ehEquipe ? 'Depois você entra no painel com a nova senha.' : 'Depois disso você já entra na sua conta para agendar e acompanhar seu carro.'}
     >
       <form onSubmit={salvar} className="space-y-4">
         {erro && <div className="fw-alerta-erro" role="alert">{erro}</div>}
@@ -110,7 +125,7 @@ export default function DefinirSenha() {
         <p className="-mt-2 text-xs text-tinta-500">{REGRA_SENHA}</p>
         {campoSenha('confirmar-senha', 'Repita a senha', confirmacao, setConfirmacao, 'new-password')}
         <button type="submit" disabled={enviando} className="fw-btn-primario mt-2 h-12 w-full text-[15px]">
-          {enviando ? <Loader2 size={18} className="animate-spin" /> : <>Salvar e entrar <ArrowRight size={18} /></>}
+          {enviando ? <Loader2 size={18} className="animate-spin" /> : <>{ehEquipe ? 'Salvar nova senha' : 'Salvar e entrar'} <ArrowRight size={18} /></>}
         </button>
       </form>
     </LayoutAcesso>

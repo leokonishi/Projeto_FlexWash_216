@@ -67,3 +67,22 @@ Problemas comuns:
 - **Erro de CORS no console do navegador**: `CORS_ORIGIN` diferente da URL da Vercel (confira https e barra no final).
 - **`/api/saude` com `ok: false`**: variáveis `DB_*` erradas, ou o serviço da Aiven desligado (o plano gratuito desliga por inatividade; ligue de novo no painel).
 - **E-mail não chega**: veja o log do Render. `Brevo respondeu 401` é chave errada; `400` com "sender" é remetente não verificado.
+
+## 7. Proteções extras do site (opcional, no painel do Render)
+
+O site já sai do build com uma política de segurança (CSP) que só deixa rodar scripts do próprio
+site. Para também impedir que outra página abra o FlexWash dentro de um iframe, no Static Site
+do Render vá em **Settings > Headers** e adicione, no caminho `/*`:
+
+| Nome | Valor |
+| --- | --- |
+| `X-Frame-Options` | `DENY` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+
+## 8. Servidor dormindo (plano grátis)
+
+No plano grátis o backend dorme após 15 min sem uso e leva até ~1 min para voltar; o site mostra
+a faixa "Ligando o servidor…" enquanto isso. Para mantê-lo acordado, um monitor gratuito
+(ex.: cron-job.org ou UptimeRobot) pode chamar `https://flexwash-api.onrender.com/api/saude` a
+cada 10 min. As 750 h grátis por mês só cobrem **um** serviço ligado o tempo todo: apague
+serviços duplicados antes.

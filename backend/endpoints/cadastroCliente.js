@@ -7,6 +7,7 @@ const { JWT_SECRET } = require('../config/jwt');
 const validar = require('../services/validacao');
 const { ErroNegocio } = require('../services/erros');
 const acesso = require('../services/acessoCliente');
+const { cadastroPublico } = require('../services/limitePorIp');
 const { perfilAtual, esquecerUsuario } = require('../middleware/auth');
 
 // Quem está cadastrando: a própria pessoa (rota pública, sem token) ou a equipe (balcão/painel)
@@ -55,6 +56,14 @@ async function duplicadoInativo(corpo) {
 //   (Nada de senha padrão: antes era "123" e qualquer um entrava na conta.)
 const cadastrar = async (req, res) => {
     const pelaEquipe = await cadastroPelaEquipe(req);
+    // Auto-cadastro (sem login da equipe): limite por aparelho contra cadastros em massa
+    if (!pelaEquipe) {
+        const minutos = cadastroPublico.consumir(req.ip);
+        if (minutos) {
+            const mensagem = `Muitos cadastros seguidos deste aparelho. Tente de novo em ${minutos} min.`;
+            return res.status(429).json({ sucesso: false, mensagem, erro: mensagem });
+        }
+    }
     try {
         const dados = {
             nome: validar.nome(req.body.nome),

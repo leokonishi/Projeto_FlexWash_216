@@ -25,11 +25,9 @@ const ROTULO_FUNCAO = {
 const rotuloFuncao = (f) => ROTULO_FUNCAO[f] || f;
 
 export default function GestaoFuncionarios({ abrirAlerta }) {
-  // Avisos no modal do painel (cai no alert do navegador se a tela for usada fora dele)
-  // Sucesso vira aviso que some sozinho; o resto é uma mensagem com um botão OK
+  // Avisos no modal do painel. Sucesso vira aviso que some sozinho; o resto é uma mensagem com um botão OK
   const avisar = (titulo, mensagem, tipo = titulo === 'Sucesso' ? 'sucesso' : 'info') => {
-    if (abrirAlerta) abrirAlerta(titulo, mensagem, () => {}, tipo === 'perigo' ? 'erro' : tipo);
-    else alert(mensagem);
+    abrirAlerta?.(titulo, mensagem, () => {}, tipo === 'perigo' ? 'erro' : tipo);
   };
 
   // Mesma porta padrão do backend/server.js (8080) usada nas demais telas
@@ -197,19 +195,11 @@ export default function GestaoFuncionarios({ abrirAlerta }) {
   };
 
   const handleReativar = (id, nome) => {
-    if (abrirAlerta) {
-      abrirAlerta('Reativar funcionário', `${nome} volta para a equipe e pode entrar no sistema de novo, com a mesma senha.`, () => reativarNoServidor(id), 'aviso');
-    } else if (window.confirm(`Reativar ${nome}?`)) {
-      reativarNoServidor(id);
-    }
+    abrirAlerta?.('Reativar funcionário', `${nome} volta para a equipe e pode entrar no sistema de novo, com a mesma senha.`, () => reativarNoServidor(id), 'aviso');
   };
 
   const handleExcluir = (id, nome) => {
-    if (abrirAlerta) {
-      abrirAlerta('Remover funcionário', `Deseja remover ${nome}? Ele perde o acesso ao sistema na hora. Se já trabalhou em algum serviço, o cadastro fica inativo (o nome continua no histórico e nas comissões, e dá para reativar na aba "Inativos"). Se nunca trabalhou, o cadastro é apagado.`, () => excluirNoServidor(id), 'perigo');
-    } else if (window.confirm(`Deseja remover o funcionário ${nome}?`)) {
-      excluirNoServidor(id);
-    }
+    abrirAlerta?.('Remover funcionário', `Deseja remover ${nome}? Ele perde o acesso ao sistema na hora. Se já trabalhou em algum serviço, o cadastro fica inativo (o nome continua no histórico e nas comissões, e dá para reativar na aba "Inativos"). Se nunca trabalhou, o cadastro é apagado.`, () => excluirNoServidor(id), 'perigo');
   };
 
   const funcionariosFiltrados = funcionarios.filter((f) => {

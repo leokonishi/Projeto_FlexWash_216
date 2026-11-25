@@ -113,7 +113,7 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
           setFuncionarios(todosFunc.filter(f => f.perfil === 'funcionario' || f.perfil === 'Funcionário'));
         }
       } catch (error) {
-        if(abrirAlerta) abrirAlerta('Erro', 'Falha ao carregar dados do sistema.', () => {}, 'erro');
+        abrirAlerta?.('Erro', 'Falha ao carregar dados do sistema.', () => {}, 'erro');
       }
     };
     buscarDadosIniciais();
@@ -209,8 +209,7 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
   const handleConfirmar = async () => {
     if (enviandoRef.current) return;
     if (pendencia) {
-      if(abrirAlerta) abrirAlerta('Atenção', pendencia, () => {}, 'info');
-      else alert(pendencia);
+      abrirAlerta?.('Atenção', pendencia, () => {}, 'info');
       return;
     }
 
@@ -241,20 +240,17 @@ export default function ModalNovaLavagem({ fecharModal, abrirAlerta, atualizarPa
       });
 
       if (res.ok) {
-        if(abrirAlerta) abrirAlerta('Sucesso', 'Serviço iniciado no pátio!', () => {}, 'sucesso');
-        else alert('Serviço iniciado no pátio com sucesso!');
+        abrirAlerta?.('Sucesso', 'Serviço iniciado no pátio!', () => {}, 'sucesso');
         
         if (atualizarPatio) atualizarPatio(); // Recarrega a tabela do pátio
         fecharModal();
       } else {
         const erroData = await res.json();
-        if(abrirAlerta) abrirAlerta('Erro', erroData.erro || 'Falha ao iniciar.', () => {}, 'erro');
-        else alert(erroData.erro || 'Falha ao iniciar.');
+        abrirAlerta?.('Erro', erroData.erro || 'Falha ao iniciar.', () => {}, 'erro');
       }
     } catch (error) {
       console.error(error);
-      if(abrirAlerta) abrirAlerta('Erro', 'Falha de conexão com o servidor.', () => {}, 'erro');
-      else alert('Falha de conexão com o servidor.');
+      abrirAlerta?.('Erro', 'Falha de conexão com o servidor.', () => {}, 'erro');
     } finally {
       enviandoRef.current = false;
       setEnviando(false);

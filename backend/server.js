@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-const verificarToken = require('./middleware/auth');
 const { logado, equipe, soAdmin, soCliente, escolher, porMetodo } = require('./middleware/acesso');
 
 // ==========================================
@@ -40,8 +39,22 @@ const origensPermitidas = (process.env.CORS_ORIGIN || '')
   .split(',')
   .map((o) => o.trim().replace(/\/+$/, ''))
   .filter(Boolean);
+// Cabeçalhos de segurança (o mesmo que o pacote helmet faria no básico). A API só devolve JSON,
+// então pode proibir tudo: ser aberta dentro de iframe, rodar script, adivinhar o tipo do conteúdo.
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'no-referrer',
+    'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+    'Cross-Origin-Opener-Policy': 'same-origin'
+  });
+  if (req.secure) res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  next();
+});
 app.use(cors(origensPermitidas.length ? { origin: origensPermitidas } : undefined));
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 
 // Saúde do servidor: usada pelo Render (health check) e para conferir se o banco responde.
 const db = require('./bd');
@@ -59,7 +72,7 @@ app.get('/api/saude', async (req, res) => {
 // 3. CONTROLE DE ACESSO (por prefixo de URL)
 // ------------------------------------------
 // Públicas (sem token): POST /api/clientes (auto-cadastro), /api/login/cliente, /api/login-gestao,
-// /api/acesso/* (link por e-mail para criar ou trocar a senha do cliente)
+// /api/acesso/* (link por e-mail para criar ou trocar a senha do cliente e da equipe)
 // logado  = qualquer perfil autenticado
 // equipe  = funcionário + administrador
 // soAdmin = apenas administrador
@@ -107,15 +120,6 @@ app.use('/api', promocoesRoutes); // /api/admin/promocoes e /api/admin/movimento
 app.use('/api', veiculoRoutes);
 app.use('/api', agendaAdminRoutes); // /api/admin/agenda (dias, horários, vagas e feriados)
 app.use('/api', comissoesRoutes); // /api/admin/comissoes e /api/funcionario/comissoes
-
-// Rota protegida de teste
-app.get('/api/protegida', verificarToken, (req, res) => {
-  return res.status(200).json({
-    sucesso: true,
-    mensagem: 'Acesso liberado! Token válido.',
-    usuario: req.usuarioLogado
-  });
-});
 
 // ==========================================
 // 4b. ERROS GERAIS: sempre JSON, sem expor detalhes internos
