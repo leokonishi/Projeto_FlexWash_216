@@ -52,6 +52,7 @@ export default function Historico({ abrirAlerta }) {
 
   useEffect(() => {
     buscarHistorico();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- busca de novo só quando os filtros mudam
   }, [filtros]);
 
   // Lista da equipe para o filtro "Quem lavou"

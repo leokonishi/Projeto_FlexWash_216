@@ -5,7 +5,8 @@ import { useEffect, useRef } from 'react';
 // Com a aba escondida não chama nada (economiza bateria e o banco).
 export function useAtualizacaoAutomatica(atualizar, intervaloMs = 20000, ativo = true) {
   const ref = useRef(atualizar);
-  ref.current = atualizar;
+  // Guarda a versão mais nova da função (fora do render, como o React pede)
+  useEffect(() => { ref.current = atualizar; });
 
   useEffect(() => {
     if (!ativo) return undefined;

@@ -40,6 +40,7 @@ export default function ConfiguracaoVeiculo({
       funcionarios: funcionariosSelecionados,
       valor_total: valorTotal
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- avisa o modal só quando a escolha deste carro muda (onAtualizar muda a cada render)
   }, [pacoteSelecionado, extrasSelecionados, funcionariosSelecionados]);
 
   // Funções de Toggle (Liga/Desliga)
