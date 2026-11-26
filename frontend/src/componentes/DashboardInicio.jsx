@@ -79,6 +79,7 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
     trocarEquipe,
     excluirServico,
     cancelarAgendamento,
+    receberAntecipado,
     entregas,
     mudarLogistica
   } = useGestaoPatio(abrirAlerta);
@@ -394,7 +395,7 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
           <div className="flex items-center justify-between border-b border-tinta-100 px-4 py-4 sm:px-6">
             <div>
               <h2 className="flex items-center gap-2 text-lg font-bold text-tinta-950"><CalendarClock size={18} className="text-marca-600" /> Próximos agendamentos</h2>
-              <p className="text-sm text-tinta-500">Próximos 7 dias. No dia marcado, entram no pátio.</p>
+              <p className="text-sm text-tinta-500">Próximos 7 dias. No dia marcado, entram no pátio. Chegou antes? Use “Carro chegou”.</p>
             </div>
             <span className="rounded-full bg-marca-50 px-2.5 py-1 text-xs font-bold text-marca-700">{proximosAgendamentos.length}</span>
           </div>
@@ -429,6 +430,9 @@ export default function DashboardInicio({ perfilUsuario, abrirAlerta }) {
                       <div className="flex shrink-0 items-center gap-1">
                         <BotaoWhatsApp compacto telefone={item.cliente_telefone} className="size-9"
                           mensagem={`Olá, ${primeiroNome(item.cliente_nome)}! Aqui é do lava-rápido, sobre o agendamento do ${item.marca} ${item.modelo} em ${agendado?.data} às ${agendado?.hora}.`} />
+                        <button onClick={() => receberAntecipado(item, agendado)} className="fw-btn-escuro h-9 px-3 text-sm" title="O cliente chegou antes: dar entrada no pátio agora">
+                          <ArrowRight size={15} /> <span className="hidden sm:inline">Carro chegou</span><span className="sm:hidden">Chegou</span>
+                        </button>
                         <button onClick={() => cancelarAgendamento(item)} className="grid size-9 place-items-center rounded-lg text-tinta-400 hover:bg-tinta-100 hover:text-tinta-800" title="Cancelar agendamento" aria-label="Cancelar agendamento">
                           <CalendarX size={17} />
                         </button>

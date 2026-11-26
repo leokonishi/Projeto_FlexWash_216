@@ -156,7 +156,8 @@ router.get('/execucoes/agendados', async (req, res) => {
 
 // 3. AVANÇAR STATUS (PUT) - só nas transições do fluxo (ver TRANSICOES)
 // Quando o carro chega (Agendado -> Aguardando), confere que ele não tem outro serviço
-// aberto no pátio: cada carro só pode ter um por vez.
+// aberto no pátio: cada carro só pode ter um por vez. Pode chegar antes do horário marcado,
+// inclusive num agendamento de outro dia (ver "Próximos agendamentos" no painel).
 router.put('/execucoes/:id/status', async (req, res) => {
     const { id } = req.params;
     const { novoStatus } = req.body;
@@ -170,7 +171,10 @@ router.put('/execucoes/:id/status', async (req, res) => {
     const conn = await db.getConnection();
     try {
         await conn.beginTransaction();
-        const [[execucao]] = await conn.execute('SELECT status, veiculo_id, agendamento_id FROM execucoes WHERE id = ? FOR UPDATE', [id]);
+        const [[execucao]] = await conn.execute(
+            "SELECT status, veiculo_id, agendamento_id, DATE_FORMAT(data_agendamento, '%Y-%m-%d %H:%i') AS quando FROM execucoes WHERE id = ? FOR UPDATE",
+            [id]
+        );
         if (!execucao) {
             await conn.rollback();
             return res.status(404).json({ erro: 'Serviço não encontrado.' });
@@ -198,7 +202,17 @@ router.put('/execucoes/:id/status', async (req, res) => {
         // Reabrir (admin) apaga a conclusão: ela é gravada de novo quando concluir outra vez.
         let extrasSql = '';
         const extrasValores = [];
-        if (novoStatus === 'Aguardando') extrasSql = ', chegada_em = NOW()';
+        if (novoStatus === 'Aguardando') {
+            extrasSql = ', chegada_em = NOW()';
+            // Chegou antes do horário marcado (mais cedo ou até em outro dia): o serviço passa
+            // a ser de agora. Assim conta no dia de hoje e o horário reservado volta a ficar livre.
+            const agora = agenda.agoraLocal();
+            const agoraTexto = `${agora.data} ${agora.hora}`;
+            if (execucao.quando && execucao.quando > agoraTexto) {
+                extrasSql += ', data_agendamento = ?';
+                extrasValores.push(agenda.paraDatetime(agora.data, agora.hora));
+            }
+        }
         else if (novoStatus === 'Em Andamento' && execucao.status === 'Aguardando') extrasSql = ', inicio_em = NOW()';
         else if (novoStatus === 'Em Andamento' && execucao.status === 'Finalizado') extrasSql = ', finalizado_em = NULL, comissao_total = NULL';
         else if (novoStatus === 'Finalizado') {

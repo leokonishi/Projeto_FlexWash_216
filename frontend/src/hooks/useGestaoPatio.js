@@ -187,9 +187,21 @@ export function useGestaoPatio(abrirAlerta) {
     }, 'perigo');
   };
 
+  // Cliente chegou antes do dia marcado (agendamento de outro dia): confirma e dá entrada já.
+  // O backend passa o serviço para hoje e libera o horário que estava reservado.
+  const receberAntecipado = (item, quando) => {
+    const carro = `${item.marca || ''} ${item.modelo || 'veículo'} (${item.placa || ''})`.trim();
+    const marcado = quando ? ` estava marcado para ${quando.data} às ${quando.hora}` : ' é de outro dia';
+    alertar(
+      'Dar entrada antes do horário',
+      `O ${carro}${marcado}. Dar entrada no pátio agora? O horário reservado fica livre na agenda.`,
+      () => avancarStatusServico(item.id, 'Agendado')
+    );
+  };
+
   useEffect(() => { buscarDadosDoPatio(); }, []);
   // Pátio sempre em dia: outro funcionário mexeu, um cliente agendou para hoje, etc.
   useAtualizacaoAutomatica(() => buscarDadosDoPatio({ silencioso: true }), 20000);
 
-  return { metricas, listaPatio, proximosAgendamentos, entregas, mudarLogistica, carregando, buscarDadosDoPatio, avancarStatusServico, trocarEquipe, excluirServico, cancelarAgendamento };
+  return { metricas, listaPatio, proximosAgendamentos, entregas, mudarLogistica, carregando, buscarDadosDoPatio, avancarStatusServico, trocarEquipe, excluirServico, cancelarAgendamento, receberAntecipado };
 }
