@@ -75,8 +75,14 @@ export default function GestaoLevaTras() {
   const mudar = (campo) => (e) => {
     const valor = campo === 'cep' ? mascaraCep(e.target.value) : campo === 'uf' ? e.target.value.toUpperCase().slice(0, 2) : e.target.value;
     setEndereco((atual) => ({ ...atual, [campo]: valor }));
-    // Mudou o endereço: o ponto achado antes deixa de valer (o salvo continua até buscar de novo)
-    if (campo !== 'complemento' && ponto?.origem === 'busca') setPonto(null);
+    // Mudou o endereço: o ponto achado ou arrastado antes deixa de valer (o salvo continua
+    // até buscar de novo). Sem isso, o ponto antigo ia junto no salvar e o endereço novo
+    // ficava com as coordenadas do endereço anterior.
+    if (campo !== 'complemento') descartarPontoNaoSalvo();
+  };
+
+  const descartarPontoNaoSalvo = () => {
+    setPonto((atual) => (atual && atual.origem !== 'salvo' ? null : atual));
   };
 
   // ViaCEP: preenche rua, bairro, cidade e UF
@@ -99,6 +105,7 @@ export default function GestaoLevaTras() {
         uf: dados.uf || atual.uf
       }));
       setEnderecoAntigo('');
+      descartarPontoNaoSalvo();
       document.getElementById('lt-numero')?.focus();
     } catch (erro) {
       setErroCep(erro.message);
